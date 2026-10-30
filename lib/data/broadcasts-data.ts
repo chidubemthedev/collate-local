@@ -1,0 +1,257 @@
+import { BroadcastData, BroadcastRecipientLog } from "@/lib/types";
+
+export const SAMPLE_DELIVERY_LOGS: BroadcastRecipientLog[] = [
+  { id: "log-1", name: "Nwoye Tony Okechukwu", group: "NDC · Senate", area: "04 · Anambra North", time: "09:38", status: "Tapped OK", source: "INEC list, p.14", phoneMasked: "+234 ••• ••• 687" },
+  { id: "log-2", name: "Emeka Idu Godwin Obiajulu", group: "NDC · House of Reps", area: "04 · Onitsha North/Onitsha South", time: "09:26", status: "Tapped OK", source: "INEC list, p.27", phoneMasked: "+234 ••• ••• 362" },
+  { id: "log-3", name: "Ezeazu Kenneth Nnaemeka", group: "NDC · State Assembly", area: "04 · Onitsha North I", time: "09:31", status: "Delivered", source: "INEC list, p.78", phoneMasked: "+234 ••• ••• 891" },
+  { id: "log-4", name: "Okafor Patrick", group: "NDC · State Assembly", area: "04 · Onitsha North II", time: "09:25", status: "Delivered", source: "INEC list, p.79", phoneMasked: "+234 ••• ••• 399" },
+  { id: "log-5", name: "Chidubem Okafor (Official)", group: "Official Agent", area: "04-17-03-004 · Onuilo Ogbeodogwu Square", time: "09:37", status: "Tapped OK", source: "Party Master Registry", phoneMasked: "+234 ••• ••• 295" },
+  { id: "log-6", name: "Amaka Nnamdi (Official)", group: "Official Agent", area: "04-17-03-007 · Ogbo Family Land", time: "09:53", status: "Delivered by SMS", source: "Party Master Registry", phoneMasked: "+234 ••• ••• 697" },
+  { id: "log-7", name: "Emeka Eze (Official)", group: "Official Agent", area: "04-17-03-008 · Ugwunobankpa/Mba Road", time: "09:52", status: "Delivered", source: "Party Master Registry", phoneMasked: "+234 ••• ••• 911" },
+  { id: "log-8", name: "Ifeanyi Okoye (Official)", group: "Official Agent", area: "04-17-03-010 · Obi Chimezie Square", time: "09:34", status: "Tapped OK", source: "Party Master Registry", phoneMasked: "+234 ••• ••• 461" },
+  { id: "log-9", name: "Somtochukwu Obi (Extra)", group: "Extra Agent · Party", area: "04-17-03-010 · Obi Chimezie Square", time: "09:25", status: "Delivered", source: "Mobilisation Team", phoneMasked: "+234 ••• ••• 418" },
+  { id: "log-10", name: "Obiora Chukwuma (Official)", group: "Official Agent", area: "04-17-03-011 · Iyiawu Square I", time: "09:39", status: "Delivered", source: "Party Master Registry", phoneMasked: "+234 ••• ••• 599" },
+  { id: "log-11", name: "Kenechukwu Nwoye (Official)", group: "Official Agent", area: "04-17-03-012 · Iyiawu Square II", time: "09:33", status: "Tapped OK", source: "Party Master Registry", phoneMasked: "+234 ••• ••• 612" },
+  { id: "log-12", name: "Ngozi Mbachu (Official)", group: "Official Agent", area: "04-17-03-015 · Ogbendida Square I", time: "09:39", status: "Tapped OK", source: "Party Master Registry", phoneMasked: "+234 ••• ••• 470" },
+  { id: "log-13", name: "Kenechi Okonkwo (Official)", group: "Official Agent", area: "04-17-03-016 · Ogbendida Square II", time: "09:44", status: "Tapped OK", source: "Party Master Registry", phoneMasked: "+234 ••• ••• 673" },
+  { id: "log-14", name: "Chinelo Anozie (Official)", group: "Official Agent", area: "04-17-03-017 · Agba/Isiokwe Square I", time: "09:17", status: "Delivered", source: "Party Master Registry", phoneMasked: "+234 ••• ••• 821" },
+  { id: "log-15", name: "Chinedu Ekwenugo (Official)", group: "Official Agent", area: "04-17-03-018 · Agba/Isiokwe Square II", time: "09:27", status: "Tapped OK", source: "Party Master Registry", phoneMasked: "+234 ••• ••• 318" },
+  { id: "log-16", name: "Ikechukwu Umeh (Official)", group: "Official Agent", area: "04-17-03-019 · Agba/Isiokwe Square III", time: "09:37", status: "Tapped OK", source: "Party Master Registry", phoneMasked: "+234 ••• ••• 872" },
+  { id: "log-17", name: "Chisom Igwe (Extra)", group: "Extra Agent · Reps Ticket", area: "04-17-03-019 · Agba/Isiokwe Square III", time: "09:19", status: "Delivered", source: "Constituency Office", phoneMasked: "+234 ••• ••• 631" },
+  { id: "log-18", name: "Tochukwu Nnaji (Official)", group: "Official Agent", area: "04-17-02-001 · Ado Girls Secondary School I", time: "09:41", status: "Tapped OK", source: "Party Master Registry", phoneMasked: "+234 ••• ••• 501" },
+  { id: "log-19", name: "Nonso Maduka (Official)", group: "Official Agent", area: "04-17-03-013 · Open Space Beside No. 3 Ojedi Junction", time: "09:22", status: "Pending", source: "Party Master Registry", phoneMasked: "+234 ••• ••• 744" },
+  { id: "log-20", name: "Chukwudi Nwankwo (Official)", group: "Official Agent", area: "04-17-03-014 · Open Space Beside No 3 Orakwue Street", time: "09:48", status: "Failed", source: "Party Master Registry", phoneMasked: "+234 ••• ••• 625" },
+];
+
+export const BROADCASTS_DATA: BroadcastData[] = [
+  {
+    id: "bc-1",
+    title: "Urgent Polling Unit Coverage Gap Alert",
+    targetArea: "04-17 · Onitsha North LGA, Anambra",
+    stateCode: "04",
+    lgaCode: "04-17",
+    senderRole: "Party · National",
+    sentAt: "Today 09:14 WAT",
+    timestamp: "2026-10-30T09:14:00Z",
+    candidatesCount: 4,
+    agentsCount: 107,
+    status: "Sent",
+    channel: "Telegram with SMS fallback",
+    sent: 111,
+    delivered: 97,
+    deliveredPct: 87,
+    deliveredBySms: 12,
+    tappedOk: 46,
+    tappedOkPct: 41,
+    pending: 8,
+    failed: 6,
+    messageContent: `🚨 *URGENT NDC POLLING UNIT GAP ALERT* 🚨
+
+Hello {{recipient_name}},
+
+Our live coverage audit has detected {{gap_count}} Polling Units in your jurisdiction (*{{area_name}}*) that currently have **NO official party agent** assigned:
+
+• 04-17-03-001 — D.M.G.S I
+• 04-17-03-002 — D.M.G.S II
+• 04-17-03-003 — D.M.G.S III
+• 04-17-03-005 — Umudei Umuosuma Square I
+• 04-17-03-006 — 10, New Cemetery Road
+
+⚠️ *Action Required:* Please contact your Ward Coordinator immediately or use the NDC App to nominate verified agents for these units before 18:00 WAT today.
+
+Tap **[ Confirm Received ]** below to log your acknowledgment.`,
+    recipientsList: SAMPLE_DELIVERY_LOGS,
+  },
+  {
+    id: "bc-2",
+    title: "Election-Eve Briefing & Accreditation Checklist",
+    targetArea: "04 · Anambra State (All 21 LGAs)",
+    stateCode: "04",
+    senderRole: "Party · National",
+    sentAt: "27 Oct 18:00 WAT",
+    timestamp: "2026-10-27T18:00:00Z",
+    candidatesCount: 45,
+    agentsCount: 2040,
+    status: "Sent",
+    channel: "Telegram + SMS fallback",
+    sent: 2085,
+    delivered: 2001,
+    deliveredPct: 96,
+    deliveredBySms: 140,
+    tappedOk: 1063,
+    tappedOkPct: 51,
+    pending: 0,
+    failed: 84,
+    messageContent: `📋 *NDC ELECTION-EVE DIRECTIVE*
+
+To all NDC Candidates, Coordinators, and Polling Unit Agents across Anambra State:
+
+1. **Arrival Time:** Be at your assigned Polling Unit (*{{pu_code}}*) by 06:30 WAT with your official NDC tag and national ID.
+2. **Accreditation:** Verify BVAS zero-counter before voting begins.
+3. **Emergency Line:** Call the NDC National Situation Room at 0800-NDC-HELP (0800-632-4357).
+
+Tap **[ Acknowledge & Verify Location ]** to confirm readiness.`,
+    recipientsList: SAMPLE_DELIVERY_LOGS,
+  },
+  {
+    id: "bc-3",
+    title: "Lagos Extra Protectors & Mobilisers Tagging Drive",
+    targetArea: "24 · Lagos State (All 20 LGAs)",
+    stateCode: "24",
+    senderRole: "Party · National",
+    sentAt: "26 Oct 10:30 WAT",
+    timestamp: "2026-10-26T10:30:00Z",
+    candidatesCount: 0,
+    agentsCount: 7209,
+    status: "Sent",
+    channel: "Telegram + SMS fallback",
+    sent: 7209,
+    delivered: 6919,
+    deliveredPct: 96,
+    deliveredBySms: 450,
+    tappedOk: 3316,
+    tappedOkPct: 46,
+    pending: 65,
+    failed: 225,
+    messageContent: `👥 *LAGOS STATE MOBILISATION DRIVE*
+
+All Ward Coordinators and Extra Agents: Ensure your second and third agents (Protectors & Mobilisers) are properly linked to their corresponding Polling Unit numbers in the NDC portal. Remember: Only 1 agent holds the official INEC badge per PU, but backup agents are crucial for perimeter monitoring.`,
+    recipientsList: SAMPLE_DELIVERY_LOGS,
+  },
+  {
+    id: "bc-4",
+    title: "Constituency Strategy Meeting — Onitsha Federal Constituency",
+    targetArea: "Onitsha North/Onitsha South Federal Constituency (04-17, 04-18)",
+    stateCode: "04",
+    lgaCode: "04-17",
+    senderRole: "Candidate · House of Reps",
+    sentAt: "25 Oct 16:05 WAT",
+    timestamp: "2026-10-25T16:05:00Z",
+    candidatesCount: 2,
+    agentsCount: 213,
+    status: "Sent",
+    channel: "Telegram with SMS fallback",
+    sent: 215,
+    delivered: 198,
+    deliveredPct: 92,
+    deliveredBySms: 18,
+    tappedOk: 146,
+    tappedOkPct: 68,
+    pending: 3,
+    failed: 14,
+    messageContent: `📢 *MESSAGE FROM HON. EMEKA IDU GODWIN OBIAJULU*
+*(Candidate, House of Representatives — Onitsha North/Onitsha South)*
+
+Comrades and PU Agents of Onitsha North and South:
+We are holding a final logistics and result-transmission sync this Saturday at 10:00 AM at the Constituency Campaign HQ, Old Market Road.
+
+Transport allowances and campaign badges will be distributed. Tap OK to RSVP.`,
+    recipientsList: SAMPLE_DELIVERY_LOGS,
+  },
+  {
+    id: "bc-5",
+    title: "EC8A Result Sheet Photo Drill & Bot Upload Test",
+    targetArea: "Nigeria · All 36 States + FCT (176,846 PUs)",
+    senderRole: "Admin · System",
+    sentAt: "Fri 31 Oct 07:00 WAT",
+    timestamp: "2026-10-31T07:00:00Z",
+    candidatesCount: 1416,
+    agentsCount: 15302,
+    status: "Scheduled",
+    channel: "Telegram Bot (High Priority)",
+    sent: 16718,
+    delivered: 0,
+    deliveredPct: 0,
+    deliveredBySms: 0,
+    tappedOk: 0,
+    tappedOkPct: 0,
+    pending: 16718,
+    failed: 0,
+    messageContent: `📸 *NATIONAL EC8A RESULT UPLOAD DRILL*
+
+To all Registered Polling Unit Agents nationwide:
+This is a scheduled system test. When voting closes on Saturday:
+1. Photograph Form EC8A clearly with all four corners visible.
+2. Ensure INEC stamp and Presiding Officer signature are legible.
+3. Send image directly to this Telegram bot.
+
+Please practice by sending a sample test photo now.`,
+    recipientsList: SAMPLE_DELIVERY_LOGS,
+  },
+  {
+    id: "bc-6",
+    title: "Kano State PVC Mobilisation & Ward Check-in",
+    targetArea: "19 · Kano State (All 44 LGAs)",
+    stateCode: "19",
+    senderRole: "Party · National",
+    sentAt: "Not sent (Draft)",
+    timestamp: "2026-10-30T12:00:00Z",
+    candidatesCount: 67,
+    agentsCount: 5763,
+    status: "Draft",
+    channel: "Telegram + SMS fallback",
+    sent: 5830,
+    delivered: 0,
+    deliveredPct: 0,
+    deliveredBySms: 0,
+    tappedOk: 0,
+    tappedOkPct: 0,
+    pending: 0,
+    failed: 0,
+    messageContent: `Draft message for Kano State ward coordinators regarding PVC collection status and polling unit agent verification for Nasarawa, Fagge, and Kano Municipal LGAs.`,
+    recipientsList: [],
+  },
+  {
+    id: "bc-7",
+    title: "Security Rapid Response & SOS Channel Protocol",
+    targetArea: "Nigeria · National Executive & State Chairmen",
+    senderRole: "Admin · Security Directorate",
+    sentAt: "24 Oct 11:15 WAT",
+    timestamp: "2026-10-24T11:15:00Z",
+    candidatesCount: 145,
+    agentsCount: 0,
+    status: "Sent",
+    channel: "Encrypted Telegram Channel",
+    sent: 145,
+    delivered: 142,
+    deliveredPct: 98,
+    deliveredBySms: 0,
+    tappedOk: 129,
+    tappedOkPct: 89,
+    pending: 0,
+    failed: 3,
+    messageContent: `🛡️ *NDC SECURITY PROTOCOL & RAPID RESPONSE CHANNELS*
+
+Confidential directive for all State Campaign Directors:
+In case of ballot disruption, intimidation, or INEC logistics failure at any Polling Unit:
+1. Activate the in-app SOS Trigger on the Polling Unit page.
+2. The National Legal & Security Rapid Intervention Unit will be dispatched.
+3. Do not engage in violent confrontation; document timestamps and vehicle plates where safe.`,
+    recipientsList: SAMPLE_DELIVERY_LOGS,
+  },
+  {
+    id: "bc-8",
+    title: "Presidential Campaign Closing Rally & PU Deployment Plan",
+    targetArea: "Nigeria · All 1,416 Candidates",
+    senderRole: "Candidate · President",
+    sentAt: "Sat 1 Nov 14:00 WAT",
+    timestamp: "2026-11-01T14:00:00Z",
+    candidatesCount: 1416,
+    agentsCount: 0,
+    status: "Scheduled",
+    channel: "Telegram + SMS",
+    sent: 1416,
+    delivered: 0,
+    deliveredPct: 0,
+    deliveredBySms: 0,
+    tappedOk: 0,
+    tappedOkPct: 0,
+    pending: 1416,
+    failed: 0,
+    messageContent: `🇳🇬 *NDC PRESIDENTIAL CAMPAIGN SPECIAL ADDRESS*
+
+Fellow Candidates across Nigeria:
+As we enter the final 72 hours before polls open, our grassroots coverage stands at unprecedented strength. Ensure every polling unit in your constituency has both an official agent and dedicated mobilisers standing by. Victory is built unit by unit.`,
+    recipientsList: [],
+  }
+];
