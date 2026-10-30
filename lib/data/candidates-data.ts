@@ -70,7 +70,8 @@ export const CANDIDATES_DATA: CandidateData[] = [
     stateCode: "04",
     name: "Nil",
     isOffCycle: true,
-    offCycleNote: "No governorship election in Anambra in 2027 (off-cycle state)",
+    offCycleNote:
+      "No governorship election in Anambra in 2027 (off-cycle state)",
     totalPUs: 5720,
     coveredPUs: 0,
     coveragePct: 0,
