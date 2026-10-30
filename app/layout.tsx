@@ -42,7 +42,9 @@ export default function RootLayout({
               <Suspense fallback={null}>
                 <ViewAsBar />
               </Suspense>
-              <main className="flex-1 min-w-0 pb-16 md:pb-0">{children}</main>
+              <main className="flex-1 min-w-0 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8 pb-20 md:pb-10">
+                {children}
+              </main>
               <Suspense fallback={null}>
                 <MobileBottomBar />
               </Suspense>

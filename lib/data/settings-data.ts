@@ -30,10 +30,12 @@ export const ACCESS_GROUPS_DATA: AccessGroup[] = [
   {
     id: "grp-candidates",
     name: "Candidates",
-    description: "Elected ticket holders (President, Governor, Senate, Reps, Assembly)",
+    description:
+      "Elected ticket holders (President, Governor, Senate, Reps, Assembly)",
     membersDescription: "All verified candidates & running mates",
     membersCount: 1492,
-    canMessage: "Candidates and agents below them in their constituency subtree",
+    canMessage:
+      "Candidates and agents below them in their constituency subtree",
     canFilterBy: "Political units and wards inside own area (no LGA filter)",
     seesCoverageFor: "Own constituency & below only",
     logsIn: "Personal token link (No password / View As)",
@@ -43,7 +45,8 @@ export const ACCESS_GROUPS_DATA: AccessGroup[] = [
   {
     id: "grp-pu-agents",
     name: "PU Agents",
-    description: "Official INEC certified party agents & candidate extra agents at polling units",
+    description:
+      "Official INEC certified party agents & candidate extra agents at polling units",
     membersDescription: "Accredited polling unit field agents",
     membersCount: 434189,
     canMessage: "No one (Receive-only channel)",
@@ -56,7 +59,8 @@ export const ACCESS_GROUPS_DATA: AccessGroup[] = [
   {
     id: "grp-state-coord",
     name: "State Election Coordinators",
-    description: "State level campaign directors and field supervisors for 36 States + FCT",
+    description:
+      "State level campaign directors and field supervisors for 36 States + FCT",
     membersDescription: "37 State Campaign Coordinators",
     membersCount: 37,
     canMessage: "Candidates and agents strictly within their assigned State",
@@ -69,7 +73,8 @@ export const ACCESS_GROUPS_DATA: AccessGroup[] = [
   {
     id: "grp-legal",
     name: "Legal & Harmonization Team",
-    description: "Attorneys managing agent INEC clearance and duplicate resolution",
+    description:
+      "Attorneys managing agent INEC clearance and duplicate resolution",
     membersDescription: "Legal Directorate (8 zonal leads)",
     membersCount: 8,
     canMessage: "Official agents and candidates flagged for PVC/ID conflict",
@@ -82,7 +87,8 @@ export const ACCESS_GROUPS_DATA: AccessGroup[] = [
   {
     id: "grp-youth",
     name: "Youth Mobilization Wing",
-    description: "Volunteers and extra agents mobilizers across southern and northern hubs",
+    description:
+      "Volunteers and extra agents mobilizers across southern and northern hubs",
     membersDescription: "Youth Alliance Coordinators",
     membersCount: 74,
     canMessage: "Extra agents and field mobilizers only",

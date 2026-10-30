@@ -14,7 +14,7 @@ export function ViewAsBar() {
   }
 
   return (
-    <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2">
+    <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 sm:px-6 lg:px-8 py-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
         <Eye className="w-4 h-4 text-amber-600 shrink-0" />
         <div>
