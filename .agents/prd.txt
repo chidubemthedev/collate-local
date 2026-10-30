@@ -1,0 +1,97 @@
+﻿PRD v1 MVP — NDC Polling Unit App (Messaging + Coverage)
+26 Oct 2026 · @Someone
+Problem
+NDC faces two challenges ahead of the 16 January election.
+1. Communication inefficiency. Candidates and agents reach the campaign through Aisha's (or others) personal phone and WhatsApp. There is no way to send one message to, say, every House of Reps candidate in the South-East, so messages get missed and lists arrive as loose files.
+2. No bird's-eye view of polling-unit coverage. No one can see which of Nigeria's 176,846 polling units (PUs) have an agent and which have none. Lekki may have 300 agents while a ward elsewhere has zero.
+Both are urgent: agent lists are due to Aisha's team by 31 October, and the PU register closes in about a week.
+Goal and success metrics
+Solve both challenges in one app, live before the PU register closes: structured messaging down the tree, and a coverage view that shows every gap.
+* Demo shown to Aisha Yesufu and campaign leadership (target: this evening, 26 Oct)
+* Share of 176,846 PUs with at least one agent, visible on the dashboard (baseline: unknown)
+* Share of NDC candidates reachable through the platform (target: TBD)
+* Broadcast delivery rate per message (target: TBD)
+Users, roles and visibility
+v1 has four groups: Admin, Party, Candidates and PU agents. Admin can create new groups later (e.g. a support group) and grant them access. Every user sees and messages only what sits below them in the tree; both features share this rule. Everyone who receives messages must be on the registered list.
+Role
+	Who
+	Sees
+	Can do
+	Admin
+	TechCircle (Oo, Jullian, Danladi)
+	Everything
+	Manage users, import lists, configure
+	Party
+	Presidential campaign and party leadership (list to be defined)
+	To be defined
+	Message candidates and agents, view coverage
+	Candidate
+	President, Governor, Senate, House of Reps, State House of Assembly
+	Own constituency and below
+	View gaps, add or upload agents, message candidates and agents below them, receive messages on Telegram
+	PU agent
+	Official agents tagged to a PU
+	No login
+	Receive messages on Telegram and tap OK
+	PUs are grouped two ways, kept separate in the app:
+* Administrative units: State (36 + FCT) → LGA (774) → Ward (8,809) → PU (176,846) (INEC)
+* Political units: the area each office is elected from: State (Governor), Senatorial district (Senate), Federal constituency (House of Reps), State constituency (State House of Assembly). One political unit can span several LGAs, so each PU is mapped to its political units using INEC data.
+MVP scope (v1)
+One app, two features, both governed by the same tree. Ship simple first; reuse Collate's agent-registration and PU-tagging logic.
+Tree rule: A sits below B when A's office is lower and A's area overlaps B's, even partly (decided 28 Oct: any overlap). It is computed from the PU-to-constituency mapping, not from office titles. Example: a Kogi governorship candidate can message every Senate, House of Reps and Assembly candidate and agent in Kogi, but no one in Benue.
+Feature 1 — Messaging (solves challenge 1)
+* Any user can broadcast to candidates and PU agents below them in the tree, and to no one else. Whoever can message a PU can message every agent at it: the party agent and every candidate's own agents (decided 28 Oct). Running mates (deputy governors, the vice-president) inherit their principal's permissions: same view, same messaging rights, and they receive what their principal receives (decided 28 Oct)
+* Filter recipients by office and unit (e.g. House of Reps candidates in Anambra and Kogi). Candidates filter by political units and wards inside their own area. Party and other groups can also filter by LGA; a message to an LGA reaches its PU agents and every candidate whose area overlaps it, even partly. Candidates don't get the LGA filter, because an LGA can cut across other candidates' areas
+* Channel: a Telegram bot. Everyone installs Telegram and connects through a bot link we send them; SMS is the fallback for anyone the bot can't reach. Each message carries an OK button, and status per recipient shows sent, failed or OK
+* Only people on the registered list receive messages: the list is uploaded manually, and everyone who connects to the bot is checked against it by phone number, shared with Telegram's one-tap "share my number" button. No match, no messages. A person can hold several numbers: if their Telegram number differs from the listed one, we add it to their record only after validating them through their first (listed) number, and they then match
+* Gap message prefilled from Feature 2: "These are the PUs in your area with no agent"
+Feature 2 — Coverage view (solves challenge 2)
+* Master PU list keyed by INEC state / LGA / ward / PU code, with each PU mapped to its senatorial district, federal constituency and state constituency
+* Agent slots per PU, official agents only in v1 (one party agent slot per PU by default; extra slots are numbered /1, /2, /3). Each slot starts as a placeholder named after its PU code (e.g. "Agent – 04-17-03-012 /1") until a real agent fills it with name, phone, PVC number, office represented and verification status
+* Import of existing Excel/CSV agent lists, with de-duplication; the candidate's list wins at harmonisation
+* Each user sees coverage for their own subtree only: PUs covered vs missing (e.g. 100 PUs, 50 with agents), with a "no agent" filter, viewable by administrative or political unit
+* Tap any PU to see every office at stake there, President down to State Assembly. An empty slot says Nil and why: no election there in 2027, no NDC candidate, or INEC's list missing. The gap report names these stakeholders for every PU with no agent
+* Coverage per candidate, two measures shown apart: party agents (one per PU, shared by every NDC candidate there) and the candidate's own agents. Ranked best to worst within each office. Candidates have their own page (Polling units → NDC candidates, full filters), and the same list also sits inside the Coverage view, below the map, following the area picked (decided 28 Oct)
+* View as: every screen can be seen as any role. Each candidate gets a personal link to their own view (their seat and everything below it), with no login (decided 28 Oct). Risk: anyone holding a forwarded link sees that candidate's gaps; mitigate with links that can be revoked and reissued, an expiry date and an access log
+Data model: fixed data is loaded once and changes rarely: states, LGAs, wards, PUs (INEC codes), constituencies and candidates. Variable data fills in over time: the PU agents. A PU counts as covered once at least one slot holds a real agent; the view also shows how many agents it has. Candidates' own agents are counted separately, per candidate. An official/unofficial agent tag is reserved for later.
+Out of scope for v1
+Election-day geo-tagged check-in and result-sheet upload, unofficial agents (tagging comes later), agent payments, agent training, voter-facing messaging, messaging upward or sideways in the tree, other parties, and native mobile apps (web first). These came up in the 22 October state meetings and are candidates for v2.
+Timeline and owners
+Jullian Dumebu Duru (lead) and Danladi Retzam build the tech; Oo owns product, wireframe and stakeholder access.
+1. Wireframe the app (messaging + coverage) and share with Jullian and Danladi — Oo — 26 Oct
+2. Add Danladi Retzam to the NDC campaign group — Oo — 26 Oct
+3. Send the INEC polling-unit details to the tech team — Oo — date TBC
+4. Demo to Aisha Yesufu and leadership, tech team on the call — Oo — target 26 Oct evening
+5. Recruit one or two developers and hand them to the tech team — Oo — this week
+6. Ingest agent lists submitted to Aisha's team — owner TBC — after 31 Oct
+7. MVP live — tech team — target about 2 Nov, before the PU register closes (to confirm)
+Decisions and open items
+* Channel: Telegram bot, SMS fallback, bot link sent to each person (decided 26 Oct). SMS needs a sender ID registered on all four networks. WhatsApp Business API is ruled out, because Meta's policy bars political parties, candidates and campaigns, and firms providing campaign services.
+* PU agents in v1: official agents only, no login, messages via Telegram (decided 26 Oct).
+* Replies in v1: an OK button on every message (decided 26 Oct).
+* Agents per PU: one party agent by default, with extra slots numbered /1, /2, /3 (decided 26 Oct). The legal team's reading of the Electoral Act decides how many extra slots get used.
+* Data protection: party affiliation is sensitive personal data under the NDPA 2023, s.30. It is an internal tool and will comply with the NDPA (confirmed 26 Oct). Capture consent at registration that also covers sharing with the party (s.30(1)(a)), run a DPIA (s.28) and secure the data (s.39). Telegram's bot terms also require a published privacy policy and encryption of stored user data.
+* Agent secrecy: agents must not be known before election day (confirmed 26 Oct). Proposed controls: role-scoped access, an audit log and no bulk export for candidates.
+* Ownership: built for the presidential campaign, shared with the party (decided 26 Oct).
+* Master data: the PU-to-constituency mapping comes from INEC, and Oo is sending the PU details (decided 26 Oct). Open: how we reconcile with the NDC portal, Big Tent and Vote for Obi lists.
+* Infiltration: only people on the manually uploaded registered list receive messages; anyone who connects but isn't validated against it gets nothing (decided 26 Oct).
+Sources: Telegram Bot Developer Terms · Telegram Bots FAQ · Nigeria SMS rules (Bird) · WhatsApp Business Messaging Policy · INEC PU distribution · NDPA 2023 explainer · NDPA s.28, s.39 summary
+Decisions, 28 Oct (evening)
+* Navigation: on desktop, a left column holds the navigation: View as, Polling units (Coverage, NDC candidates, Agents), Messaging (Broadcasts, New broadcast, Recipients) and Settings (Party and Admin only). Phones keep it on top, since a 390px screen has no room for a column. On list pages, filters sit in a panel above the list.
+* Candidate list columns: Office, Seat, Candidate, Coverage, View as. Seat is the constituency, the state for a governor, or Nigeria for the President. A seat name used in two states gets the state in brackets; Tudun Wada (Kaduna, Kano) is the only case.
+* Removed: the State column, the Constituency column, age, gender (the filter too) and the INEC PDF page.
+* Running mates: a deputy governor or the vice-president sits under their principal in lighter grey, as "(Deputy) Name", with no numbers of their own. Role = "Running mates only" lists them on their own.
+* Coverage format: units with an agent, then all units in the seat, then the percentage in brackets, e.g. "6,265 of 13,325 (47%)". It is shown for party agents and own agents apart, and tapping a number opens the Agents page for that seat.
+* Agents page: one row per agent. Columns: polling unit, agent, ward, LGA, then one column per office. A party agent shows ✓ for every NDC seat at its unit (— where NDC has none); an own agent shows its candidate's name. The national view shows one line per state; tap a state to list its agents. The inverted tree applies: a candidate sees only agents in their seat, and only their own office and those below it.
+* Map: GRID3 outlines (CC BY 4.0) at every level. The national map shows state outlines (tap one to open it), a state shows its LGAs, an LGA shows its wards, and a ward shows its outline with the neighbouring wards in grey. A unit whose INEC GPS falls outside its own LGA is ringed in purple and marked "position doubtful".
+The "Who is doing well" summary box (office averages, highest and lowest) is removed from the NDC candidates page, at Oo's request. To see who is doing well, sort the list by coverage or filter by coverage band.
+Decisions, 28 Oct (night): one official agent, extras by owner
+This replaces the earlier "party and own coverage, shown apart" decision.
+* Coverage = the official agent. Each polling unit has one official agent: the party's INEC-recognised agent, who stands for every NDC candidate there. A unit with one is covered; a unit without one is a gap. Every screen shows one coverage figure, e.g. "6,265 of 13,325 (47%)". The Measure filter and the "own agents" bar are gone.
+* Extra agents. These are other registered people at a unit (mobilisers, protectors, snappers and so on). Each is tagged by who owns them: the party or any candidate. Extras never change coverage. Tags are by owner only for now; roles can be added later.
+* Where they show:
+   * On the coverage page, the ward table lists each unit's official agent first, then its extras with owner tags.
+   * The Agents page has one row per polling unit with the same layout, and you can filter by gaps, by units with extras, or by owner.
+   * Candidate rows show "+N extra agents of their own". Tap it to list them.
+* Messaging: recipients and the broadcast builder count official agents (one per covered unit, exactly) and extra agents separately. Whoever can message a unit can message everyone at it.
+* Open legal question (flagged): the 2026 Electoral Act (s.42/44) may entitle each candidate to their own official agent: 3 per unit on 16 Jan (President, Senate, Reps) and 2 on the second day (Governor, Assembly). It is with the legal team, and INEC has historically allowed one per party. If upheld, "one official agent per unit" becomes "one per candidate per election day", and coverage becomes per candidate.
