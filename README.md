@@ -37,6 +37,30 @@ The app talks to a cloud-hosted PostgreSQL instance through TypeORM. Schema chan
 
 > If your provider hands out two connection strings (e.g. Supabase, Neon), the **pooled** one is fine for the app runtime, but migrations usually need the **direct** (non-pooled) connection string — DDL contracts/connection timeouts on poolers can make `db:migrate` fail unpredictably.
 
+## Demo data
+
+The project includes a deterministic demo data generator that creates realistic operational data for walkthroughs and demos without using any real personal information.
+
+The seed is intentionally isolated from production and refuses to run unless:
+
+- `NODE_ENV` is not `production`
+- `ALLOW_DEMO_SEED=true` is set
+- you confirm the target database is a development or demo database before executing it
+
+The demo data creates fake people, fake phone numbers, fake audit IPs and fake candidate access tokens. All demo emails end in `@demo.collate.test`, all demo phone numbers begin with `+234000000`, and all demo audit logs use `203.0.113.*` addresses.
+
+Use these commands:
+
+```sh
+npm run db:seed:demo
+npm run db:seed:demo:reset
+npm run db:seed:demo:fresh
+```
+
+The generator stores the plain access tokens for active access links in `.demo-seed-output.json` (git-ignored). The file is used only by the demo flow; plain tokens are never printed to the console or stored in the database.
+
+> This demo data must only be used on a development or demo database and never against a live production database.
+
 ## Worker
 
 A separate Node process (`worker/`) consumes jobs from a pg-boss queue backed by the same Postgres database. It shares the DB with the app, takes no HTTP traffic, and opens no port. It will later run broadcasts, imports and coverage refresh jobs; only a `test-job` smoke-test queue exists right now.
