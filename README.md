@@ -64,7 +64,8 @@ Smoke-test it end to end:
    - `count` (default 1, max 50) — number of test jobs to enqueue.
    - `fail: true` in the JSON body makes each job throw: it then retries 5 times with a growing (backoff) delay and finally ends up marked `failed`.
 3. Watch the worker log — each job id is printed exactly once, even across multiple workers running at the same time.
-4. Stop the worker with `Ctrl+C` (or `SIGTERM`); it drains in-flight jobs and exits with code 0.
+4. Open <http://localhost:3000/api/dev/queue-test> in a browser (`GET`): it reports per-state job counts (`deferred`/`queued`/`ready`/`active`/`failed`) for every queue, freshly counted.
+5. Stop the worker with `Ctrl+C` (or `SIGTERM`); it drains in-flight jobs and exits with code 0.
 
 > The endpoint returns 404 in production (`NODE_ENV=production`) and exposes no auth — it must stay dev-only.
 
