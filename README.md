@@ -36,3 +36,36 @@ The app talks to a cloud-hosted PostgreSQL instance through TypeORM. Schema chan
 | `npm run db:migrate:create -- lib/db/migrations/AddFeature` | Creates an empty migration |
 
 > If your provider hands out two connection strings (e.g. Supabase, Neon), the **pooled** one is fine for the app runtime, but migrations usually need the **direct** (non-pooled) connection string — DDL contracts/connection timeouts on poolers can make `db:migrate` fail unpredictably.
+
+## Worker
+
+A separate Node process (`worker/`) consumes jobs from a pg-boss queue backed by the same Postgres database. It shares the DB with the app, takes no HTTP traffic, and opens no port. It will later run broadcasts, imports and coverage refresh jobs; only a `test-job` smoke-test queue exists right now.
+
+Queue names and default retry options live in `lib/queue/names.ts`; the app enqueues through `lib/queue/index.ts` (server-only). Both sides never import files marked `server-only` inside the worker.
+
+Run it (keep the app running in another terminal for enqueueing):
+
+```sh
+npm run worker      # runs worker/index.ts via tsx (loads .env itself)
+npm run worker:dev  # same, with watch/restart on file change
+```
+
+Smoke-test it end to end:
+
+1. Start the app (`npm run dev`) and `npm run worker` in separate terminals.
+2. Enqueue jobs through the dev-only endpoint:
+
+   ```sh
+   curl -X POST http://localhost:3000/api/dev/queue-test \
+     -H "Content-Type: application/json" \
+     -d '{"count": 1}'
+   ```
+
+   - `count` (default 1, max 50) — number of test jobs to enqueue.
+   - `fail: true` in the JSON body makes each job throw: it then retries 5 times with a growing (backoff) delay and finally ends up marked `failed`.
+3. Watch the worker log — each job id is printed exactly once, even across multiple workers running at the same time.
+4. Stop the worker with `Ctrl+C` (or `SIGTERM`); it drains in-flight jobs and exits with code 0.
+
+> The endpoint returns 404 in production (`NODE_ENV=production`) and exposes no auth — it must stay dev-only.
+
+> Pool note: one worker instance uses at most 3 Postgres connections (`max: 3`), but pg-boss also runs background maintenance queries, so connection budgets matter: if your provider gives a **pooled** and a **direct** connection string (PgBouncer in transaction mode), the worker may need the **direct** one too (LISTEN/NOTIFY and prepared statements don't always behave behind transaction-mode poolers). Also note cloud providers often drop idle TLS connections; pg-boss logs reconnects on its `error` event and keeps polling — a burst of `ECONNRESET`/timeout errors after idle periods is recoverable noise, not a crash.
