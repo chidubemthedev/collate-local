@@ -7,10 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "db:migrate": "tsx ./node_modules/typeorm/cli.js migration:run -d lib/db/data-source.ts",
     "db:migrate:revert": "tsx ./node_modules/typeorm/cli.js migration:revert -d lib/db/data-source.ts",
     "db:migrate:generate": "tsx ./node_modules/typeorm/cli.js migration:generate -d lib/db/data-source.ts",
     "db:migrate:create": "tsx ./node_modules/typeorm/cli.js migration:create",
+    "db:seed": "tsx ./lib/db/seeds/index.ts",
     "worker": "tsx worker/index.ts",
     "worker:dev": "tsx --watch worker/index.ts"
   },
@@ -20,6 +22,7 @@
     "clsx": "^2.1.1",
     "cn": "^0.5.1",
     "dotenv": "^18.0.9",
+    "libphonenumber-js": "^1.13.15",
     "lucide-react": "^1.65.0",
     "next": "16.4.3",
     "pg": "^8.23.1",
@@ -43,6 +46,7 @@
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^1.6.0"
   }
 }
