@@ -32,6 +32,7 @@ export class Delivery {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
+  @Index("ix_delivery_broadcast_id")
   @Column({ name: "broadcast_id", type: "uuid" })
   broadcastId: string;
 
@@ -39,6 +40,7 @@ export class Delivery {
   @JoinColumn({ name: "broadcast_id" })
   broadcast: Relation<Broadcast>;
 
+  @Index("ix_delivery_person_id")
   @Column({ name: "person_id", type: "uuid" })
   personId: string;
 
@@ -75,10 +77,4 @@ export class Delivery {
 
   @CreateDateColumn({ name: "created_at", type: "timestamptz" })
   createdAt: Date;
-
-  @Index("ix_delivery_broadcast_id", ["broadcastId"])
-  broadcastIndex?: string;
-
-  @Index("ix_delivery_person_id", ["personId"])
-  personIndex?: string;
 }

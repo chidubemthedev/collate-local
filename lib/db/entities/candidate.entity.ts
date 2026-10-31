@@ -19,6 +19,7 @@ export class Candidate {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index("ix_candidate_person_id")
   @Column({ name: "person_id", type: "uuid" })
   personId: string;
 
@@ -26,6 +27,7 @@ export class Candidate {
   @JoinColumn({ name: "person_id" })
   person: Relation<Person>;
 
+  @Index("ix_candidate_seat_id", ["seatId"])
   @Column({ name: "seat_id", type: "int", nullable: true })
   seatId: number | null;
 
@@ -33,6 +35,7 @@ export class Candidate {
   @JoinColumn({ name: "seat_id" })
   seat: Relation<Seat | null>;
 
+  @Index("ix_candidate_principal_candidate_id", ["principalCandidateId"])
   @Column({ name: "principal_candidate_id", type: "int", nullable: true })
   principalCandidateId: number | null;
 
@@ -45,13 +48,4 @@ export class Candidate {
 
   @OneToMany(() => Candidate, (candidate) => candidate.principalCandidate)
   runningMates: Relation<Candidate[]>;
-
-  @Index("ix_candidate_person_id", ["personId"])
-  personIndex?: string;
-
-  @Index("ix_candidate_seat_id", ["seatId"])
-  seatIndex?: number | null;
-
-  @Index("ix_candidate_principal_candidate_id", ["principalCandidateId"])
-  principalCandidateIndex?: number | null;
 }

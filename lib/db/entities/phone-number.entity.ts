@@ -31,6 +31,7 @@ export class PhoneNumber {
   @Column({ name: "is_confirmed", type: "boolean", default: false })
   isConfirmed: boolean;
 
+  @Index("uq_phone_number_telegram_chat_id", ["telegramChatId"], { unique: true })
   @Column({ name: "telegram_chat_id", type: "bigint", nullable: true })
   telegramChatId: string | null;
 
@@ -42,7 +43,4 @@ export class PhoneNumber {
 
   @Check("e164_number ~ '^\\+[1-9][0-9]{6,14}$'")
   e164Check?: string;
-
-  @Index("uq_phone_number_telegram_chat_id", ["telegramChatId"], { unique: true })
-  telegramIndex?: string | null;
 }

@@ -19,9 +19,11 @@ export class Seat {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index("ix_seat_office_id", ["officeId"])
   @Column({ name: "office_id", type: "int" })
   officeId: number;
 
+  @Index("ix_seat_political_unit_id", ["politicalUnitId"])
   @Column({ name: "political_unit_id", type: "int" })
   politicalUnitId: number;
 
@@ -35,10 +37,4 @@ export class Seat {
 
   @OneToMany(() => Candidate, (candidate) => candidate.seat)
   candidates: Relation<Candidate[]>;
-
-  @Index("ix_seat_office_id", ["officeId"])
-  officeIndex?: number;
-
-  @Index("ix_seat_political_unit_id", ["politicalUnitId"])
-  politicalUnitIndex?: number;
 }

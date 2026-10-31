@@ -22,18 +22,24 @@ export enum AgentKind {
 
 @Entity("agent_assignment")
 @Check("((owner_group_id IS NOT NULL) <> (owner_candidate_id IS NOT NULL))")
-@Check("(agent_kind = 'official' AND slot_number = 0) OR (agent_kind = 'extra' AND slot_number >= 1)")
+@Check(
+  "(agent_kind = 'official' AND slot_number = 0) OR (agent_kind = 'extra' AND slot_number >= 1)",
+)
 export class AgentAssignment {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
+  @Index("ix_agent_assignment_person_id")
   @Column({ name: "person_id", type: "uuid" })
   personId: string;
 
-  @ManyToOne(() => Person, (person) => person.agentAssignments, { onDelete: "RESTRICT" })
+  @ManyToOne(() => Person, (person) => person.agentAssignments, {
+    onDelete: "RESTRICT",
+  })
   @JoinColumn({ name: "person_id" })
   person: Relation<Person>;
 
+  @Index("ix_agent_assignment_polling_unit_id")
   @Column({ name: "polling_unit_id", type: "int" })
   pollingUnitId: number;
 
@@ -70,10 +76,4 @@ export class AgentAssignment {
 
   @UpdateDateColumn({ name: "updated_at", type: "timestamptz" })
   updatedAt: Date;
-
-  @Index("ix_agent_assignment_person_id", ["personId"])
-  personIndex?: string;
-
-  @Index("ix_agent_assignment_polling_unit_id", ["pollingUnitId"])
-  pollingUnitIndex?: number;
 }

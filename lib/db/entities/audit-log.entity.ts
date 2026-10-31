@@ -15,6 +15,7 @@ export class AuditLog {
   @PrimaryGeneratedColumn("bigint")
   id: string;
 
+  @Index("ix_audit_log_actor_person_id_created_at", ["actorPersonId", "createdAt"])
   @Column({ name: "actor_person_id", type: "uuid", nullable: true })
   actorPersonId: string | null;
 
@@ -25,6 +26,7 @@ export class AuditLog {
   @Column({ name: "action_type", type: "varchar" })
   actionType: string;
 
+  @Index("ix_audit_log_target_entity", ["targetEntityType", "targetEntityId"])
   @Column({ name: "target_entity_type", type: "varchar", nullable: true })
   targetEntityType: string | null;
 
@@ -36,10 +38,4 @@ export class AuditLog {
 
   @CreateDateColumn({ name: "created_at", type: "timestamptz" })
   createdAt: Date;
-
-  @Index("ix_audit_log_actor_person_id_created_at", ["actorPersonId", "createdAt"])
-  actorPersonCreatedAtIndex?: string | Date;
-
-  @Index("ix_audit_log_target_entity", ["targetEntityType", "targetEntityId"])
-  targetEntityIndex?: string | null;
 }
