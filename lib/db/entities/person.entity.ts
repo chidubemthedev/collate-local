@@ -39,6 +39,7 @@ export class Person {
   @JoinColumn({ name: "home_polling_unit_id" })
   homePollingUnit: Relation<PollingUnit | null>;
 
+  @Index("uq_person_email_address_lower", ["emailAddress"], { unique: true })
   @Column({ name: "email_address", type: "varchar", nullable: true })
   emailAddress: string | null;
 
@@ -73,7 +74,4 @@ export class Person {
 
   @OneToMany(() => AgentAssignment, (assignment) => assignment.person)
   agentAssignments: Relation<AgentAssignment[]>;
-
-  @Index("uq_person_email_address_lower", ["emailAddress"], { unique: true })
-  emailAddressLowerIndex?: string | null;
 }

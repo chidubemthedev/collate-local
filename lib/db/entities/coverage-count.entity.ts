@@ -27,6 +27,15 @@ export class CoverageCount {
   @PrimaryGeneratedColumn("bigint")
   id: string;
 
+  @Index("ix_coverage_count_scope", [
+    "unitStateId",
+    "unitLgaId",
+    "unitWardId",
+    "unitPoliticalUnitId",
+    "ownerGroupId",
+    "ownerCandidateId",
+    "coverageKind",
+  ])
   @Column({ name: "unit_state_id", type: "int", nullable: true })
   unitStateId: number | null;
 
@@ -84,15 +93,4 @@ export class CoverageCount {
 
   @Column({ name: "refreshed_at", type: "timestamptz" })
   refreshedAt: Date;
-
-  @Index("ix_coverage_count_scope", [
-    "unitStateId",
-    "unitLgaId",
-    "unitWardId",
-    "unitPoliticalUnitId",
-    "ownerGroupId",
-    "ownerCandidateId",
-    "coverageKind",
-  ])
-  scopeIndex?: number | string | null;
 }

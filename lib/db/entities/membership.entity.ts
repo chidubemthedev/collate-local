@@ -19,6 +19,7 @@ export class Membership {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index("ix_membership_person_id")
   @Column({ name: "person_id", type: "uuid" })
   personId: string;
 
@@ -26,6 +27,7 @@ export class Membership {
   @JoinColumn({ name: "person_id" })
   person: Relation<Person>;
 
+  @Index("ix_membership_group_id")
   @Column({ name: "group_id", type: "int" })
   groupId: number;
 
@@ -38,10 +40,4 @@ export class Membership {
 
   @OneToMany(() => MembershipScopeUnit, (scopeUnit) => scopeUnit.membership)
   membershipScopeUnits: Relation<MembershipScopeUnit[]>;
-
-  @Index("ix_membership_person_id", ["personId"])
-  personIndex?: string;
-
-  @Index("ix_membership_group_id", ["groupId"])
-  groupIndex?: number;
 }
