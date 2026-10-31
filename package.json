@@ -10,7 +10,9 @@
     "db:migrate": "tsx ./node_modules/typeorm/cli.js migration:run -d lib/db/data-source.ts",
     "db:migrate:revert": "tsx ./node_modules/typeorm/cli.js migration:revert -d lib/db/data-source.ts",
     "db:migrate:generate": "tsx ./node_modules/typeorm/cli.js migration:generate -d lib/db/data-source.ts",
-    "db:migrate:create": "tsx ./node_modules/typeorm/cli.js migration:create"
+    "db:migrate:create": "tsx ./node_modules/typeorm/cli.js migration:create",
+    "worker": "tsx worker/index.ts",
+    "worker:dev": "tsx --watch worker/index.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -21,6 +23,7 @@
     "lucide-react": "^1.65.0",
     "next": "16.4.3",
     "pg": "^8.23.1",
+    "pg-boss": "^12.38.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "reflect-metadata": "^0.2.2",
