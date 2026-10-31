@@ -1,0 +1,71 @@
+import "server-only";
+import { PgBoss, type SendOptions } from "pg-boss";
+import { defaultJobOptions } from "./names";
+
+/**
+ * Job payloads carry IDs only - never names, phone numbers or other personal
+ * data. Payloads are stored in the database and visible to anyone with data
+ * access, and agents must stay secret before election day. If a payload ever
+ * grows beyond opaque IDs, that is a design smell.
+ */
+
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL is not set. Copy .env.example to .env and fill in the connection string from your database provider.",
+  );
+}
+
+// Same convention as the TypeORM data source: enable SSL with a provider CA
+// certificate in production instead of rejectUnauthorized:false.
+const ssl =
+  process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false;
+
+const globalForQueue = globalThis as unknown as {
+  __collateQueue?: Promise<PgBoss>;
+  __collateQueuesCreated?: Set<string>;
+};
+
+async function startBoss(): Promise<PgBoss> {
+  const boss = new PgBoss({
+    connectionString: process.env.DATABASE_URL,
+    ssl,
+    // Keep the pool small to respect cloud provider connection limits,
+    // especially alongside the app's own TypeORM pool on the same database.
+    max: 3,
+  });
+  // pg-boss emits runtime/connection errors on this event; without a listener
+  // an unhandled 'error' event would crash the Node process.
+  boss.on("error", (error) => {
+    console.error("[queue] pg-boss error", error);
+  });
+  await boss.start();
+  return boss;
+}
+
+export function getBoss(): Promise<PgBoss> {
+  // Cache the promise (not the instance) so concurrent calls during startup or
+  // HMR share one start sequence and never open two pools.
+  globalForQueue.__collateQueue ??= startBoss();
+  return globalForQueue.__collateQueue;
+}
+
+/**
+ * Make sure the queue exists (createQueue is idempotent in pg-boss), then send
+ * the job with the default retry policy. Returns the job id, or null if the
+ * send was deduplicated away by a singleton policy.
+ */
+export async function enqueue<T extends object>(
+  queueName: string,
+  data: T,
+  options?: SendOptions,
+): Promise<string | null> {
+  const boss = await getBoss();
+  // Track queues created in this process to avoid a CREATE round trip per
+  // job; the database keeps surviving queues across restarts.
+  const created = (globalForQueue.__collateQueuesCreated ??= new Set<string>());
+  if (!created.has(queueName)) {
+    await boss.createQueue(queueName);
+    created.add(queueName);
+  }
+  return boss.send(queueName, data, { ...defaultJobOptions, ...options });
+}
