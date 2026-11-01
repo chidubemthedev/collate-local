@@ -12,8 +12,10 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 import { AgentAssignment } from "./agent-assignment.entity";
+import { AuthSession } from "./auth-session.entity";
 import { Candidate } from "./candidate.entity";
 import { Consent } from "./consent.entity";
+import { LoginOtp } from "./login-otp.entity";
 import { Membership } from "./membership.entity";
 import { PhoneNumber } from "./phone-number.entity";
 import { PollingUnit } from "./polling-unit.entity";
@@ -71,6 +73,12 @@ export class Person {
 
   @OneToMany(() => Membership, (membership) => membership.person)
   memberships: Relation<Membership[]>;
+
+  @OneToMany(() => AuthSession, (authSession) => authSession.person)
+  authSessions: Relation<AuthSession[]>;
+
+  @OneToMany(() => LoginOtp, (loginOtp) => loginOtp.person)
+  loginOtps: Relation<LoginOtp[]>;
 
   @OneToMany(() => AgentAssignment, (assignment) => assignment.person)
   agentAssignments: Relation<AgentAssignment[]>;
