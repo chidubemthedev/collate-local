@@ -61,6 +61,33 @@ The generator stores the plain access tokens for active access links in `.demo-s
 
 > This demo data must only be used on a development or demo database and never against a live production database.
 
+## Backend API
+
+These server-side APIs do not depend on frontend wiring. Geography and coverage routes, plus the permissions endpoint, require a valid session cookie; OTP request and verification establish that session. Geography and coverage reads are restricted to the caller's membership scopes (party and admin memberships have global coverage access).
+
+Interactive Swagger UI is available at [`/api/docs`](http://localhost:3000/api/docs); the OpenAPI specification is served from [`/openapi.yaml`](http://localhost:3000/openapi.yaml). Sign in in the same browser session before trying protected operations. The docs UI loads its Swagger UI assets from a pinned CDN release.
+
+| Method and path | Purpose |
+| --- | --- |
+| `POST /api/auth/otp/request` | Request a sign-in code |
+| `POST /api/auth/otp/verify` | Verify a code and create a session |
+| `GET /api/auth/session` | Check the current session |
+| `POST /api/auth/logout` | Revoke the current session |
+| `GET /api/auth/permissions` | Read role and permission flags |
+| `GET /api/geography/states` | List accessible states and coverage counts |
+| `GET /api/geography/states/{stateId}` | Read an accessible state's coverage |
+| `GET /api/geography/states/{stateId}/lgas` | List accessible LGAs in a state |
+| `GET /api/geography/lgas/{lgaId}/wards` | List accessible wards in an LGA |
+| `GET /api/geography/wards/{wardId}/polling-units` | List accessible polling units and agent details |
+| `GET /api/coverage/summary` | Read coverage totals |
+| `GET /api/coverage/gaps` | List polling units without an official agent |
+| `POST /api/coverage/assignments` | Create an agent assignment |
+| `DELETE /api/coverage/assignments/{assignmentId}` | Remove an assignment |
+
+Coverage reads accept optional `stateId`, `lgaId`, `wardId`, and `politicalUnitId` filters. The gaps endpoint also accepts `limit` (1–500, default 100) and `offset` (default 0).
+
+Create an assignment with `personId`, `pollingUnitId`, `agentKind`, `slotNumber`, and exactly one of `ownerGroupId` or `ownerCandidateId`. Official assignments use slot `0`; extra assignments use a positive slot number. Admins can manage any owner; other callers must manage the selected party/campaign group or their own candidate record, and must have scope access to the polling unit. Creates and removals are recorded in `audit_log`.
+
 ## Worker
 
 A separate Node process (`worker/`) consumes jobs from a pg-boss queue backed by the same Postgres database. It shares the DB with the app, takes no HTTP traffic, and opens no port. It will later run broadcasts, imports and coverage refresh jobs; only a `test-job` smoke-test queue exists right now.

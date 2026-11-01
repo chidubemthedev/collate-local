@@ -20,7 +20,7 @@ export function isSessionValid(session: {
   const expiresAt = new Date(session.expiresAt).getTime();
   const lastActiveAt = new Date(session.lastActiveAt).getTime();
 
-  if (revokedAt !== null && revokedAt <= now) {
+  if (revokedAt !== null) {
     return false;
   }
 
