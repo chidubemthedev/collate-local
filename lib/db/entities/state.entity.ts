@@ -2,9 +2,9 @@ import {
   Column,
   Entity,
   OneToMany,
-  PrimaryGeneratedColumn,
-  Relation,
+  PrimaryGeneratedColumn
 } from "typeorm";
+import type { Relation } from "typeorm";
 import { Lga } from "./lga.entity";
 
 @Entity("state")

@@ -1,14 +1,24 @@
 import "server-only";
 import { createHash } from "node:crypto";
 
-if (!process.env.AUTH_SECRET || process.env.AUTH_SECRET.length < 32) {
-  throw new Error("AUTH_SECRET must be set to a string with at least 32 characters.");
-}
-
 process.env.OTP_DELIVERY ??= process.env.BREVO_API_KEY ? "brevo" : "console";
 process.env.TRUST_PROXY ??= "false";
 
-export const AUTH_SECRET = process.env.AUTH_SECRET;
+let cachedAuthSecret: string | undefined;
+
+export function getAuthSecret(): string {
+  if (cachedAuthSecret) {
+    return cachedAuthSecret;
+  }
+
+  const secret = process.env.AUTH_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error("AUTH_SECRET must be set to a string with at least 32 characters.");
+  }
+
+  cachedAuthSecret = secret;
+  return secret;
+}
 
 // ASSUMPTION: OTPs are 6 digits and valid for 10 minutes.
 export const OTP_LENGTH = 6;

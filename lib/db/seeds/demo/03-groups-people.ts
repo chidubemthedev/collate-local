@@ -29,7 +29,7 @@ export async function seedGroupsAndPeople(
     { group_name: "Obedient Movement Ward Coordinators", group_type: GroupType.SUPPORT_GROUP, parent_group_name: "Obedient Movement" },
   ];
 
-  const createdGroups = await queryRunner.query<{ id: number; group_name: string }>(`
+  const createdGroups = await queryRunner.query(`
     INSERT INTO groups (group_name, group_type, parent_group_id)
     VALUES ${groupData
       .map((group) => {
@@ -38,7 +38,7 @@ export async function seedGroupsAndPeople(
       })
       .join(", ")}
     RETURNING id, group_name;
-  `);
+  `) as Array<{ id: number; group_name: string }>;
 
   const groupIds: Record<string, number> = {};
   for (const row of createdGroups) {
@@ -100,11 +100,11 @@ export async function seedGroupsAndPeople(
     personValues.push(`('${demoEmail(slug(name))}', '${name.replace("'", "''")}', NULL, NULL, 'verified')`);
   }
 
-  const insertedPersonRows = await queryRunner.query<{ id: string; full_name: string; email_address: string; verification_status: string }>(`
+  const insertedPersonRows = await queryRunner.query(`
     INSERT INTO person (email_address, full_name, home_polling_unit_id, voter_card_number, verification_status)
     VALUES ${personValues.join(", ")}
     RETURNING id, full_name, email_address, verification_status;
-  `);
+  `) as Array<{ id: string; full_name: string; email_address: string; verification_status: string }>;
 
   for (const row of insertedPersonRows) {
     insertedPeople.push({ id: row.id, full_name: row.full_name });
@@ -128,7 +128,7 @@ export async function seedGroupsAndPeople(
   const membershipRows: Array<{ id: number; membership_role: string; person_id: string; group_id: number }> = [];
   const membershipValues: string[] = [];
 
-  const adminMembers = adminPeople.map((admin, index) => [insertedPeople[index], admin.role]);
+  const adminMembers = adminPeople.map((admin, index) => [insertedPeople[index], admin.role] as const);
   for (const [person, role] of adminMembers) {
     membershipValues.push(`('${person.id}', ${groupIds["Collate Admins"]}, '${role}')`);
   }
@@ -161,11 +161,11 @@ export async function seedGroupsAndPeople(
     membershipValues.push(`('${person.id}', ${groupIds[groupName]}, 'coordinator')`);
   }
 
-  const insertedMemberships = await queryRunner.query<{ id: number; person_id: string; group_id: number; membership_role: string }>(`
+  const insertedMemberships = await queryRunner.query(`
     INSERT INTO membership (person_id, group_id, membership_role)
     VALUES ${membershipValues.join(", ")}
     RETURNING id, person_id, group_id, membership_role;
-  `);
+  `) as Array<{ id: number; person_id: string; group_id: number; membership_role: string }>;
 
   for (const row of insertedMemberships) {
     membershipRows.push(row);
@@ -217,17 +217,17 @@ export async function seedGroupsAndPeople(
     candidatePersonValues.push(`('${demoEmail(slug(name))}', '${name.replace("'", "''")}', NULL, NULL, 'verified')`);
   }
 
-  const candidatePersonRows = await queryRunner.query<{ id: string; full_name: string }>(`
+  const candidatePersonRows = await queryRunner.query(`
     INSERT INTO person (email_address, full_name, home_polling_unit_id, voter_card_number, verification_status)
     VALUES ${candidatePersonValues.join(", ")}
     RETURNING id, full_name;
-  `);
+  `) as Array<{ id: string; full_name: string }>;
 
-  const officeRows = await queryRunner.query<{ id: number; office_name: string }>(`SELECT id, office_name FROM office;`);
+  const officeRows = await queryRunner.query(`SELECT id, office_name FROM office;`) as Array<{ id: number; office_name: string }>;
   const officeMap = new Map(officeRows.map((office) => [office.office_name, office.id]));
 
   const seatMap: Record<string, number> = {};
-  const seatRows = await queryRunner.query<{ id: number; office_id: number; political_unit_id: number }>(`
+  const seatRows = await queryRunner.query(`
     INSERT INTO seat (office_id, political_unit_id)
     VALUES 
       (${officeMap.get("President")}, ${politicalUnits["country"]}),
@@ -259,7 +259,7 @@ export async function seedGroupsAndPeople(
       (${officeMap.get("State Assembly")}, ${politicalUnits["state_constituency:92:2"]}),
       (${officeMap.get("State Assembly")}, ${politicalUnits["state_constituency:92:3"]})
     RETURNING id, office_id, political_unit_id;
-  `);
+  `) as Array<{ id: number; office_id: number; political_unit_id: number }>;
 
   for (const row of seatRows) {
     seatMap[`${row.office_id}:${row.political_unit_id}`] = row.id;
@@ -281,11 +281,11 @@ export async function seedGroupsAndPeople(
     candidateValues.push(`('${person.id}', ${seatId ?? "NULL"}, NULL)`);
   }
 
-  const insertedCandidates = await queryRunner.query<{ id: number; person_id: string; seat_id: number | null; principal_candidate_id: number | null }>(`
+  const insertedCandidates = await queryRunner.query(`
     INSERT INTO candidate (person_id, seat_id, principal_candidate_id)
     VALUES ${candidateValues.join(", ")}
     RETURNING id, person_id, seat_id, principal_candidate_id;
-  `);
+  `) as Array<{ id: number; person_id: string; seat_id: number | null; principal_candidate_id: number | null }>;
 
   const candidateMap = new Map(insertedCandidates.map((row) => [row.person_id, row.id]));
   const runningMatePersonId = personMap.get("Amina Okoh");

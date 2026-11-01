@@ -3,18 +3,18 @@ import { BroadcastStatus } from "../../entities/broadcast.entity";
 import { DeliveryChannel, DeliveryStatus } from "../../entities/delivery.entity";
 
 export async function seedBroadcasts(queryRunner: QueryRunner): Promise<void> {
-  const senderRows = await queryRunner.query<{ id: string }>(`
+  const senderRows = await queryRunner.query(`
     SELECT p.id FROM person p
     WHERE p.email_address LIKE '%@demo.collate.test%'
     ORDER BY p.created_at DESC
     LIMIT 10;
-  `);
+  `) as Array<{ id: string }>;
 
-  const agentRows = await queryRunner.query<{ id: string }>(`
+  const agentRows = await queryRunner.query(`
     SELECT p.id FROM person p
     WHERE p.email_address LIKE '%@demo.collate.test%'
     ORDER BY p.full_name;
-  `);
+  `) as Array<{ id: string }>;
 
   const messages = [
     {
@@ -75,11 +75,11 @@ export async function seedBroadcasts(queryRunner: QueryRunner): Promise<void> {
   ];
 
   for (const message of messages) {
-    const insertedBroadcast = await queryRunner.query<{ id: string }>(`
+    const insertedBroadcast = await queryRunner.query(`
       INSERT INTO broadcast (sender_person_id, audience_filter, message_text, scheduled_send_at, broadcast_status)
       VALUES ('${message.senderId}', '${JSON.stringify(message.audienceFilter)}'::jsonb, '${message.messageText.replace("'", "''")}', ${message.scheduledSendAt ? `'${message.scheduledSendAt.toISOString()}'` : "NULL"}, '${message.broadcastStatus}')
       RETURNING id;
-    `);
+    `) as Array<{ id: string }>;
 
     const broadcastId = insertedBroadcast[0].id;
     const recipients = agentRows.slice(0, Math.min(agentRows.length, 80));

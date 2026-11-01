@@ -1,4 +1,10 @@
-import { Entity, JoinColumn, ManyToOne, PrimaryColumn, Relation } from "typeorm";
+import {
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn
+} from "typeorm";
+import type { Relation } from "typeorm";
 import { PollingUnit } from "./polling-unit.entity";
 import { PoliticalUnit } from "./political-unit.entity";
 
