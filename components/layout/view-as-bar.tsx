@@ -1,12 +1,18 @@
 "use client";
 
 import React from "react";
+import { usePathname } from "next/navigation";
 import { useApp } from "@/lib/context/app-context";
 import { Eye, ShieldAlert, X, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function ViewAsBar() {
+  const pathname = usePathname();
   const { activePersona, setPersonaId } = useApp();
+
+  if (pathname === "/login") {
+    return null;
+  }
 
   // If viewing as default Party National or Admin, don't show the warning banner, just subtle indicator
   if (activePersona.role === "Party · National") {

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { STATES_DATA, LGAS_DATA, WARDS_DATA } from "@/lib/data/inec-data";
+import { useGeographyStates, useGeographyLgas, useGeographyWards } from "@/lib/hooks/use-geography";
 import { Persona } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,14 +52,36 @@ export function CoverageFilters({
   gapsCount,
   onReset,
 }: CoverageFiltersProps) {
-  // Available LGAs for current state
-  const availableLGAs = stateCode === "all" ? [] : LGAS_DATA.filter((l) => l.stateCode === stateCode);
-  // Available Wards for current LGA
-  const availableWards = lgaCode === "all" ? [] : WARDS_DATA.filter((w) => w.lgaCode === lgaCode);
+  // Fetch live geography data
+  const { data: apiStates = [] } = useGeographyStates();
+  const statesList = apiStates.length > 0 ? apiStates : STATES_DATA;
+  const selectedState = statesList.find(
+    (s) => s.code === stateCode || ("id" in s && String(s.id) === stateCode)
+  );
+  const selectedStateId = selectedState && "id" in selectedState ? (selectedState.id as number) : null;
 
-  const selectedState = STATES_DATA.find((s) => s.code === stateCode);
-  const selectedLga = LGAS_DATA.find((l) => l.code === lgaCode);
-  const selectedWard = WARDS_DATA.find((w) => w.code === wardCode);
+  const { data: apiLgas = [] } = useGeographyLgas(selectedStateId);
+  const availableLGAs =
+    stateCode === "all"
+      ? []
+      : apiLgas.length > 0
+      ? apiLgas
+      : LGAS_DATA.filter((l) => l.stateCode === stateCode);
+  const selectedLga = availableLGAs.find(
+    (l) => l.code === lgaCode || ("id" in l && String(l.id) === lgaCode)
+  );
+  const selectedLgaId = selectedLga && "id" in selectedLga ? (selectedLga.id as number) : null;
+
+  const { data: apiWards = [] } = useGeographyWards(selectedLgaId);
+  const availableWards =
+    lgaCode === "all"
+      ? []
+      : apiWards.length > 0
+      ? apiWards
+      : WARDS_DATA.filter((w) => w.lgaCode === lgaCode);
+  const selectedWard = availableWards.find(
+    (w) => w.code === wardCode || ("id" in w && String(w.id) === wardCode)
+  );
 
   return (
     <div className="space-y-3 bg-card border border-border/80 rounded-xl p-3 sm:p-4 shadow-sm">
@@ -172,8 +195,8 @@ export function CoverageFilters({
               <SelectValue placeholder="All States" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All (36 States + FCT)</SelectItem>
-              {STATES_DATA.map((st) => (
+              <SelectItem value="all">All States ({statesList.length})</SelectItem>
+              {statesList.map((st) => (
                 <SelectItem key={st.code} value={st.code}>
                   {st.name} ({st.code})
                 </SelectItem>
