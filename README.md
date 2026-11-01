@@ -61,6 +61,10 @@ The generator stores the plain access tokens for active access links in `.demo-s
 
 > This demo data must only be used on a development or demo database and never against a live production database.
 
+## Telegram
+
+Create a bot with [BotFather](https://t.me/BotFather), add `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, and a 16–256 character `TELEGRAM_WEBHOOK_SECRET` to `.env`, then run `npm run telegram:check` to verify the configured bot. Webhook setup and deletion are available through `npm run telegram:webhook:set -- https://your-host/path` and `npm run telegram:webhook:delete`.
+
 ## Backend API
 
 The REST API is available independently of frontend pages. Its machine-readable contract is [`/api/openapi`](http://localhost:3000/api/openapi), and the interactive Swagger UI is at [`/api/docs`](http://localhost:3000/api/docs). The Swagger UI loads its assets from a pinned CDN release. See [Backend system design](./docs/backend-system-design.md) for architecture and request-flow diagrams.

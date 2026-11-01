@@ -6,6 +6,34 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
+    files: ["**/*.{js,jsx,ts,tsx,mjs,cjs}"],
+    ignores: ["lib/channels/telegram/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            { name: "grammy", message: "Import grammY only from lib/channels/telegram/." },
+            {
+              name: "@grammyjs/auto-retry",
+              message: "Import grammY plugins only from lib/channels/telegram/.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["grammy/*"],
+              message: "Import grammY only from lib/channels/telegram/.",
+            },
+            {
+              group: ["@grammyjs/auto-retry/*"],
+              message: "Import grammY plugins only from lib/channels/telegram/.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["app/api/**/*.ts"],
     rules: {
       "no-restricted-properties": [
