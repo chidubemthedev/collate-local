@@ -54,7 +54,7 @@ The REST API exists independently of page rendering. Treat the route paths and r
 | Coverage | `/api/coverage/*` | Coverage summaries, gaps, and assignment mutations |
 | Operations | `/api/health`, `/api/dev/queue-test` | Health check and development-only queue smoke test |
 
-Successful API responses use the shared response envelope (`status` and `data`). Failure responses use an error code and message. Authentication rejections returned directly by `requireApiAuth` currently use a legacy `{ "error": "..." }` body; clients should handle non-2xx responses rather than assuming every response has the success envelope.
+JSON API successes use the shared `{ status: "success", data }` envelope, with optional `meta` for pagination. Failures use `{ status: "error", error: { code, message, fields? } }`. The HTML docs page and YAML OpenAPI document are content responses, not JSON API envelopes. The OpenAPI specification documents these response shapes.
 
 ## Authentication
 
