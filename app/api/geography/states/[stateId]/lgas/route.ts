@@ -44,6 +44,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ stateId: s
         COUNT(DISTINCT w.id) AS wards_count,
         COUNT(DISTINCT CASE WHEN aa.agent_kind = 'extra' THEN aa.person_id END) AS extra_agents
       FROM lga l
+      JOIN state s ON s.id = l.state_id
       LEFT JOIN ward w ON w.lga_id = l.id
       LEFT JOIN polling_unit pu ON pu.ward_id = w.id
       LEFT JOIN agent_assignment aa ON aa.polling_unit_id = pu.id AND aa.agent_kind = 'official'
