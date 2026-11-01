@@ -5,7 +5,13 @@ export interface OtpSender {
 }
 
 export class ConsoleOtpSender implements OtpSender {
-  async send({ code }: { channel: "email"; to: string; code: string }): Promise<void> {
+  async send({
+    code,
+  }: {
+    channel: "email";
+    to: string;
+    code: string;
+  }): Promise<void> {
     if (process.env.NODE_ENV === "production") {
       throw new Error("ConsoleOtpSender cannot run in production.");
     }
@@ -15,13 +21,23 @@ export class ConsoleOtpSender implements OtpSender {
 }
 
 export class BrevoOtpSender implements OtpSender {
-  async send({ to, code }: { channel: "email"; to: string; code: string }): Promise<void> {
+  async send({
+    to,
+    code,
+  }: {
+    channel: "email";
+    to: string;
+    code: string;
+  }): Promise<void> {
     const apiKey = process.env.BREVO_API_KEY;
-    const fromEmail = process.env.BREVO_FROM_EMAIL ?? "no-reply@collate.local";
+    const fromEmail =
+      process.env.BREVO_FROM_EMAIL ?? "samueladekolu4@gmail.com";
     const fromName = process.env.BREVO_FROM_NAME ?? "Collate";
 
     if (!apiKey) {
-      throw new Error("BREVO_API_KEY must be set when OTP_DELIVERY is 'brevo'.");
+      throw new Error(
+        "BREVO_API_KEY must be set when OTP_DELIVERY is 'brevo'.",
+      );
     }
 
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -45,7 +61,9 @@ export class BrevoOtpSender implements OtpSender {
 
     if (!response.ok) {
       const errorBody = await response.text();
-      throw new Error(`Brevo email send failed (${response.status}): ${errorBody}`);
+      throw new Error(
+        `Brevo email send failed (${response.status}): ${errorBody}`,
+      );
     }
   }
 }
@@ -57,6 +75,8 @@ export function getOtpSender(): OtpSender {
     case "brevo":
       return new BrevoOtpSender();
     default:
-      throw new Error(`Unsupported OTP_DELIVERY mode: ${process.env.OTP_DELIVERY}`);
+      throw new Error(
+        `Unsupported OTP_DELIVERY mode: ${process.env.OTP_DELIVERY}`,
+      );
   }
 }
