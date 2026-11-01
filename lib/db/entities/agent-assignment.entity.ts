@@ -7,9 +7,9 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  Relation,
-  UpdateDateColumn,
+  UpdateDateColumn
 } from "typeorm";
+import type { Relation } from "typeorm";
 import { Candidate } from "./candidate.entity";
 import { Group } from "./group.entity";
 import { Person } from "./person.entity";

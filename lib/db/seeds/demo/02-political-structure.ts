@@ -14,62 +14,62 @@ export async function seedPoliticalStructure(
   const politicalUnits: Record<string, number> = {};
   const statePoliticalUnitIds: Record<string, number> = {};
 
-  const countryResult = await queryRunner.query<{ id: number }>(`
+  const countryResult = await queryRunner.query(`
     INSERT INTO political_unit (political_unit_name, political_unit_type, parent_political_unit_id)
     VALUES ('Nigeria', '${PoliticalUnitType.COUNTRY}', NULL)
     RETURNING id;
-  `);
+  `) as Array<{ id: number }>;
   const countryId = countryResult[0].id;
   politicalUnits[`country`] = countryId;
 
   for (const state of demoStates) {
-    const stateRow = await queryRunner.query<{ id: number }>(`
+    const stateRow = await queryRunner.query(`
       INSERT INTO political_unit (political_unit_name, political_unit_type, parent_political_unit_id)
       VALUES ('${state.stateName}', '${PoliticalUnitType.STATE}', ${countryId})
       RETURNING id;
-    `);
+    `) as Array<{ id: number }>;
     const stateId = stateRow[0].id;
     politicalUnits[`state:${state.stateCode}`] = stateId;
     statePoliticalUnitIds[state.stateCode] = stateId;
 
     for (let district = 1; district <= 3; district += 1) {
       const districtName = `${state.stateName} Senatorial District ${district}`;
-      const districtRow = await queryRunner.query<{ id: number }>(`
+      const districtRow = await queryRunner.query(`
         INSERT INTO political_unit (political_unit_name, political_unit_type, parent_political_unit_id)
         VALUES ('${districtName}', '${PoliticalUnitType.SENATORIAL_DISTRICT}', ${stateId})
         RETURNING id;
-      `);
+      `) as Array<{ id: number }>;
       politicalUnits[`senatorial:${state.stateCode}:${district}`] = districtRow[0].id;
     }
 
     for (let constituency = 1; constituency <= 2; constituency += 1) {
       const constituencyName = `${state.stateName} Federal Constituency ${constituency}`;
-      const constituencyRow = await queryRunner.query<{ id: number }>(`
+      const constituencyRow = await queryRunner.query(`
         INSERT INTO political_unit (political_unit_name, political_unit_type, parent_political_unit_id)
         VALUES ('${constituencyName}', '${PoliticalUnitType.FEDERAL_CONSTITUENCY}', ${stateId})
         RETURNING id;
-      `);
+      `) as Array<{ id: number }>;
       politicalUnits[`federal:${state.stateCode}:${constituency}`] = constituencyRow[0].id;
     }
 
     for (let assembly = 1; assembly <= 3; assembly += 1) {
       const assemblyName = `${state.stateName} State Constituency ${assembly}`;
-      const assemblyRow = await queryRunner.query<{ id: number }>(`
+      const assemblyRow = await queryRunner.query(`
         INSERT INTO political_unit (political_unit_name, political_unit_type, parent_political_unit_id)
         VALUES ('${assemblyName}', '${PoliticalUnitType.STATE_CONSTITUENCY}', ${stateId})
         RETURNING id;
-      `);
+      `) as Array<{ id: number }>;
       politicalUnits[`state_constituency:${state.stateCode}:${assembly}`] = assemblyRow[0].id;
     }
   }
 
-  const allPollingUnits = await queryRunner.query<{ polling_unit_id: number; inec_polling_unit_code: string }>(`
+  const allPollingUnits = await queryRunner.query(`
     SELECT id AS polling_unit_id, inec_polling_unit_code
     FROM polling_unit
     WHERE inec_polling_unit_code LIKE '90-%'
       OR inec_polling_unit_code LIKE '91-%'
       OR inec_polling_unit_code LIKE '92-%';
-  `);
+  `) as Array<{ polling_unit_id: number; inec_polling_unit_code: string }>;
 
   for (const unit of allPollingUnits) {
     const [stateCode] = unit.inec_polling_unit_code.split("-");

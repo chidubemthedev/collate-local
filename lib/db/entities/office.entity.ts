@@ -1,4 +1,10 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn, Relation } from "typeorm";
+import {
+  Column,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn
+} from "typeorm";
+import type { Relation } from "typeorm";
 import { PoliticalUnitType } from "./political-unit.entity";
 import { Seat } from "./seat.entity";
 

@@ -5,9 +5,9 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
-  Relation,
+  PrimaryGeneratedColumn
 } from "typeorm";
+import type { Relation } from "typeorm";
 import { Candidate } from "./candidate.entity";
 import { Group } from "./group.entity";
 import { Lga } from "./lga.entity";
@@ -24,7 +24,7 @@ export enum CoverageKind {
 @Check("num_nonnulls(unit_state_id, unit_lga_id, unit_ward_id, unit_political_unit_id) = 1")
 @Check("covered_polling_unit_count <= total_polling_unit_count")
 export class CoverageCount {
-  @PrimaryGeneratedColumn("bigint")
+  @PrimaryGeneratedColumn("identity", { type: "bigint" })
   id: string;
 
   @Index("ix_coverage_count_scope", [

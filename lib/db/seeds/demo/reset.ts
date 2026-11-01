@@ -3,7 +3,7 @@ import type { DataSource } from "typeorm";
 import { assertDemoSeedAllowed } from "./utils";
 
 export async function ensureDemoDataDoesNotExist(dataSource: DataSource): Promise<boolean> {
-  const result = await dataSource.query<{ exists: boolean }>(`
+  const result = await dataSource.query(`
     SELECT EXISTS (
       SELECT 1 FROM person WHERE email_address LIKE '%@demo.collate.test%'
       UNION ALL
@@ -16,7 +16,7 @@ export async function ensureDemoDataDoesNotExist(dataSource: DataSource): Promis
         'Obedient Movement Youth Wing', 'Obedient Movement Ward Coordinators'
       )
     ) AS exists;
-  `);
+  `) as Array<{ exists: boolean }>;
   return Boolean(result[0]?.exists);
 }
 
@@ -70,11 +70,11 @@ export async function resetDemoData(dataSource: DataSource): Promise<{ deleted_c
 
     await queryRunner.query(`ALTER TABLE audit_log ENABLE TRIGGER USER;`);
 
-    const triggerState = await queryRunner.query<{ disabled: string }>(`
+    const triggerState = await queryRunner.query(`
       SELECT COUNT(*)::int AS disabled
       FROM pg_trigger
       WHERE tgrelid = 'audit_log'::regclass AND tgenabled = 'D';
-    `);
+    `) as Array<{ disabled: string }>;
 
     return {
       deleted_count: 0,

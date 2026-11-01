@@ -5,9 +5,9 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
-  Relation,
+  PrimaryGeneratedColumn
 } from "typeorm";
+import type { Relation } from "typeorm";
 import { Person } from "./person.entity";
 
 @Entity("login_otp")

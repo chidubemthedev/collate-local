@@ -5,9 +5,9 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
-  PrimaryGeneratedColumn,
-  Relation,
+  PrimaryGeneratedColumn
 } from "typeorm";
+import type { Relation } from "typeorm";
 import { PuPoliticalUnit } from "./pu-political-unit.entity";
 
 export enum PoliticalUnitType {

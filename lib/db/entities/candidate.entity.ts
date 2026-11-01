@@ -6,9 +6,9 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
-  PrimaryGeneratedColumn,
-  Relation,
+  PrimaryGeneratedColumn
 } from "typeorm";
+import type { Relation } from "typeorm";
 import { Person } from "./person.entity";
 import { Seat } from "./seat.entity";
 

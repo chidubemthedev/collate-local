@@ -10,12 +10,12 @@ export async function seedAgents(
   politicalUnits: Record<string, number>,
 ): Promise<{ agentCount: number; }> {
   const stateNames = ["Lagos", "Anambra", "Kano"];
-  const statePollingUnitRows = await queryRunner.query<{ id: number; inec_polling_unit_code: string; ward_id: number }>(`
+  const statePollingUnitRows = await queryRunner.query(`
     SELECT id, inec_polling_unit_code, ward_id FROM polling_unit WHERE inec_polling_unit_code LIKE '90-%' OR inec_polling_unit_code LIKE '91-%' OR inec_polling_unit_code LIKE '92-%';
-  `);
+  `) as Array<{ id: number; inec_polling_unit_code: string; ward_id: number }>;
 
   const agentPersons: Array<{ id: string }> = [];
-  const insertedPeople = await queryRunner.query<{ id: string }>(`SELECT p.id FROM person p WHERE p.email_address LIKE '%@demo.collate.test%' LIMIT 1;`);
+  const insertedPeople = await queryRunner.query(`SELECT p.id FROM person p WHERE p.email_address LIKE '%@demo.collate.test%' LIMIT 1;`) as Array<{ id: string }>;
 
   const personValues: string[] = [];
   for (let i = 0; i < 430; i += 1) {
@@ -26,11 +26,11 @@ export async function seedAgents(
     personValues.push(`('${email}', '${name.replace("'", "''")}', ${homePollingUnit?.id ?? 1}, NULL, 'unverified')`);
   }
 
-  const insertedAgents = await queryRunner.query<{ id: string }>(`
+  const insertedAgents = await queryRunner.query(`
     INSERT INTO person (email_address, full_name, home_polling_unit_id, voter_card_number, verification_status)
     VALUES ${personValues.join(", ")}
     RETURNING id;
-  `);
+  `) as Array<{ id: string }>;
 
   for (const row of insertedAgents) agentPersons.push(row);
 
@@ -64,7 +64,7 @@ export async function seedAgents(
     "92": groupIds["NDC Kano"],
   };
 
-  const candidateIds = await queryRunner.query<{ id: number }>(`SELECT id FROM candidate;`);
+  const candidateIds = await queryRunner.query(`SELECT id FROM candidate;`) as Array<{ id: number }>;
   const candidateOwnerIds = candidateIds.map((row) => row.id);
 
   for (let index = 0; index < statePollingUnitRows.length; index += 1) {
@@ -97,6 +97,6 @@ export async function seedAgents(
     VALUES ${assignmentValues.join(", ")};
   `);
 
-  const count = await queryRunner.query<{ count: string }>(`SELECT COUNT(*)::int AS count FROM agent_assignment;`);
+  const count = await queryRunner.query(`SELECT COUNT(*)::int AS count FROM agent_assignment;`) as Array<{ count: string }>;
   return { agentCount: Number(count[0].count) };
 }

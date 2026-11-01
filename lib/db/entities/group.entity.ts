@@ -1,5 +1,12 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, Relation } from "typeorm";
-
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn
+} from "typeorm";
+import type { Relation } from "typeorm";
 export enum GroupType {
   PARTY = "party",
   CAMPAIGN = "campaign",

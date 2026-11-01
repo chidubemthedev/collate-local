@@ -1,4 +1,11 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn, Relation } from "typeorm";
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn
+} from "typeorm";
+import type { Relation } from "typeorm";
 import { Group } from "./group.entity";
 
 @Entity("group_visibility_grant")
