@@ -68,7 +68,7 @@ export class BrevoOtpSender implements OtpSender {
 }
 
 export function getOtpSender(): OtpSender {
-  switch (process.env.OTP_DELIVERY ?? "console") {
+  switch (process.env.OTP_DELIVERY ?? "brevo") {
     case "console":
       return new ConsoleOtpSender();
     case "brevo":
