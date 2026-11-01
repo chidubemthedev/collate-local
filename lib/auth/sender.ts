@@ -30,8 +30,7 @@ export class BrevoOtpSender implements OtpSender {
     code: string;
   }): Promise<void> {
     const apiKey = process.env.BREVO_API_KEY;
-    const fromEmail =
-      process.env.BREVO_FROM_EMAIL ?? "samueladekolu4@gmail.com";
+    const fromEmail = process.env.BREVO_FROM_EMAIL ?? "contact@lingoframe.com";
     const fromName = process.env.BREVO_FROM_NAME ?? "Collate";
 
     if (!apiKey) {
