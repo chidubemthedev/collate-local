@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppProvider } from "@/lib/context/app-context";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { MobileBottomBar } from "@/components/layout/mobile-bottom-bar";
@@ -27,8 +28,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="min-h-screen bg-background text-foreground antialiased font-sans flex flex-col md:flex-row">
-        <AppProvider>
-          <TooltipProvider>
+        <QueryProvider>
+          <AppProvider>
+            <TooltipProvider>
             {/* Desktop Left Sidebar */}
             <Suspense fallback={<div className="w-64 hidden md:block bg-card border-r border-border" />}>
               <Sidebar />
@@ -51,7 +53,8 @@ export default function RootLayout({
             </div>
           </TooltipProvider>
         </AppProvider>
-      </body>
-    </html>
+      </QueryProvider>
+    </body>
+  </html>
   );
 }

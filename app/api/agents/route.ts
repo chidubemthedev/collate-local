@@ -36,7 +36,7 @@ export async function GET(request: Request): Promise<Response> {
     if (response) {
       return response;
     }
-    console.error("[/api/agents] request failed");
+    console.error("[/api/agents] request failed", error);
     return internalError();
   }
 }

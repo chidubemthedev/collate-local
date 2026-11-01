@@ -2,6 +2,7 @@
 
 import React from "react";
 import { STATES_DATA, LGAS_DATA, WARDS_DATA } from "@/lib/data/inec-data";
+import { useGeographyStates, useGeographyLgas, useGeographyWards } from "@/lib/hooks/use-geography";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -69,8 +70,32 @@ export function AgentsFilters({
   onReset,
   onExportCSV,
 }: AgentsFiltersProps) {
-  const availableLGAs = selectedState === "all" ? [] : LGAS_DATA.filter((l) => l.stateCode === selectedState);
-  const availableWards = selectedLga === "all" ? [] : WARDS_DATA.filter((w) => w.lgaCode === selectedLga);
+  const { data: apiStates = [] } = useGeographyStates();
+  const statesList = apiStates.length > 0 ? apiStates : STATES_DATA;
+  const foundState = statesList.find(
+    (s) => s.code === selectedState || ("id" in s && String(s.id) === selectedState)
+  );
+  const selectedStateId = foundState && "id" in foundState ? (foundState.id as number) : null;
+
+  const { data: apiLgas = [] } = useGeographyLgas(selectedStateId);
+  const availableLGAs =
+    selectedState === "all"
+      ? []
+      : apiLgas.length > 0
+      ? apiLgas
+      : LGAS_DATA.filter((l) => l.stateCode === selectedState);
+  const foundLga = availableLGAs.find(
+    (l) => l.code === selectedLga || ("id" in l && String(l.id) === selectedLga)
+  );
+  const selectedLgaId = foundLga && "id" in foundLga ? (foundLga.id as number) : null;
+
+  const { data: apiWards = [] } = useGeographyWards(selectedLgaId);
+  const availableWards =
+    selectedLga === "all"
+      ? []
+      : apiWards.length > 0
+      ? apiWards
+      : WARDS_DATA.filter((w) => w.lgaCode === selectedLga);
 
   const tabs = [
     { id: "all", label: "All Records", count: counts.all, icon: Users },
@@ -136,7 +161,7 @@ export function AgentsFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All States</SelectItem>
-              {STATES_DATA.map((st) => (
+              {statesList.map((st) => (
                 <SelectItem key={st.code} value={st.code}>
                   {st.name} ({st.code})
                 </SelectItem>

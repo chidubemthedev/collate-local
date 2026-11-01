@@ -1,0 +1,122 @@
+"use client";
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient, ApiClientError } from "@/lib/api/client";
+import { GEOGRAPHY_KEYS } from "@/lib/hooks/use-geography";
+import type {
+  CoverageSummary,
+  CoverageGap,
+  CoverageGapsResponse,
+  CreateAssignmentPayload,
+  CreateAssignmentResponse,
+} from "@/types/api";
+
+export interface CoverageFilters {
+  stateId?: number | null;
+  lgaId?: number | null;
+  wardId?: number | null;
+  politicalUnitId?: number | null;
+}
+
+export interface CoverageGapsFilters extends CoverageFilters {
+  limit?: number;
+  offset?: number;
+}
+
+export const COVERAGE_KEYS = {
+  all: ["coverage"] as const,
+  summary: (filters: CoverageFilters) => ["coverage", "summary", filters] as const,
+  gaps: (filters: CoverageGapsFilters) => ["coverage", "gaps", filters] as const,
+};
+
+/**
+ * Fetch headline coverage metrics for the current scope.
+ */
+export function useCoverageSummary(filters: CoverageFilters = {}) {
+  const cleanFilters: Record<string, number> = {};
+  if (filters.stateId && filters.stateId > 0) cleanFilters.stateId = filters.stateId;
+  if (filters.lgaId && filters.lgaId > 0) cleanFilters.lgaId = filters.lgaId;
+  if (filters.wardId && filters.wardId > 0) cleanFilters.wardId = filters.wardId;
+  if (filters.politicalUnitId && filters.politicalUnitId > 0) cleanFilters.politicalUnitId = filters.politicalUnitId;
+
+  return useQuery<CoverageSummary, ApiClientError>({
+    queryKey: COVERAGE_KEYS.summary(cleanFilters),
+    queryFn: async () => {
+      const res = await apiClient.get<CoverageSummary>("/api/coverage/summary", cleanFilters);
+      return res.data;
+    },
+    staleTime: 1000 * 60 * 2,
+  });
+}
+
+/**
+ * Fetch polling units lacking official agents (coverage gaps).
+ */
+export function useCoverageGaps(
+  filters: CoverageGapsFilters = {},
+  options?: { enabled?: boolean }
+) {
+  const cleanFilters: Record<string, number> = {};
+  if (filters.stateId && filters.stateId > 0) cleanFilters.stateId = filters.stateId;
+  if (filters.lgaId && filters.lgaId > 0) cleanFilters.lgaId = filters.lgaId;
+  if (filters.wardId && filters.wardId > 0) cleanFilters.wardId = filters.wardId;
+  if (filters.limit) cleanFilters.limit = filters.limit;
+  if (filters.offset) cleanFilters.offset = filters.offset;
+
+  return useQuery<CoverageGapsResponse, ApiClientError>({
+    queryKey: COVERAGE_KEYS.gaps(cleanFilters),
+    queryFn: async () => {
+      const res = await apiClient.get<CoverageGapsResponse>("/api/coverage/gaps", cleanFilters);
+      return res.data;
+    },
+    staleTime: 1000 * 60 * 2,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+/**
+ * Mutation to create an official or extra agent assignment.
+ */
+export function useCreateAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation<CreateAssignmentResponse, ApiClientError, CreateAssignmentPayload>({
+    mutationFn: async (payload) => {
+      const kind = payload.agentKind || payload.role || "official";
+      const body = {
+        pollingUnitId: payload.pollingUnitId,
+        personId: payload.personId,
+        agentKind: kind,
+        slotNumber: payload.slotNumber ?? (kind === "extra" ? 1 : 0),
+        ownerGroupId: payload.ownerGroupId !== undefined ? payload.ownerGroupId : 18,
+        ownerCandidateId: payload.ownerCandidateId !== undefined ? payload.ownerCandidateId : null,
+      };
+      const res = await apiClient.post<CreateAssignmentResponse>("/api/coverage/assignments", body);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: COVERAGE_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: GEOGRAPHY_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ["agents"] });
+    },
+  });
+}
+
+/**
+ * Mutation to remove an agent assignment.
+ */
+export function useDeleteAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation<{ ok: boolean }, ApiClientError, string>({
+    mutationFn: async (assignmentId: string) => {
+      const res = await apiClient.delete<{ ok: boolean }>(`/api/coverage/assignments/${assignmentId}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: COVERAGE_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: GEOGRAPHY_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ["agents"] });
+    },
+  });
+}
