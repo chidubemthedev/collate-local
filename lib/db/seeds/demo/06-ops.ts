@@ -6,12 +6,12 @@ import { ImportBatch } from "../../entities/import-batch.entity";
 import { demoIp, demoPhone, writeDemoTokenFile } from "./utils";
 
 export async function seedOperations(queryRunner: QueryRunner): Promise<void> {
-  const candidateRows = await queryRunner.query<{ id: number; person_id: string }>(`
+  const candidateRows = await queryRunner.query(`
     SELECT c.id, c.person_id FROM candidate c
     INNER JOIN person p ON p.id = c.person_id
     WHERE p.email_address LIKE '%@demo.collate.test%'
     ORDER BY c.id;
-  `);
+  `) as Array<{ id: number; person_id: string }>;
 
   const tokenOutputs: Array<{ candidatePersonId: string; token: string }> = [];
   for (let index = 0; index < candidateRows.length; index += 1) {
@@ -34,7 +34,7 @@ export async function seedOperations(queryRunner: QueryRunner): Promise<void> {
 
   await writeDemoTokenFile(tokenOutputs);
 
-  const uploaderRows = await queryRunner.query<{ id: string }>(`SELECT id FROM person WHERE email_address LIKE '%@demo.collate.test%' ORDER BY full_name LIMIT 3;`);
+  const uploaderRows = await queryRunner.query(`SELECT id FROM person WHERE email_address LIKE '%@demo.collate.test%' ORDER BY full_name LIMIT 3;`) as Array<{ id: string }>;
   const batches = [
     { fileName: "lagos-agent-import.csv", total: 240, imported: 224, errors: 16 },
     { fileName: "anambra-agent-import.csv", total: 180, imported: 166, errors: 14 },
@@ -55,7 +55,7 @@ export async function seedOperations(queryRunner: QueryRunner): Promise<void> {
     `);
   }
 
-  const demoActors = await queryRunner.query<{ id: string }>(`SELECT id FROM person WHERE email_address LIKE '%@demo.collate.test%' ORDER BY full_name;`);
+  const demoActors = await queryRunner.query(`SELECT id FROM person WHERE email_address LIKE '%@demo.collate.test%' ORDER BY full_name;`) as Array<{ id: string }>;
   const actions = ["login", "view_agents", "view_coverage", "import_agents", "send_broadcast", "create_access_link", "revoke_access_link"];
   const targetTypes = ["person", "group", "agent_assignment", "coverage_count", "broadcast"];
 

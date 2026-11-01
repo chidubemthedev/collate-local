@@ -1,4 +1,3 @@
-// Sensitive personal data. Never log. Mask in the UI. Encrypted at rest by the database provider (confirm).
 import {
   Column,
   CreateDateColumn,
@@ -8,9 +7,10 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
-  Relation,
-  UpdateDateColumn,
+  UpdateDateColumn
 } from "typeorm";
+import type { Relation } from "typeorm";
+// Sensitive personal data. Never log. Mask in the UI. Encrypted at rest by the database provider (confirm).
 import { AgentAssignment } from "./agent-assignment.entity";
 import { AuthSession } from "./auth-session.entity";
 import { Candidate } from "./candidate.entity";

@@ -4,9 +4,9 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
-  Relation,
+  PrimaryGeneratedColumn
 } from "typeorm";
+import type { Relation } from "typeorm";
 import { Lga } from "./lga.entity";
 import { Membership } from "./membership.entity";
 import { PoliticalUnit } from "./political-unit.entity";

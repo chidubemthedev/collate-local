@@ -1,4 +1,10 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn, Relation } from "typeorm";
+import {
+  Column,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn
+} from "typeorm";
+import type { Relation } from "typeorm";
 import { ElectionDayOffCycleState } from "./election-day-off-cycle-state.entity";
 import { ElectionDayOffice } from "./election-day-office.entity";
 
