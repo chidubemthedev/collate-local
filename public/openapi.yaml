@@ -1,20 +1,24 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Collate API
   version: 1.0.0
   description: |
     Authentication, geography, and polling-unit coverage APIs.
+    JSON success responses use `{ status: "success", data }`; failures use
+    `{ status: "error", error: { code, message, fields? } }`.
 
     Protected endpoints use the HTTP-only session cookie issued by
     `POST /api/auth/otp/verify`. The cookie is named `collate_session` outside
     production and `__Host-collate_session` in production. Swagger UI sends
-    same-origin cookies automatically after a successful sign-in.
+    same-origin cookies automatically after a successful sign-in. Swagger UI
+    uses `SERVER_BASE_URL` from the environment for the server URL when set.
 servers:
   - url: /
     description: Current Collate deployment
 tags:
   - name: Health
   - name: Authentication
+  - name: Agents
   - name: Geography
   - name: Coverage
 paths:
@@ -29,23 +33,18 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                    example: true
-                required: [ok]
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/OkData"
         "500":
           description: Database health check failed.
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                    example: false
-                required: [ok]
+                $ref: "#/components/schemas/ErrorResponse"
   /api/auth/otp/request:
     post:
       tags: [Authentication]
@@ -70,25 +69,27 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OkResponse"
+                $ref: "#/components/schemas/SuccessOkResponse"
         "400":
           description: Invalid request.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthErrorResponse"
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: No eligible person found for the email.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthErrorResponse"
+                $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: Rate limit exceeded.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthErrorResponse"
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /api/auth/otp/verify:
     post:
       tags: [Authentication]
@@ -121,19 +122,21 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OkResponse"
+                $ref: "#/components/schemas/SuccessOkResponse"
         "400":
           description: OTP is invalid, expired, or malformed.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthErrorResponse"
+                $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: Rate limit exceeded.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthErrorResponse"
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /api/auth/session:
     get:
       tags: [Authentication]
@@ -146,21 +149,26 @@ paths:
           content:
             application/json:
               schema:
-                oneOf:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
                   - type: object
                     properties:
-                      authenticated:
-                        type: boolean
-                        enum: [false]
-                    required: [authenticated]
-                  - type: object
-                    properties:
-                      authenticated:
-                        type: boolean
-                        enum: [true]
-                      person:
-                        $ref: "#/components/schemas/SessionPerson"
-                    required: [authenticated, person]
+                      data:
+                        oneOf:
+                          - type: object
+                            properties:
+                              authenticated:
+                                type: boolean
+                                const: false
+                            required: [authenticated]
+                          - type: object
+                            properties:
+                              authenticated:
+                                type: boolean
+                                const: true
+                              person:
+                                $ref: "#/components/schemas/SessionPerson"
+                            required: [authenticated, person]
         "500":
           description: Internal server error.
           content:
@@ -179,23 +187,13 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                    example: true
-                required: [ok]
+                $ref: "#/components/schemas/SuccessOkResponse"
         "500":
           description: Internal server error.
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                    example: false
-                required: [ok]
+                $ref: "#/components/schemas/ErrorResponse"
   /api/auth/permissions:
     get:
       tags: [Authentication]
@@ -208,30 +206,81 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  authenticated:
-                    type: boolean
-                    example: true
-                  permissions:
-                    type: object
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
                     properties:
-                      isAdmin:
-                        type: boolean
-                      canManageCoverage:
-                        type: boolean
-                      canBroadcast:
-                        type: boolean
-                      roles:
-                        type: array
-                        items:
-                          type: string
-                    required: [isAdmin, canManageCoverage, canBroadcast, roles]
-                required: [authenticated, permissions]
+                      data:
+                        $ref: "#/components/schemas/PermissionsData"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /api/agents:
+    get:
+      tags: [Agents]
+      summary: List visible agents
+      description: Returns authorized agents with masked phone numbers and cursor pagination.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/stateFilter"
+        - $ref: "#/components/parameters/lgaFilter"
+        - $ref: "#/components/parameters/wardFilter"
+        - $ref: "#/components/parameters/politicalUnitFilter"
+        - name: ownerGroupId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: ownerCandidateId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: agentKind
+          in: query
+          schema:
+            type: string
+            enum: [official, extra]
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 512
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Visible agent page.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Agent"
+                      meta:
+                        $ref: "#/components/schemas/SuccessMeta"
+        "400":
+          $ref: "#/components/responses/InvalidFilter"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /api/geography/states:
     get:
       tags: [Geography]
@@ -244,13 +293,20 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/StateCoverage"
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/StateCoverage"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /api/geography/states/{stateId}:
     get:
       tags: [Geography]
@@ -265,13 +321,22 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StateCoverage"
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/StateCoverage"
         "400":
           $ref: "#/components/responses/InvalidId"
         "404":
           $ref: "#/components/responses/NotFound"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /api/geography/states/{stateId}/lgas:
     get:
       tags: [Geography]
@@ -286,15 +351,22 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/LgaCoverage"
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/LgaCoverage"
         "400":
           $ref: "#/components/responses/InvalidId"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /api/geography/lgas/{lgaId}/wards:
     get:
       tags: [Geography]
@@ -309,15 +381,22 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/WardCoverage"
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/WardCoverage"
         "400":
           $ref: "#/components/responses/InvalidId"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /api/geography/wards/{wardId}/polling-units:
     get:
       tags: [Geography]
@@ -332,15 +411,22 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/PollingUnit"
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/PollingUnit"
         "400":
           $ref: "#/components/responses/InvalidId"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /api/coverage/summary:
     get:
       tags: [Coverage]
@@ -359,13 +445,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CoverageSummary"
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/CoverageSummary"
         "400":
           $ref: "#/components/responses/InvalidFilter"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /api/coverage/gaps:
     get:
       tags: [Coverage]
@@ -398,25 +491,32 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  totalCount:
-                    type: integer
-                  limit:
-                    type: integer
-                  offset:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/CoverageGap"
-                required: [totalCount, limit, offset, items]
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          totalCount:
+                            type: integer
+                          limit:
+                            type: integer
+                          offset:
+                            type: integer
+                          items:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/CoverageGap"
+                        required: [totalCount, limit, offset, items]
         "400":
           $ref: "#/components/responses/InvalidFilter"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /api/coverage/assignments:
     post:
       tags: [Coverage]
@@ -441,15 +541,12 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                    example: true
-                  id:
-                    type: string
-                    format: uuid
-                required: [ok, id]
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/CreatedAssignmentData"
         "400":
           description: Invalid JSON or assignment input.
           content:
@@ -468,6 +565,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /api/coverage/assignments/{assignmentId}:
     delete:
       tags: [Coverage]
@@ -488,7 +587,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OkResponse"
+                $ref: "#/components/schemas/SuccessOkResponse"
         "400":
           $ref: "#/components/responses/InvalidId"
         "401":
@@ -497,6 +596,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 components:
   securitySchemes:
     sessionCookie:
@@ -588,31 +689,152 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
+    InternalServerError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
   schemas:
-    OkResponse:
+    SuccessEnvelope:
+      type: object
+      properties:
+        status:
+          type: string
+          const: success
+        data: {}
+        meta:
+          $ref: "#/components/schemas/SuccessMeta"
+      required: [status, data]
+    SuccessMeta:
+      type: object
+      properties:
+        nextCursor:
+          type: [string, "null"]
+        limit:
+          type: integer
+      additionalProperties: false
+    SuccessOkResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessEnvelope"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/OkData"
+    OkData:
       type: object
       properties:
         ok:
           type: boolean
-          example: true
+          const: true
       required: [ok]
     ErrorResponse:
       type: object
       properties:
-        error:
+        status:
           type: string
-          example: unauthenticated
-      required: [error]
-    AuthErrorResponse:
+          const: error
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum:
+                - validation_failed
+                - invalid_filter
+                - unauthorized
+                - invalid_or_expired_code
+                - forbidden
+                - invalid_origin
+                - not_found
+                - conflict
+                - too_many_requests
+                - internal_error
+            message:
+              type: string
+            fields:
+              type: object
+              additionalProperties:
+                type: string
+          required: [code, message]
+      required: [status, error]
+    PermissionsData:
+      type: object
+      properties:
+        authenticated:
+          type: boolean
+          const: true
+        permissions:
+          type: object
+          properties:
+            isAdmin:
+              type: boolean
+            canManageCoverage:
+              type: boolean
+            canBroadcast:
+              type: boolean
+            roles:
+              type: array
+              items:
+                type: string
+          required: [isAdmin, canManageCoverage, canBroadcast, roles]
+      required: [authenticated, permissions]
+    CreatedAssignmentData:
       type: object
       properties:
         ok:
           type: boolean
-          example: false
-        error:
+          const: true
+        id:
           type: string
-          example: invalid_or_expired_code
-      required: [ok, error]
+          format: uuid
+      required: [ok, id]
+    Agent:
+      type: object
+      properties:
+        assignmentId:
+          type: string
+          format: uuid
+        agentKind:
+          type: string
+          enum: [official, extra]
+        slotNumber:
+          type: integer
+        personId:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        maskedPhone:
+          type: [string, "null"]
+        pollingUnit:
+          type: object
+          properties:
+            id:
+              type: integer
+            inecPollingUnitCode:
+              type: string
+            name:
+              type: [string, "null"]
+            wardName:
+              type: string
+            lgaName:
+              type: string
+            stateName:
+              type: string
+          required: [id, inecPollingUnitCode, name, wardName, lgaName, stateName]
+        owner:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [group, candidate]
+            id:
+              type: integer
+            displayName:
+              type: string
+          required: [type, id, displayName]
+      required: [assignmentId, agentKind, slotNumber, personId, fullName, maskedPhone, pollingUnit, owner]
     SessionPerson:
       type: object
       properties:
@@ -622,14 +844,12 @@ components:
         fullName:
           type: string
         emailAddress:
-          type: string
+          type: [string, "null"]
           format: email
-          nullable: true
         isAdmin:
           type: boolean
         candidateId:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
       required: [id, fullName, emailAddress, isAdmin, candidateId]
     StateCoverage:
       type: object
@@ -721,11 +941,9 @@ components:
         stateCode:
           type: string
         latitude:
-          type: number
-          nullable: true
+          type: [number, "null"]
         longitude:
-          type: number
-          nullable: true
+          type: [number, "null"]
         hasGPS:
           type: boolean
         hasOfficialAgent:
@@ -754,8 +972,7 @@ components:
         role:
           type: string
         phone:
-          type: string
-          nullable: true
+          type: [string, "null"]
         telegramStatus:
           type: string
       required: [id, name, owner, role, phone, telegramStatus]
@@ -785,11 +1002,9 @@ components:
         name:
           type: string
         latitude:
-          type: number
-          nullable: true
+          type: [number, "null"]
         longitude:
-          type: number
-          nullable: true
+          type: [number, "null"]
         hasGPS:
           type: boolean
         ward:
@@ -818,14 +1033,12 @@ components:
           minimum: 1
         ownerGroupId:
           description: Provide exactly one of ownerGroupId and ownerCandidateId.
-          type: integer
+          type: [integer, "null"]
           minimum: 1
-          nullable: true
         ownerCandidateId:
           description: Provide exactly one of ownerGroupId and ownerCandidateId.
-          type: integer
+          type: [integer, "null"]
           minimum: 1
-          nullable: true
         agentKind:
           type: string
           enum: [official, extra]

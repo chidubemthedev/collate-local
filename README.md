@@ -65,7 +65,9 @@ The generator stores the plain access tokens for active access links in `.demo-s
 
 These server-side APIs do not depend on frontend wiring. Geography and coverage routes, plus the permissions endpoint, require a valid session cookie; OTP request and verification establish that session. Geography and coverage reads are restricted to the caller's membership scopes (party and admin memberships have global coverage access).
 
-Interactive Swagger UI is available at [`/api/docs`](http://localhost:3000/api/docs); the OpenAPI specification is served from [`/openapi.yaml`](http://localhost:3000/openapi.yaml). Sign in in the same browser session before trying protected operations. The docs UI loads its Swagger UI assets from a pinned CDN release.
+See [Backend system design](./docs/backend-system-design.md) for request/data-flow diagrams and the authentication walkthrough.
+
+Interactive Swagger UI is available at [`/api/docs`](http://localhost:3000/api/docs); the OpenAPI specification is served from [`/api/openapi`](http://localhost:3000/api/openapi). Sign in in the same browser session before trying protected operations. The docs UI loads its Swagger UI assets from a pinned CDN release.
 
 | Method and path | Purpose |
 | --- | --- |

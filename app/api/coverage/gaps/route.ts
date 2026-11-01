@@ -2,6 +2,7 @@ import "server-only";
 import { connection, type NextRequest } from "next/server";
 import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
 import { parseCoverageFilters } from "@/lib/coverage/filters";
+import { failure, internalError, success } from "@/lib/api/response";
 
 export async function GET(request: NextRequest) {
   await connection();
@@ -24,10 +25,10 @@ export async function GET(request: NextRequest) {
     const limit = rawLimit === null ? 100 : Number(rawLimit);
     const offset = rawOffset === null ? 0 : Number(rawOffset);
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) {
-      return Response.json({ error: "invalid_limit" }, { status: 400 });
+      return failure("validation_failed", "Invalid limit", { limit: "must_be_between_1_and_500" });
     }
     if (!Number.isSafeInteger(offset) || offset < 0) {
-      return Response.json({ error: "invalid_offset" }, { status: 400 });
+      return failure("validation_failed", "Invalid offset", { offset: "must_be_non_negative" });
     }
 
     const limitParameter = scope.parameters.length + filters.parameters.length + 1;
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest) {
       [...scope.parameters, ...filters.parameters, limit, offset],
     );
 
-    return Response.json({
+    return success({
       totalCount: Number(rows[0]?.total_count ?? 0),
       limit,
       offset,
@@ -97,6 +98,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[/api/coverage/gaps] failed", error);
-    return Response.json({ error: "internal_error" }, { status: 500 });
+    return internalError();
   }
 }

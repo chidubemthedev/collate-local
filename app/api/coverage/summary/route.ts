@@ -2,6 +2,7 @@ import "server-only";
 import { connection, type NextRequest } from "next/server";
 import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
 import { parseCoverageFilters } from "@/lib/coverage/filters";
+import { internalError, success } from "@/lib/api/response";
 
 export async function GET(request: NextRequest) {
   await connection();
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
     const totalPUs = Number(row?.total_pus ?? 0);
     const coveredPUs = Number(row?.covered_pus ?? 0);
 
-    return Response.json({
+    return success({
       totalPUs,
       coveredPUs,
       noCoveragePUs: Math.max(totalPUs - coveredPUs, 0),
@@ -55,6 +56,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[/api/coverage/summary] failed", error);
-    return Response.json({ error: "internal_error" }, { status: 500 });
+    return internalError();
   }
 }
