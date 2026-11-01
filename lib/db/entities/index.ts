@@ -1,6 +1,8 @@
 import { AccessLink } from "./access-link.entity";
 import { AgentAssignment } from "./agent-assignment.entity";
 import { AuditLog } from "./audit-log.entity";
+import { AuthRateLimit } from "./auth-rate-limit.entity";
+import { AuthSession } from "./auth-session.entity";
 import { Broadcast } from "./broadcast.entity";
 import { Candidate } from "./candidate.entity";
 import { Consent } from "./consent.entity";
@@ -13,6 +15,7 @@ import { Group } from "./group.entity";
 import { GroupVisibilityGrant } from "./group-visibility-grant.entity";
 import { ImportBatch } from "./import-batch.entity";
 import { Lga } from "./lga.entity";
+import { LoginOtp } from "./login-otp.entity";
 import { Membership } from "./membership.entity";
 import { MembershipScopeUnit } from "./membership-scope-unit.entity";
 import { Office } from "./office.entity";
@@ -29,6 +32,8 @@ export const entities = [
   AccessLink,
   AgentAssignment,
   AuditLog,
+  AuthRateLimit,
+  AuthSession,
   Broadcast,
   Candidate,
   Consent,
@@ -41,6 +46,7 @@ export const entities = [
   GroupVisibilityGrant,
   ImportBatch,
   Lga,
+  LoginOtp,
   Membership,
   MembershipScopeUnit,
   Office,
@@ -58,6 +64,8 @@ export {
   AccessLink,
   AgentAssignment,
   AuditLog,
+  AuthRateLimit,
+  AuthSession,
   Broadcast,
   Candidate,
   Consent,
@@ -70,6 +78,7 @@ export {
   GroupVisibilityGrant,
   ImportBatch,
   Lga,
+  LoginOtp,
   Membership,
   MembershipScopeUnit,
   Office,
