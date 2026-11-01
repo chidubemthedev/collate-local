@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { getDataSource } from "@/lib/db";
 import { getSessionCookieName } from "@/lib/auth/config";
 import { hashSessionToken, isSessionValid } from "@/lib/auth/session";
+import { internalError, success } from "@/lib/api/response";
 
 export async function GET() {
   await connection();
@@ -12,7 +13,7 @@ export async function GET() {
     const cookieStore = await cookies();
     const token = cookieStore.get(getSessionCookieName())?.value;
     if (!token) {
-      return Response.json({ authenticated: false });
+      return success({ authenticated: false });
     }
 
     const dataSource = await getDataSource();
@@ -35,7 +36,7 @@ export async function GET() {
 
     const currentSession = sessionRows[0];
     if (!currentSession) {
-      return Response.json({ authenticated: false });
+      return success({ authenticated: false });
     }
 
     const valid = isSessionValid({
@@ -45,7 +46,7 @@ export async function GET() {
     });
     if (!valid) {
       await dataSource.query(`DELETE FROM auth_session WHERE id = $1;`, [currentSession.id]);
-      return Response.json({ authenticated: false });
+      return success({ authenticated: false });
     }
 
     const personRows = await dataSource.query<Array<{ id: string; full_name: string; email_address: string | null }>>(
@@ -55,7 +56,7 @@ export async function GET() {
 
     const person = personRows[0];
     if (!person) {
-      return Response.json({ authenticated: false });
+      return success({ authenticated: false });
     }
 
     await dataSource.query(
@@ -75,7 +76,7 @@ export async function GET() {
       [person.id],
     );
 
-    return Response.json({
+    return success({
       authenticated: true,
       person: {
         id: person.id,
@@ -87,6 +88,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error("[/api/auth/session] failed", error);
-    return Response.json({ error: "internal_error" }, { status: 500 });
+    return internalError();
   }
 }

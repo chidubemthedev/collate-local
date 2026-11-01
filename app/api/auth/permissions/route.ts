@@ -1,6 +1,7 @@
 import "server-only";
 import { connection } from "next/server";
 import { requireApiAuth } from "@/lib/auth/api";
+import { internalError, success } from "@/lib/api/response";
 
 export async function GET() {
   await connection();
@@ -9,7 +10,7 @@ export async function GET() {
     const auth = await requireApiAuth();
     if (!auth.ok) return auth.response;
 
-    return Response.json({
+    return success({
       authenticated: true,
       permissions: {
         isAdmin: auth.context.isAdmin,
@@ -20,6 +21,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error("[/api/auth/permissions] failed", error);
-    return Response.json({ error: "internal_error" }, { status: 500 });
+    return internalError();
   }
 }

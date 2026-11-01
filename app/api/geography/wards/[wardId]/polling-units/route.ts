@@ -1,6 +1,7 @@
 import "server-only";
 import { connection } from "next/server";
 import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
+import { failure, internalError, success } from "@/lib/api/response";
 
 export async function GET(_: Request, { params }: { params: Promise<{ wardId: string }> }) {
   await connection();
@@ -10,7 +11,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ wardId: st
   try {
     const wardIdNum = Number(wardId);
     if (!Number.isInteger(wardIdNum)) {
-      return Response.json({ error: "invalid_ward_id" }, { status: 400 });
+      return failure("validation_failed", "Invalid ward ID");
     }
 
     const auth = await requireApiAuth();
@@ -135,9 +136,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ wardId: st
       extraAgents: row.extra_agents,
     }));
 
-    return Response.json(result);
+    return success(result);
   } catch (error) {
     console.error("[/api/geography/wards/[wardId]/polling-units] failed", error);
-    return Response.json({ error: "internal_error" }, { status: 500 });
+    return internalError();
   }
 }

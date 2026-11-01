@@ -1,6 +1,7 @@
 import "server-only";
 import { connection } from "next/server";
 import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
+import { failure, internalError, success } from "@/lib/api/response";
 
 export async function GET(_: Request, { params }: { params: Promise<{ lgaId: string }> }) {
   await connection();
@@ -10,7 +11,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ lgaId: str
   try {
     const lgaIdNum = Number(lgaId);
     if (!Number.isInteger(lgaIdNum)) {
-      return Response.json({ error: "invalid_lga_id" }, { status: 400 });
+      return failure("validation_failed", "Invalid LGA ID");
     }
 
     const auth = await requireApiAuth();
@@ -66,9 +67,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ lgaId: str
       };
     });
 
-    return Response.json(result);
+    return success(result);
   } catch (error) {
     console.error("[/api/geography/lgas/[lgaId]/wards] failed", error);
-    return Response.json({ error: "internal_error" }, { status: 500 });
+    return internalError();
   }
 }
