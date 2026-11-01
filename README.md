@@ -121,3 +121,40 @@ Smoke-test it end to end:
 > The endpoint returns 404 in production (`NODE_ENV=production`) and exposes no auth — it must stay dev-only.
 
 > Pool note: one worker instance uses at most 3 Postgres connections (`max: 3`), but pg-boss also runs background maintenance queries, so connection budgets matter: if your provider gives a **pooled** and a **direct** connection string (PgBouncer in transaction mode), the worker may need the **direct** one too (LISTEN/NOTIFY and prepared statements don't always behave behind transaction-mode poolers). Also note cloud providers often drop idle TLS connections; pg-boss logs reconnects on its `error` event and keeps polling — a burst of `ECONNRESET`/timeout errors after idle periods is recoverable noise, not a crash.
+
+## Policy and agents API
+
+Every new API read must go through `lib/policy`; route handlers must not import `typeorm`, `pg`, or `lib/db` or query tables directly. The policy layer combines polling-unit scope with owner-group visibility before returning data.
+
+`GET /api/agents` returns:
+
+```json
+{
+  "items": [
+    {
+      "assignmentId": "uuid",
+      "agentKind": "official",
+      "slotNumber": 0,
+      "personId": "uuid",
+      "fullName": "Agent name",
+      "maskedPhone": "+234******1234",
+      "pollingUnit": {
+        "id": 1,
+        "inecPollingUnitCode": "code",
+        "name": "Polling unit",
+        "wardName": "Ward",
+        "lgaName": "LGA",
+        "stateName": "State"
+      },
+      "owner": {
+        "type": "group",
+        "id": 1,
+        "displayName": "Group"
+      }
+    }
+  ],
+  "nextCursor": null
+}
+```
+
+Supported query filters are `stateId`, `lgaId`, `wardId`, `politicalUnitId`, `ownerGroupId`, `ownerCandidateId`, and `agentKind`. Non-admin candidates cannot use `lgaId`. `cursor` continues keyset pagination; `limit` defaults to 50 and is capped at 100. Every page read is audited. Phone numbers are masked, and email addresses and voter card numbers are never returned.
