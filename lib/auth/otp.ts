@@ -1,6 +1,6 @@
 import "server-only";
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
-import { AUTH_SECRET, OTP_LENGTH } from "./config";
+import { getAuthSecret, OTP_LENGTH } from "./config";
 
 export function generateOtp(): string {
   const digits = Array.from({ length: OTP_LENGTH }, () => String(randomInt(0, 10)));
@@ -8,7 +8,7 @@ export function generateOtp(): string {
 }
 
 export function hashOtp(personId: string, code: string): string {
-  return createHmac("sha256", AUTH_SECRET).update(`${personId}:${code}`).digest("hex");
+  return createHmac("sha256", getAuthSecret()).update(`${personId}:${code}`).digest("hex");
 }
 
 export function verifyOtpHash(personId: string, code: string, expectedHash: string): boolean {

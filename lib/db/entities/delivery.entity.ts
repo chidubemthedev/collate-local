@@ -6,9 +6,9 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  Relation,
-  Unique,
+  Unique
 } from "typeorm";
+import type { Relation } from "typeorm";
 import { Broadcast } from "./broadcast.entity";
 import { Person } from "./person.entity";
 

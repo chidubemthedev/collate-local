@@ -6,9 +6,9 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
-  Relation,
-  Unique,
+  Unique
 } from "typeorm";
+import type { Relation } from "typeorm";
 import { Group } from "./group.entity";
 import { MembershipScopeUnit } from "./membership-scope-unit.entity";
 import { Person } from "./person.entity";

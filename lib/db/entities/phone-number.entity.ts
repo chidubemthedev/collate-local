@@ -1,4 +1,3 @@
-// Sensitive personal data. Never log. Mask in the UI. Encrypted at rest by the database provider (confirm).
 import {
   Check,
   Column,
@@ -8,9 +7,10 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  Relation,
-  UpdateDateColumn,
+  UpdateDateColumn
 } from "typeorm";
+import type { Relation } from "typeorm";
+// Sensitive personal data. Never log. Mask in the UI. Encrypted at rest by the database provider (confirm).
 import { Person } from "./person.entity";
 
 @Entity("phone_number")

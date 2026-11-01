@@ -4,9 +4,9 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
-  PrimaryGeneratedColumn,
-  Relation,
+  PrimaryGeneratedColumn
 } from "typeorm";
+import type { Relation } from "typeorm";
 import { Ward } from "./ward.entity";
 import { PuPoliticalUnit } from "./pu-political-unit.entity";
 

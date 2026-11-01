@@ -42,7 +42,7 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 function getValidationFields(
-  issues: Array<{ path: Array<string | number>; code: string }>,
+  issues: Array<{ path: Array<string | number | symbol>; code: string }>,
 ): Record<string, string> {
   const fields: Record<string, string> = {};
   const allowedFields = new Set([

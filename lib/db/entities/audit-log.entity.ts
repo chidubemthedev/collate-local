@@ -5,14 +5,14 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
-  Relation,
+  PrimaryGeneratedColumn
 } from "typeorm";
+import type { Relation } from "typeorm";
 import { Person } from "./person.entity";
 
 @Entity("audit_log")
 export class AuditLog {
-  @PrimaryGeneratedColumn("bigint")
+  @PrimaryGeneratedColumn("identity", { type: "bigint" })
   id: string;
 
   @Index("ix_audit_log_actor_person_id_created_at", ["actorPersonId", "createdAt"])
