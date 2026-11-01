@@ -197,9 +197,13 @@ export async function POST(request: Request) {
     });
 
     if ("error" in result) {
-      return result.error === "not_found"
-        ? failure("not_found", "Polling unit not found")
-        : failure("forbidden", "Assignment owner is not allowed");
+      if (result.error === "not_found") {
+        return failure("not_found", "Polling unit not found");
+      }
+      if (result.error === "forbidden") {
+        return failure("forbidden", "Assignment owner is not allowed");
+      }
+      return failure("conflict", "Assignment conflict");
     }
 
     return success({ ok: true, id: result.id }, undefined, 201);

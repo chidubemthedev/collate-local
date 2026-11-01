@@ -4,6 +4,7 @@ import type { DataSource } from "typeorm";
 import { getDataSource } from "@/lib/db";
 import { getSessionCookieName } from "@/lib/auth/config";
 import { hashSessionToken, isSessionValid } from "@/lib/auth/session";
+import { failure } from "@/lib/api/response";
 
 type MembershipScope = {
   stateId: number | null;
@@ -29,7 +30,7 @@ export type ApiAuthResult =
 export async function requireApiAuth(): Promise<ApiAuthResult> {
   const token = (await cookies()).get(getSessionCookieName())?.value;
   if (!token) {
-    return { ok: false, response: Response.json({ error: "unauthenticated" }, { status: 401 }) };
+    return { ok: false, response: failure("unauthorized", "Authentication is required") };
   }
 
   const dataSource = await getDataSource();
@@ -62,7 +63,7 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
     if (session) {
       await dataSource.query(`DELETE FROM auth_session WHERE id = $1;`, [session.id]);
     }
-    return { ok: false, response: Response.json({ error: "unauthenticated" }, { status: 401 }) };
+    return { ok: false, response: failure("unauthorized", "Authentication is required") };
   }
 
   const membershipRows = await dataSource.query<Array<{
@@ -90,7 +91,7 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
   );
 
   if (membershipRows.length === 0) {
-    return { ok: false, response: Response.json({ error: "forbidden" }, { status: 403 }) };
+    return { ok: false, response: failure("forbidden", "Access is not permitted") };
   }
 
   await dataSource.query(`UPDATE auth_session SET last_active_at = NOW() WHERE id = $1;`, [session.id]);
