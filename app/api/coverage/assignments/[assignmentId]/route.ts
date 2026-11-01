@@ -2,6 +2,7 @@ import "server-only";
 import { connection } from "next/server";
 import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
 import { getClientIp } from "@/lib/auth/request";
+import { failure, internalError, success } from "@/lib/api/response";
 
 export async function DELETE(
   request: Request,
@@ -11,12 +12,12 @@ export async function DELETE(
 
   const origin = request.headers.get("origin");
   if (!origin || new URL(request.url).origin !== origin) {
-    return Response.json({ error: "forbidden_origin" }, { status: 403 });
+    return failure("invalid_origin", "Request origin is not allowed");
   }
 
   const { assignmentId } = await params;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(assignmentId)) {
-    return Response.json({ error: "invalid_assignment_id" }, { status: 400 });
+    return failure("validation_failed", "Invalid assignment ID");
   }
 
   try {
@@ -86,10 +87,10 @@ export async function DELETE(
       return true;
     });
 
-    if (!deleted) return Response.json({ error: "not_found" }, { status: 404 });
-    return Response.json({ ok: true });
+    if (!deleted) return failure("not_found", "Assignment not found");
+    return success({ ok: true });
   } catch (error) {
     console.error("[/api/coverage/assignments/[assignmentId]] failed", error);
-    return Response.json({ error: "internal_error" }, { status: 500 });
+    return internalError();
   }
 }

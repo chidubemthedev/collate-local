@@ -8,7 +8,8 @@ info:
     Protected endpoints use the HTTP-only session cookie issued by
     `POST /api/auth/otp/verify`. The cookie is named `collate_session` outside
     production and `__Host-collate_session` in production. Swagger UI sends
-    same-origin cookies automatically after a successful sign-in.
+    same-origin cookies automatically after a successful sign-in. Swagger UI
+    uses `SERVER_BASE_URL` from the environment for the server URL when set.
 servers:
   - url: /
     description: Current Collate deployment

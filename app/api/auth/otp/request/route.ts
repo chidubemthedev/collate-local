@@ -13,6 +13,7 @@ import { getClientIp } from "@/lib/auth/request";
 import { consumeFixedWindowRateLimit, emailBucketKey, ipBucketKey } from "@/lib/auth/rate-limit";
 import { generateOtp, hashOtp } from "@/lib/auth/otp";
 import { getOtpSender } from "@/lib/auth/sender";
+import { failure, success } from "@/lib/api/response";
 
 export async function POST(request: Request) {
   await connection();
@@ -21,13 +22,13 @@ export async function POST(request: Request) {
     const body = await request.json();
     const parsed = OtpRequestBodySchema.safeParse(body);
     if (!parsed.success) {
-      return Response.json({ ok: false, error: "invalid_request" }, { status: 400 });
+      return failure("validation_failed", "Invalid request");
     }
 
     const email = parsed.data.email;
     const person = await findEligiblePersonByEmail(email);
     if (!person) {
-      return Response.json({ ok: false, error: "not_found" }, { status: 404 });
+      return failure("not_found", "Resource not found");
     }
 
     const now = new Date();
@@ -40,7 +41,9 @@ export async function POST(request: Request) {
       OTP_REQUESTS_PER_HOUR_PER_EMAIL,
     );
     if (!emailCheck.allowed) {
-      return Response.json({ ok: false, error: "too_many_requests" }, { status: 429 });
+      const response = failure("too_many_requests", "Too many requests");
+      response.headers.delete("Retry-After");
+      return response;
     }
 
     const ipCheck = await consumeFixedWindowRateLimit(
@@ -49,7 +52,9 @@ export async function POST(request: Request) {
       OTP_REQUESTS_PER_HOUR_PER_IP,
     );
     if (!ipCheck.allowed) {
-      return Response.json({ ok: false, error: "too_many_requests" }, { status: 429 });
+      const response = failure("too_many_requests", "Too many requests");
+      response.headers.delete("Retry-After");
+      return response;
     }
 
     const code = generateOtp();
@@ -68,9 +73,9 @@ export async function POST(request: Request) {
 
     await getOtpSender().send({ channel: "email", to: email, code });
 
-    return Response.json({ ok: true });
+    return success({ ok: true });
   } catch (error) {
     console.error("[/api/auth/otp/request] failed", error);
-    return Response.json({ ok: false, error: "internal_error" }, { status: 500 });
+    return failure("internal_error", "An unexpected error occurred");
   }
 }

@@ -5,6 +5,7 @@ import { getDataSource } from "@/lib/db";
 import { getSessionCookieName } from "@/lib/auth/config";
 import { hashSessionToken } from "@/lib/auth/session";
 import { clearSessionCookie } from "@/lib/auth/cookie";
+import { failure, success } from "@/lib/api/response";
 
 export async function POST() {
   await connection();
@@ -19,9 +20,9 @@ export async function POST() {
     }
 
     await clearSessionCookie();
-    return Response.json({ ok: true });
+    return success({ ok: true });
   } catch (error) {
     console.error("[/api/auth/logout] failed", error);
-    return Response.json({ ok: false }, { status: 500 });
+    return failure("internal_error", "An unexpected error occurred");
   }
 }

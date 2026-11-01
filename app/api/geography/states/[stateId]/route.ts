@@ -1,6 +1,7 @@
 import "server-only";
 import { connection } from "next/server";
 import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
+import { failure, internalError, success } from "@/lib/api/response";
 
 export async function GET(_: Request, { params }: { params: Promise<{ stateId: string }> }) {
   await connection();
@@ -10,7 +11,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ stateId: s
   try {
     const stateIdNum = Number(stateId);
     if (!Number.isInteger(stateIdNum)) {
-      return Response.json({ error: "invalid_state_id" }, { status: 400 });
+      return failure("validation_failed", "Invalid state ID");
     }
 
     const auth = await requireApiAuth();
@@ -55,12 +56,12 @@ export async function GET(_: Request, { params }: { params: Promise<{ stateId: s
 
     const row = rows[0];
     if (!row) {
-      return Response.json({ error: "not_found" }, { status: 404 });
+      return failure("not_found", "State not found");
     }
 
     const totalPUs = Number(row.total_pus ?? 0);
     const coveredPUs = Number(row.covered_pus ?? 0);
-    return Response.json({
+    return success({
       id: row.id,
       code: row.code,
       name: row.name,
@@ -75,6 +76,6 @@ export async function GET(_: Request, { params }: { params: Promise<{ stateId: s
     });
   } catch (error) {
     console.error("[/api/geography/states/[stateId]] failed", error);
-    return Response.json({ error: "internal_error" }, { status: 500 });
+    return internalError();
   }
 }

@@ -2,6 +2,7 @@ import "server-only";
 import { connection } from "next/server";
 import { getClientIp } from "@/lib/auth/request";
 import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
+import { failure, internalError, success } from "@/lib/api/response";
 
 type AssignmentBody = {
   personId: string;
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
 
   const origin = request.headers.get("origin");
   if (!origin || new URL(request.url).origin !== origin) {
-    return Response.json({ error: "forbidden_origin" }, { status: 403 });
+    return failure("invalid_origin", "Request origin is not allowed");
   }
 
   try {
@@ -75,12 +76,12 @@ export async function POST(request: Request) {
     try {
       rawBody = await request.json();
     } catch {
-      return Response.json({ error: "invalid_json" }, { status: 400 });
+      return failure("validation_failed", "Invalid JSON request body");
     }
 
     const body = parseAssignmentBody(rawBody);
     if (!body) {
-      return Response.json({ error: "invalid_assignment" }, { status: 400 });
+      return failure("validation_failed", "Invalid assignment");
     }
 
     const scope = getCoverageScopeFilter(auth.context, {
@@ -196,18 +197,20 @@ export async function POST(request: Request) {
     });
 
     if ("error" in result) {
-      return Response.json({ error: result.error }, { status: result.status });
+      return result.error === "not_found"
+        ? failure("not_found", "Polling unit not found")
+        : failure("forbidden", "Assignment owner is not allowed");
     }
 
-    return Response.json({ ok: true, id: result.id }, { status: 201 });
+    return success({ ok: true, id: result.id }, undefined, 201);
   } catch (error) {
     if (isPgError(error, "23505")) {
-      return Response.json({ error: "assignment_conflict" }, { status: 409 });
+      return failure("conflict", "Assignment conflict");
     }
     if (isPgError(error, "23503")) {
-      return Response.json({ error: "assignment_reference_not_found" }, { status: 404 });
+      return failure("not_found", "Assignment reference not found");
     }
     console.error("[/api/coverage/assignments] failed", error);
-    return Response.json({ error: "internal_error" }, { status: 500 });
+    return internalError();
   }
 }
