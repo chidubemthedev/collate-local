@@ -1,5 +1,5 @@
 import "server-only";
-import { PgBoss, type SendOptions } from "pg-boss";
+import { PgBoss, type ConstructorOptions, type SendOptions } from "pg-boss";
 import { defaultJobOptions } from "./names";
 
 /**
@@ -25,13 +25,18 @@ const queueDatabaseUrl = process.env.QUEUE_DATABASE_URL?.trim() || process.env.D
 const ssl =
   process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false;
 
+// pg-boss passes its constructor options straight through to its pg.Pool, so
+// pg pool options it does not declare in ConstructorOptions (idleTimeoutMillis)
+// still take effect. Declaring them here keeps the literal type-checked.
+type BossOptions = ConstructorOptions & { idleTimeoutMillis?: number };
+
 const globalForQueue = globalThis as unknown as {
   __collateQueue?: Promise<PgBoss>;
   __collateQueuesCreated?: Set<string>;
 };
 
 async function startBoss(): Promise<PgBoss> {
-  const boss = new PgBoss({
+  const options: BossOptions = {
     connectionString: queueDatabaseUrl,
     ssl,
     // Keep the pool small to respect cloud provider connection limits,
@@ -41,7 +46,8 @@ async function startBoss(): Promise<PgBoss> {
     // after ~5 minutes. Recycle sooner to avoid ECONNRESET errors.
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
-  });
+  };
+  const boss = new PgBoss(options);
   // pg-boss emits runtime/connection errors on this event; without a listener
   // an unhandled 'error' event would crash the Node process.
   boss.on("error", (error) => {
