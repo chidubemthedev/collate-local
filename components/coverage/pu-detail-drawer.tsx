@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { PollingUnitData } from "@/lib/types";
 import {
   Dialog,
@@ -11,7 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { useCreateAssignment, useDeleteAssignment } from "@/lib/hooks/use-coverage";
 import {
   ShieldCheck,
   AlertCircle,
@@ -21,9 +23,12 @@ import {
   MessageSquare,
   Send,
   UserPlus,
+  UserMinus,
   Users,
   CheckCircle2,
   Copy,
+  Loader2,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -34,9 +39,62 @@ interface PUDetailDrawerProps {
 }
 
 export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) {
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [personIdInput, setPersonIdInput] = useState("");
+  const [assignError, setAssignError] = useState<string | null>(null);
+
+  const createAssignment = useCreateAssignment();
+  const deleteAssignment = useDeleteAssignment();
+
   if (!pu) return null;
 
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${pu.latitude},${pu.longitude}`;
+
+  const handleAssign = async () => {
+    if (!pu.id || !personIdInput.trim()) {
+      setAssignError("Please enter a valid Person ID");
+      return;
+    }
+
+    setAssignError(null);
+    try {
+      await createAssignment.mutateAsync({
+        pollingUnitId: pu.id,
+        personId: personIdInput.trim(),
+        agentKind: "official",
+        slotNumber: 0,
+      });
+      setIsAssigning(false);
+      setPersonIdInput("");
+      onOpenChange(false);
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: unknown }).message)
+          : "Failed to assign agent. Verify Person ID.";
+      setAssignError(message);
+    }
+  };
+
+  const handleUnassignOfficial = async () => {
+    if (!pu.officialAssignmentId) return;
+    try {
+      await deleteAssignment.mutateAsync(pu.officialAssignmentId);
+      onOpenChange(false);
+    } catch (err: unknown) {
+      console.error("Failed to unassign official agent:", err);
+    }
+  };
+
+  const handleUnassignExtra = async (assignmentId?: string) => {
+    if (!assignmentId) return;
+    try {
+      await deleteAssignment.mutateAsync(assignmentId);
+      onOpenChange(false);
+    } catch (err: unknown) {
+      console.error("Failed to unassign extra agent:", err);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -129,6 +187,24 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
                     Secrecy compliance: NDPA 2023 Masked
                   </div>
                 </div>
+                {pu.officialAssignmentId && (
+                  <div className="pt-1 flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-7 gap-1 border-rose-300 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                      onClick={handleUnassignOfficial}
+                      disabled={deleteAssignment.isPending}
+                    >
+                      {deleteAssignment.isPending ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3 h-3" />
+                      )}
+                      <span>Unassign Official Agent</span>
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="p-3.5 rounded-lg border border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20 space-y-2">
@@ -141,9 +217,59 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
                     </p>
                   </div>
                 </div>
-                <Button size="sm" variant="outline" className="w-full text-xs h-7 gap-1 mt-1 border-amber-500/50 text-amber-800 dark:text-amber-300">
-                  <UserPlus className="w-3 h-3" /> Assign Official Party Agent
-                </Button>
+
+                {isAssigning ? (
+                  <div className="space-y-2 pt-2 border-t border-amber-200 dark:border-amber-900/40">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-foreground block">
+                        Agent Person ID (UUID):
+                      </label>
+                      <Input
+                        value={personIdInput}
+                        onChange={(e) => setPersonIdInput(e.target.value)}
+                        placeholder="e.g. f0ebf80e-bee5-4f01-af92-e636bf4879c5"
+                        className="text-xs h-8 font-mono"
+                        autoFocus
+                      />
+                    </div>
+                    {assignError && (
+                      <p className="text-[11px] text-destructive">{assignError}</p>
+                    )}
+                    <div className="flex items-center gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        className="text-xs h-7 gap-1 bg-amber-600 hover:bg-amber-700 text-white"
+                        onClick={handleAssign}
+                        disabled={createAssignment.isPending || !personIdInput.trim()}
+                      >
+                        {createAssignment.isPending && (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        )}
+                        <span>Confirm Assignment</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-xs h-7"
+                        onClick={() => {
+                          setIsAssigning(false);
+                          setAssignError(null);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-xs h-7 gap-1 mt-1 border-amber-500/50 text-amber-800 dark:text-amber-300"
+                    onClick={() => setIsAssigning(true)}
+                  >
+                    <UserPlus className="w-3 h-3" /> Assign Official Party Agent
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -175,9 +301,23 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-foreground">{agent.name}</span>
-                      <Badge variant="secondary" className="text-[10px] font-normal">
-                        Role: {agent.role || "Protector"}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="secondary" className="text-[10px] font-normal">
+                          Role: {agent.role || "Protector"}
+                        </Badge>
+                        {agent.assignmentId && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 px-1.5 text-[10px] text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                            onClick={() => handleUnassignExtra(agent.assignmentId)}
+                            disabled={deleteAssignment.isPending}
+                            title="Unassign this extra agent"
+                          >
+                            <Trash2 className="w-2.5 h-2.5" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                       <span className="text-indigo-700 dark:text-indigo-300 font-medium">

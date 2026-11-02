@@ -9,6 +9,17 @@ import {
   WARDS_DATA,
   POLLING_UNITS_DATA,
 } from "@/lib/data/inec-data";
+import {
+  useGeographyStates,
+  useGeographyLgas,
+  useGeographyWards,
+  useGeographyPollingUnits,
+} from "@/lib/hooks/use-geography";
+import {
+  useCoverageSummary,
+  useCoverageGaps,
+} from "@/lib/hooks/use-coverage";
+import { StateData, LGAData, WardData, PollingUnitData } from "@/lib/types";
 import { KPISummary } from "@/components/coverage/kpi-summary";
 import { AtStakeCandidates } from "@/components/coverage/at-stake-candidates";
 import { CoverageMap } from "@/components/coverage/coverage-map";
@@ -25,6 +36,7 @@ import {
   Layers,
   Sparkles,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -53,8 +65,130 @@ export default function CoveragePage() {
     return "national";
   }, [selectedStateCode, selectedLgaCode, selectedWardCode]);
 
-  // Compute KPI metrics dynamically based on current scope
+  // Fetch live geography data
+  const { data: apiStates = [], isLoading: isLoadingStates, isFetching: isFetchingStates } = useGeographyStates();
+
+  const statesList = useMemo(() => {
+    return apiStates.length > 0 ? apiStates : STATES_DATA;
+  }, [apiStates]);
+
+  const selectedState = useMemo(() => {
+    return statesList.find(
+      (s) => s.code === selectedStateCode || ("id" in s && String(s.id) === selectedStateCode)
+    );
+  }, [statesList, selectedStateCode]);
+
+  const selectedStateId = useMemo(() => {
+    return selectedState && "id" in selectedState ? (selectedState.id as number) : null;
+  }, [selectedState]);
+
+  const { data: apiLgas = [], isLoading: isLoadingLgas } = useGeographyLgas(selectedStateId);
+
+  const lgasList = useMemo(() => {
+    if (selectedStateCode === "all") return [];
+    if (apiLgas.length > 0) return apiLgas;
+    return LGAS_DATA.filter((l) => l.stateCode === selectedStateCode);
+  }, [selectedStateCode, apiLgas]);
+
+  const selectedLga = useMemo(() => {
+    return lgasList.find(
+      (l) => l.code === selectedLgaCode || ("id" in l && String(l.id) === selectedLgaCode)
+    );
+  }, [lgasList, selectedLgaCode]);
+
+  const selectedLgaId = useMemo(() => {
+    return selectedLga && "id" in selectedLga ? (selectedLga.id as number) : null;
+  }, [selectedLga]);
+
+  const { data: apiWards = [], isLoading: isLoadingWards } = useGeographyWards(selectedLgaId);
+
+  const wardsList = useMemo(() => {
+    if (selectedLgaCode === "all") return [];
+    if (apiWards.length > 0) return apiWards;
+    return WARDS_DATA.filter((w) => w.lgaCode === selectedLgaCode);
+  }, [selectedLgaCode, apiWards]);
+
+  const selectedWard = useMemo(() => {
+    return wardsList.find(
+      (w) => w.code === selectedWardCode || ("id" in w && String(w.id) === selectedWardCode)
+    );
+  }, [wardsList, selectedWardCode]);
+
+  const selectedWardId = useMemo(() => {
+    return selectedWard && "id" in selectedWard ? (selectedWard.id as number) : null;
+  }, [selectedWard]);
+
+  const { data: apiPollingUnits = [], isLoading: isLoadingPus } = useGeographyPollingUnits(selectedWardId);
+
+  // Live coverage summary query
+  const { data: summaryData, isLoading: isLoadingSummary, isFetching: isFetchingSummary } = useCoverageSummary({
+    stateId: selectedStateId,
+    lgaId: selectedLgaId,
+    wardId: selectedWardId,
+  });
+
+  // Compute KPI metrics dynamically based on live API summary or fallback
   const kpiData = useMemo(() => {
+    if (summaryData) {
+      const levelName =
+        currentLevel === "ward"
+          ? selectedWard?.name || selectedWardCode
+          : currentLevel === "lga"
+          ? selectedLga?.name || selectedLgaCode
+          : currentLevel === "state"
+          ? selectedState?.name || selectedStateCode
+          : "Nigeria";
+
+      const statesCount =
+        currentLevel === "national"
+          ? apiStates.length > 0
+            ? apiStates.length
+            : NIGERIA_SUMMARY.statesCount
+          : undefined;
+
+      const lgasCount =
+        currentLevel === "ward"
+          ? 1
+          : currentLevel === "lga"
+          ? 1
+          : currentLevel === "state"
+          ? selectedState && "lgasCount" in selectedState
+            ? (selectedState.lgasCount as number)
+            : lgasList.length
+          : apiStates.length > 0
+          ? apiStates.reduce((acc, s) => acc + ("lgasCount" in s ? (s.lgasCount as number) : 0), 0)
+          : NIGERIA_SUMMARY.lgasCount;
+
+      const wardsCount =
+        currentLevel === "ward"
+          ? 1
+          : currentLevel === "lga"
+          ? selectedLga && "wardsCount" in selectedLga
+            ? (selectedLga.wardsCount as number)
+            : wardsList.length
+          : currentLevel === "state"
+          ? selectedState && "wardsCount" in selectedState
+            ? (selectedState.wardsCount as number)
+            : lgasList.reduce((acc, l) => acc + ("wardsCount" in l ? (l.wardsCount as number) : 0), 0)
+          : apiStates.length > 0
+          ? apiStates.reduce((acc, s) => acc + ("wardsCount" in s ? (s.wardsCount as number) : 0), 0)
+          : NIGERIA_SUMMARY.wardsCount;
+
+      return {
+        levelName,
+        totalPUs: summaryData.totalPUs,
+        gpsPUs: summaryData.gpsPUs,
+        coveredPUs: summaryData.coveredPUs,
+        noCoveragePUs: summaryData.noCoveragePUs,
+        officialAgentPct: summaryData.officialAgentPct,
+        extraAgentsCount: summaryData.extraAgentsCount,
+        wardsCount,
+        lgasCount,
+        statesCount,
+      };
+    }
+
+    // Fallback to static computations while query loads
     if (currentLevel === "ward") {
       const pus = POLLING_UNITS_DATA.filter((p) => p.wardCode === selectedWardCode);
       const covered = pus.filter((p) => p.hasOfficialAgent).length;
@@ -125,11 +259,43 @@ export default function CoveragePage() {
       lgasCount: NIGERIA_SUMMARY.lgasCount,
       statesCount: NIGERIA_SUMMARY.statesCount,
     };
-  }, [currentLevel, selectedStateCode, selectedLgaCode, selectedWardCode]);
+  }, [
+    summaryData,
+    currentLevel,
+    selectedWard,
+    selectedWardCode,
+    selectedLga,
+    selectedLgaCode,
+    selectedState,
+    selectedStateCode,
+    apiStates,
+    lgasList,
+    wardsList,
+  ]);
 
-  // Filter and sort States data
-  const filteredStates = useMemo(() => {
-    let result = [...STATES_DATA];
+  // Filter and sort States data (live or static)
+  const filteredStates: StateData[] = useMemo(() => {
+    let result: StateData[] = statesList.map((s) => {
+      const covered = s.coveredPUs;
+      const total = s.totalPUs;
+      const pct = s.officialAgentPct;
+      const status: "Open" | "Complete" | "Critical" =
+        pct === 100 ? "Complete" : pct < 20 ? "Critical" : "Open";
+
+      return {
+        code: s.code,
+        name: s.name,
+        totalPUs: total,
+        gpsPUs: s.gpsPUs,
+        coveredPUs: covered,
+        noCoveragePUs: s.noCoveragePUs,
+        officialAgentPct: pct,
+        extraAgentsCount: s.extraAgentsCount,
+        lgasCount: s.lgasCount ?? 0,
+        wardsCount: s.wardsCount ?? 0,
+        status,
+      };
+    });
 
     if (filterMode === "gaps") {
       result = result.filter((s) => s.noCoveragePUs > 0);
@@ -153,11 +319,29 @@ export default function CoveragePage() {
     });
 
     return result;
-  }, [filterMode, searchQuery, sortBy]);
+  }, [statesList, filterMode, searchQuery, sortBy]);
 
-  // Filter and sort LGAs data
-  const filteredLGAs = useMemo(() => {
-    let result = LGAS_DATA.filter((l) => l.stateCode === selectedStateCode);
+  // Filter and sort LGAs data (live or static)
+  const filteredLGAs: LGAData[] = useMemo(() => {
+    let result: LGAData[] = lgasList.map((l) => {
+      const pct = l.officialAgentPct;
+      const status: "Open" | "Complete" | "Critical" =
+        pct === 100 ? "Complete" : pct < 20 ? "Critical" : "Open";
+
+      return {
+        code: l.code,
+        stateCode: "stateCode" in l ? String(l.stateCode) : selectedStateCode,
+        name: l.name,
+        totalPUs: l.totalPUs,
+        gpsPUs: l.gpsPUs,
+        coveredPUs: l.coveredPUs,
+        noCoveragePUs: l.noCoveragePUs,
+        officialAgentPct: pct,
+        extraAgentsCount: l.extraAgentsCount,
+        wardsCount: l.wardsCount,
+        status,
+      };
+    });
 
     if (filterMode === "gaps") {
       result = result.filter((l) => l.noCoveragePUs > 0);
@@ -181,11 +365,29 @@ export default function CoveragePage() {
     });
 
     return result;
-  }, [selectedStateCode, filterMode, searchQuery, sortBy]);
+  }, [lgasList, selectedStateCode, filterMode, searchQuery, sortBy]);
 
-  // Filter and sort Wards data
-  const filteredWards = useMemo(() => {
-    let result = WARDS_DATA.filter((w) => w.lgaCode === selectedLgaCode);
+  // Filter and sort Wards data (live or static)
+  const filteredWards: WardData[] = useMemo(() => {
+    let result: WardData[] = wardsList.map((w) => {
+      const pct = w.officialAgentPct;
+      const status: "Open" | "Complete" | "Critical" =
+        pct === 100 ? "Complete" : pct < 20 ? "Critical" : "Open";
+
+      return {
+        code: w.code,
+        lgaCode: "lgaCode" in w ? String(w.lgaCode) : selectedLgaCode,
+        stateCode: "stateCode" in w ? String(w.stateCode) : selectedStateCode,
+        name: w.name,
+        totalPUs: w.totalPUs,
+        gpsPUs: w.gpsPUs,
+        coveredPUs: w.coveredPUs,
+        noCoveragePUs: w.noCoveragePUs,
+        officialAgentPct: pct,
+        extraAgentsCount: w.extraAgentsCount,
+        status,
+      };
+    });
 
     if (filterMode === "gaps") {
       result = result.filter((w) => w.noCoveragePUs > 0);
@@ -209,11 +411,48 @@ export default function CoveragePage() {
     });
 
     return result;
-  }, [selectedLgaCode, filterMode, searchQuery, sortBy]);
+  }, [wardsList, selectedLgaCode, filterMode, searchQuery, sortBy]);
 
-  // Filter and sort Polling Units data
-  const filteredPollingUnits = useMemo(() => {
-    let result = POLLING_UNITS_DATA.filter((p) => p.wardCode === selectedWardCode);
+  // Filter and sort Polling Units data (live or static)
+  const filteredPollingUnits: PollingUnitData[] = useMemo(() => {
+    let rawList: PollingUnitData[];
+
+    if (apiPollingUnits.length > 0) {
+      rawList = apiPollingUnits.map((p) => ({
+        id: p.id,
+        code: p.code,
+        name: p.name,
+        wardCode: p.wardCode || selectedWardCode,
+        lgaCode: p.lgaCode || selectedLgaCode,
+        stateCode: p.stateCode || selectedStateCode,
+        latitude: p.latitude ?? 9.082,
+        longitude: p.longitude ?? 8.6753,
+        hasGPS: p.latitude !== null && p.longitude !== null,
+        hasOfficialAgent: Boolean(p.hasOfficialAgent),
+        officialAgentName: p.officialAgentName ?? undefined,
+        officialAgentPhone: p.officialAgentPhone ?? undefined,
+        officialAgentTelegramStatus:
+          p.officialAgentTelegramStatus === "connected"
+            ? ("connected" as const)
+            : ("sms_only" as const),
+        officialAssignmentId: p.officialAssignmentId ?? undefined,
+        extraAgents: (p.extraAgents ?? []).map((ea) => ({
+          id: ea.id,
+          assignmentId: ea.assignmentId,
+          name: ea.name,
+          phone: ea.phone ?? "",
+          role: ea.role ?? "Extra Agent",
+          owner: ea.owner ?? "Candidate",
+          telegramStatus: "sms_only" as const,
+        })),
+        location:
+          p.locationDescription || `${p.name}, Ward ${selectedWard?.name || selectedWardCode}`,
+      }));
+    } else {
+      rawList = POLLING_UNITS_DATA.filter((p) => p.wardCode === selectedWardCode);
+    }
+
+    let result = [...rawList];
 
     if (filterMode === "gaps") {
       result = result.filter((p) => !p.hasOfficialAgent);
@@ -230,7 +469,17 @@ export default function CoveragePage() {
     }
 
     return result;
-  }, [selectedWardCode, filterMode, searchQuery]);
+  }, [
+    apiPollingUnits,
+    selectedWardCode,
+    selectedLgaCode,
+    selectedStateCode,
+    selectedWard,
+    filterMode,
+    searchQuery,
+  ]);
+
+  const isLiveSyncing = isFetchingStates || isFetchingSummary;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -241,9 +490,16 @@ export default function CoveragePage() {
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
               2027 Coverage Dashboard
             </h1>
-            <Badge variant="outline" className="text-xs px-2 py-0.5 gap-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Live INEC Engine
+            <Badge
+              variant="outline"
+              className="text-xs px-2 py-0.5 gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-300"
+            >
+              {isLiveSyncing ? (
+                <Loader2 className="w-3 h-3 text-emerald-600 animate-spin" />
+              ) : (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              )}
+              <span>Live INEC Engine</span>
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">

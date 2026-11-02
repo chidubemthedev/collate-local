@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "@/lib/context/app-context";
+import { useSession, useLogout } from "@/lib/hooks/use-auth";
 import { PERSONAS } from "@/lib/tree-permissions";
 import {
   MapPin,
@@ -17,6 +18,8 @@ import {
   Layers,
   Database,
   Eye,
+  LogOut,
+  LogIn,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -31,6 +34,12 @@ import {
 export function Sidebar() {
   const pathname = usePathname();
   const { activePersona, setPersonaId } = useApp();
+  const { data: session } = useSession();
+  const logoutMutation = useLogout();
+
+  if (pathname === "/login") {
+    return null;
+  }
 
   const isLinkActive = (path: string) => {
     if (path === "/" || path === "/coverage") {
@@ -227,6 +236,43 @@ export function Sidebar() {
           </div>
         )}
       </nav>
+
+      {/* User Session Block */}
+      <div className="p-3 border-t border-border/80 bg-muted/30">
+        {session?.authenticated && session.person ? (
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
+                <span className="truncate">{session.person.fullName}</span>
+                {session.person.isAdmin && (
+                  <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                    Admin
+                  </Badge>
+                )}
+              </div>
+              <div className="text-[10px] text-muted-foreground truncate">
+                {session.person.emailAddress}
+              </div>
+            </div>
+            <button
+              onClick={() => logoutMutation.mutate()}
+              disabled={logoutMutation.isPending}
+              title="Sign Out"
+              className="p-1.5 rounded-md hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <Link
+            href="/login"
+            className="flex items-center justify-center gap-2 w-full py-1.5 px-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors shadow-xs"
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            Sign in
+          </Link>
+        )}
+      </div>
 
       {/* Footer data disclaimer matching wireframe */}
       <div className="p-3 border-t border-border/60 bg-muted/20 text-[11px] text-muted-foreground space-y-1">

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,9 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { useCreateAssignment, useDeleteAssignment } from "@/lib/hooks/use-coverage";
 import {
   ShieldCheck,
   AlertCircle,
@@ -22,11 +24,16 @@ import {
   Users,
   UserCheck,
   Building,
+  Loader2,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 
 export interface UnifiedAgentRecord {
   id: string;
+  assignmentId?: string;
+  personId?: string;
+  puId?: number;
   name: string;
   type: "official" | "extra" | "gap";
   sponsor: string;
@@ -39,9 +46,12 @@ export interface UnifiedAgentRecord {
   latitude: number;
   longitude: number;
   hasGPS: boolean;
-  wardCode: string;
-  lgaCode: string;
-  stateCode: string;
+  wardCode?: string;
+  wardName?: string;
+  lgaCode?: string;
+  lgaName?: string;
+  stateCode?: string;
+  stateName?: string;
   coAgents?: Array<{ name: string; sponsor: string; role: string; type: string }>;
 }
 
@@ -58,12 +68,58 @@ export function AgentDetailModal({
   onOpenChange,
   onAssignOfficial,
 }: AgentDetailModalProps) {
+  const createAssignment = useCreateAssignment();
+  const deleteAssignment = useDeleteAssignment();
+
+  const [personIdInput, setPersonIdInput] = useState("");
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+
   if (!agent) return null;
 
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${agent.latitude},${agent.longitude}`;
 
   const isGap = agent.type === "gap";
   const isOfficial = agent.type === "official";
+
+  const handleLiveAssign = async () => {
+    if (!agent.puId || !personIdInput.trim()) {
+      setAssignError("Please enter a valid Person ID");
+      return;
+    }
+
+    setAssignError(null);
+    try {
+      await createAssignment.mutateAsync({
+        pollingUnitId: agent.puId,
+        personId: personIdInput.trim(),
+        agentKind: "official",
+        slotNumber: 0,
+      });
+      setIsAssigning(false);
+      setPersonIdInput("");
+      if (onAssignOfficial) {
+        onAssignOfficial(agent.puCode);
+      }
+      onOpenChange(false);
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: unknown }).message)
+          : "Failed to assign agent. Verify Person ID.";
+      setAssignError(message);
+    }
+  };
+
+  const handleLiveUnassign = async () => {
+    if (!agent.assignmentId) return;
+    try {
+      await deleteAssignment.mutateAsync(agent.assignmentId);
+      onOpenChange(false);
+    } catch (err: unknown) {
+      console.error("Failed to unassign agent:", err);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,15 +165,17 @@ export function AgentDetailModal({
                 <Building className="w-3.5 h-3.5 text-primary" />
                 {agent.puName}
               </span>
-              <a
-                href={mapUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary hover:underline flex items-center gap-1 font-medium"
-              >
-                Map
-                <ExternalLink className="w-3 h-3" />
-              </a>
+              {agent.latitude !== 0 && agent.longitude !== 0 && (
+                <a
+                  href={mapUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline flex items-center gap-1 font-medium"
+                >
+                  Map
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
             </div>
             <p className="text-xs text-muted-foreground flex items-start gap-1">
               <MapPin className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0 mt-0.5" />
@@ -126,7 +184,11 @@ export function AgentDetailModal({
             <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground pt-1 border-t border-border/50">
               <span>Code: {agent.puCode}</span>
               <span>
-                GPS: {agent.latitude.toFixed(4)}° N, {agent.longitude.toFixed(4)}° E
+                {agent.latitude !== 0 && agent.longitude !== 0
+                  ? `GPS: ${agent.latitude.toFixed(4)}° N, ${agent.longitude.toFixed(4)}° E`
+                  : agent.hasGPS
+                  ? "GPS: Validated"
+                  : "GPS: Not Available"}
               </span>
             </div>
           </div>
@@ -216,7 +278,7 @@ export function AgentDetailModal({
           )}
 
           {isGap && (
-            <div className="p-3.5 rounded-lg border border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20 space-y-2">
+            <div className="p-3.5 rounded-lg border border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20 space-y-3">
               <div className="flex items-start gap-2 text-xs text-amber-900 dark:text-amber-200">
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div>
@@ -226,17 +288,63 @@ export function AgentDetailModal({
                   </p>
                 </div>
               </div>
-              {onAssignOfficial && (
+
+              {!isAssigning ? (
                 <Button
                   size="sm"
-                  className="w-full text-xs h-7.5 mt-1 bg-amber-600 hover:bg-amber-700 text-white"
-                  onClick={() => {
-                    onAssignOfficial(agent.puCode);
-                    onOpenChange(false);
-                  }}
+                  className="w-full text-xs h-8 bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={() => setIsAssigning(true)}
                 >
                   Assign Official Party Agent Now
                 </Button>
+              ) : (
+                <div className="space-y-2 pt-1 border-t border-amber-200 dark:border-amber-800">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground">
+                      Assign Official Agent
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setPersonIdInput("f0ebf80e-bee5-4f01-af92-e636bf4879c5")}
+                      className="text-[10px] text-primary hover:underline"
+                    >
+                      Use Demo Agent ID
+                    </button>
+                  </div>
+                  <Input
+                    placeholder="Person UUID (e.g. f0ebf80e-...)"
+                    value={personIdInput}
+                    onChange={(e) => setPersonIdInput(e.target.value)}
+                    className="h-8 text-xs font-mono bg-background"
+                  />
+                  {assignError && (
+                    <p className="text-[11px] text-destructive">{assignError}</p>
+                  )}
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      onClick={handleLiveAssign}
+                      disabled={createAssignment.isPending || !personIdInput.trim()}
+                      className="flex-1 text-xs h-7.5 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                    >
+                      {createAssignment.isPending && (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      )}
+                      Confirm Assignment
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIsAssigning(false);
+                        setAssignError(null);
+                      }}
+                      className="text-xs h-7.5"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -255,6 +363,24 @@ export function AgentDetailModal({
                 Message this Agent
               </Link>
             )}
+
+            {!isGap && agent.assignmentId && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLiveUnassign}
+                disabled={deleteAssignment.isPending}
+                className="text-xs h-8 text-destructive border-destructive/30 hover:bg-destructive/10 gap-1"
+              >
+                {deleteAssignment.isPending ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                Unassign
+              </Button>
+            )}
+
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}

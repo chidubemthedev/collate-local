@@ -397,7 +397,10 @@ export function CoverageTable({
                 ) : (
                   pollingUnits.map((pu) => {
                     const isCovered = pu.hasOfficialAgent;
-                    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${pu.latitude},${pu.longitude}`;
+                    const hasValidCoords = typeof pu.latitude === "number" && typeof pu.longitude === "number" && (pu.latitude !== 0 || pu.longitude !== 0);
+                    const mapUrl = hasValidCoords
+                      ? `https://www.google.com/maps/search/?api=1&query=${pu.latitude},${pu.longitude}`
+                      : "#";
 
                     return (
                       <TableRow
@@ -414,24 +417,28 @@ export function CoverageTable({
                             <div className="font-semibold text-foreground text-sm">{pu.name}</div>
                             <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1">
                               <MapPin className="w-3 h-3 text-muted-foreground/80 shrink-0" />
-                              <span>{pu.location}</span>
+                              <span>{pu.location || pu.name}</span>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           <div className="space-y-0.5 text-[11px] font-mono">
                             <div className="text-foreground">
-                              {pu.latitude.toFixed(4)}°, {pu.longitude.toFixed(4)}°
+                              {hasValidCoords
+                                ? `${pu.latitude.toFixed(4)}°, ${pu.longitude.toFixed(4)}°`
+                                : "No GPS data"}
                             </div>
-                            <a
-                              href={mapUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-primary hover:underline flex items-center gap-0.5 text-[10px]"
-                            >
-                              <span>Open in map</span>
-                              <ExternalLink className="w-2.5 h-2.5" />
-                            </a>
+                            {hasValidCoords && (
+                              <a
+                                href={mapUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-primary hover:underline flex items-center gap-0.5 text-[10px]"
+                              >
+                                <span>Open in map</span>
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>

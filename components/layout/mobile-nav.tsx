@@ -42,6 +42,10 @@ export function MobileNav() {
   const { activePersona, setPersonaId } = useApp();
   const [open, setOpen] = useState(false);
 
+  if (pathname === "/login") {
+    return null;
+  }
+
   const isLinkActive = (path: string) => {
     if (path === "/" || path === "/coverage") {
       return pathname === "/" || pathname === "/coverage";

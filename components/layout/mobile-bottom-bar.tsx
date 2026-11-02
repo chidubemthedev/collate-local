@@ -14,6 +14,10 @@ import {
 export function MobileBottomBar() {
   const pathname = usePathname();
 
+  if (pathname === "/login") {
+    return null;
+  }
+
   const isLinkActive = (path: string) => {
     if (path === "/coverage") {
       return pathname === "/" || pathname === "/coverage";
