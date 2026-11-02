@@ -57,7 +57,7 @@ npm run db:seed:demo:reset
 npm run db:seed:demo:fresh
 ```
 
-The generator stores the plain access tokens for active access links in `.demo-seed-output.json` (git-ignored). The file is used only by the demo flow; plain tokens are never printed to the console or stored in the database.
+The generator stores the plain access tokens for active access links in `.demo-seed-output.json` (git-ignored). The file is used only by the demo flow; plain tokens are never printed to the console or stored in the database. The demo seed also creates `access_link`, `import_batch`, and `audit_log` rows (schema present), though the corresponding API routes are not implemented yet.
 
 > This demo data must only be used on a development or demo database and never against a live production database.
 
@@ -73,7 +73,7 @@ npm run telegram:webhook:set -- https://<tunnel-url>/api/telegram/webhook
 
 Then message the bot. The tunnel URL changes every time it restarts, so set the webhook again after each restart. A bot can have only one webhook at a time.
 
-The bot links a Telegram chat to an existing phone number through Telegram's contact-sharing button. Only the sender's own contact is accepted; forwarded contacts and group chats are ignored. A matched, unconfirmed number is confirmed and attached to the chat, a conflicting chat writes a conflict audit event without changing data, and an unknown number writes nothing. After linking, the bot asks for consent to the versioned consent text (`PRIVACY_POLICY_URL` is shown when set). A decline is recorded and excludes the person from future broadcasts. `/start` re-sends the share-number or consent prompt when needed.
+The bot links a Telegram chat to an existing phone number through Telegram's contact-sharing button. Only the sender's own contact is accepted; forwarded contacts and group chats are ignored. A matched, unconfirmed number is confirmed and attached to the chat, a conflicting chat writes a conflict audit event without changing data, and an unknown number writes nothing. After linking, the bot asks for consent to the versioned consent text (`PRIVACY_POLICY_URL` is shown when set). A decline is recorded and excludes the person from future broadcasts. `/start` re-sends the share-number or consent prompt when needed. The bot does not yet support adding a new Telegram number through a separate confirmation step; it only matches numbers already present on the person record.
 
 ## Backend API
 
@@ -114,7 +114,7 @@ Paginated APIs can also return `meta`. Errors use:
 | `GET /api/auth/session` | Session cookie, if present | Report the current session and person |
 | `POST /api/auth/logout` | Session cookie, if present | Delete the current session and clear its cookie |
 | `GET /api/auth/permissions` | Required | Return the caller's role names and permission flags |
-| `GET /api/agents` | Required | List policy-visible agent assignments |
+| `GET /api/agents` | Required | List policy-visible agent assignments with masked phone numbers |
 | `POST /api/broadcasts/preview` | Required, same-origin | Count the official and extra agents an audience filter reaches |
 | `GET, POST /api/broadcasts` | Required (POST same-origin) | List visible broadcasts or create a broadcast |
 | `GET /api/broadcasts/{broadcastId}` | Required | Read a broadcast with delivery counts by status |
@@ -128,11 +128,31 @@ Paginated APIs can also return `meta`. Errors use:
 | `GET /api/coverage/gaps` | Required | List polling units with no official agent |
 | `POST /api/coverage/assignments` | Required, same-origin | Create an agent assignment |
 | `DELETE /api/coverage/assignments/{assignmentId}` | Required, same-origin | Delete an agent assignment |
+| `GET /api/admin/queue` | Required (admin) | Inspect pg-boss queue counts and recent jobs |
 | `GET, POST /api/dev/queue-test` | None; development only | Inspect or enqueue test jobs; returns 404 in production |
 | `GET /api/openapi` | None | Serve the OpenAPI YAML |
 | `GET /api/docs` | None | Serve Swagger UI |
+| `POST /api/telegram/webhook` | Telegram webhook secret (internal) | Receive Telegram updates |
 
-### Authentication and sessions
+### Current implementation status
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| OTP auth, sessions, permissions | Implemented | Passwordless email OTP; session checks and scope/policy fields are live. |
+| Telegram linking and consent | Implemented | Share-number matching, conflict handling, consent prompts, OK callbacks, and broadcasts are live. A matched unconfirmed number is auto-confirmed; there is no separate flow yet for adding a new Telegram number after validation through a listed number. |
+| Agent listing | Implemented | `/api/agents` masks phone numbers, applies owner visibility, paginates, and writes an audit event. |
+| Geography and coverage | Partial | State/LGA/ward/PU views and live official-agent coverage exist. There is no candidate coverage, group coverage, position-doubtful exposure, or PU stakeholder detail, and `coverage_count` is not read at runtime. |
+| Broadcasts | Partial | Preview, create, schedule, detail, deliveries, Telegram/SMS delivery, and OK tracking exist. Audience rows are agent assignments only; candidate recipients, broadcast cancellation, and gap-message prefill are not implemented. |
+| Assignment management | Implemented | Create/delete are scoped and audited; one official assignment per polling unit is enforced. |
+| INEC import and agent import | Not implemented | Only deterministic demo geography exists. There is no real INEC importer, CSV/Excel import route, E.164 de-duplication, or candidate-wins harmonisation. |
+| Candidates and running mates | Not implemented as API | Candidate data is static in the UI; there is no candidate list, detail, coverage, sorting, or running-mate API. |
+| Candidate access links | Not implemented as API | `access_link` exists in the schema and demo data only; no create/use/revoke/reissue route or access log. |
+| Admin settings | Partial | Only the queue inspector (`GET /api/admin/queue`) exists; there are no group, user, access-link, audit, channel, or view-as APIs. |
+| Tree rule | Not implemented | Scope and owner visibility work, but the office-overlap tree rule is still a TODO in the policy layer. |
+| Audit log | Partial | Application code inserts events for assignment changes and some reads; the table is not append-only and polling-unit/coverage reads are not all logged. |
+| Data protection | Partial | Most agent/broadcast responses mask phones, but the ward polling-unit endpoint currently returns full agent phone values; do not treat it as a safe agent export. |
+
+
 
 Authentication is passwordless. The person must already exist and be eligible: they must have a `membership` or a `candidate` row. OTPs are six digits and expire after 10 minutes. The OTP itself is not stored in the database; only an HMAC hash is stored. Requests are limited to 5 per hour per normalized email and 20 per hour per IP. Verification attempts are limited to 10 per IP per 15 minutes.
 
@@ -163,7 +183,7 @@ Authentication is passwordless. The person must already exist and be eligible: t
    - `GET /api/auth/session` returns `data.authenticated: false` if there is no valid session; otherwise it returns the signed-in person. This is a status endpoint, not a way to extend the absolute session lifetime.
    - `POST /api/auth/logout` deletes the session row and expires the cookie.
 
-Sessions have a 12-hour absolute lifetime and a 2-hour idle timeout. Protected requests validate the token by hashing it and looking up `auth_session`; raw session tokens are not stored in the database. `GET /api/auth/permissions` returns `isAdmin`, `canManageCoverage`, `canBroadcast`, and role names. Currently `canBroadcast` mirrors `canManageCoverage`. The broadcast routes additionally require a usable policy scope, so an admin or member with global scope can create a broadcast, while a caller with no scope is refused.
+Sessions have a 12-hour absolute lifetime and a 2-hour idle timeout. Protected requests validate the token by hashing it and looking up `auth_session`; raw session tokens are not stored in the database. `GET /api/auth/permissions` returns `isAdmin`, `canManageCoverage`, `canBroadcast`, and role names. Currently `canBroadcast` mirrors `canManageCoverage`. The broadcast routes additionally require a usable policy scope, so an admin or member with global scope can create a broadcast, while a caller with no scope is refused. `GET /api/auth/session` returns the current person and flags; it does not expose a `candidateId` in the current implementation. Some API routes require a membership record; policy-scoped endpoints enforce scope and owner visibility.
 
 For local development, `OTP_DELIVERY=console` logs the code to the server terminal and is forbidden in production. When `OTP_DELIVERY=brevo`, configure `BREVO_API_KEY` and optionally `BREVO_FROM_EMAIL` and `BREVO_FROM_NAME`. `AUTH_SECRET` must contain at least 32 characters. See `.env.example`.
 
@@ -181,7 +201,7 @@ Geography is a hierarchy: **state → LGA → ward → polling unit**. IDs in pa
 | `GET /api/geography/lgas/{lgaId}/wards` | Accessible wards in the LGA, with polling-unit, GPS, coverage, and extra-agent counts |
 | `GET /api/geography/wards/{wardId}/polling-units` | Accessible polling units in the ward, with INEC codes, GPS status, and official/extra agent details |
 
-Coverage figures in these responses are calculated from the geography tables and `agent_assignment`. `coveredPUs` counts polling units with an official assignment; extra-agent presence alone does not count as official coverage. Phone values exposed with agent details are selected from `phone_number`; do not treat these endpoints as a phone-number export.
+Coverage figures in these responses are calculated from the geography tables and `agent_assignment`. `coveredPUs` counts polling units with an official assignment; extra-agent presence alone does not count as official coverage. Phone values exposed with agent details are selected from `phone_number`. The ward polling-unit endpoint currently returns those values in full, while `/api/agents` and broadcast deliveries mask them; treat the ward endpoint as restricted data and do not use it as a phone-number export.
 
 ### Agents API
 
@@ -209,9 +229,11 @@ A broadcast moves through four stages: preview the audience, create the broadcas
 - `GET /api/broadcasts` returns the caller's own broadcasts, or every broadcast for an admin. `GET /api/broadcasts/{broadcastId}` returns the broadcast and its delivery counts by status; a broadcast outside the caller's visibility returns `404`.
 - `GET /api/broadcasts/{broadcastId}/deliveries` returns per-person delivery rows with masked phone numbers and writes a `view_broadcast_deliveries` audit event. It never returns a full phone number.
 
-Both list endpoints use cursor pagination from `meta.nextCursor`, with `limit` from `1` to `100` (default `50`). Audience resolution reuses the same geographical and owner-visibility rules as `GET /api/agents`: official and extra counts are kept separate, and a person whose newest consent decision is a decline is excluded. Recipients need a `delivery` row, not a Telegram account; delivery-time checks decide whether Telegram or SMS can be used.
+Both list endpoints use cursor pagination from `meta.nextCursor`, with `limit` from `1` to `100` (default `50`). Audience resolution reuses the same geographical and owner-visibility rules as `GET /api/agents`: official and extra counts are kept separate, and a person whose newest consent decision is a decline is excluded. Recipients need a `delivery` row, not a Telegram account; delivery-time checks decide whether Telegram or SMS can be used. Audience rows come from `agent_assignment`, so candidates who are not themselves agents are not recipients. The `officeId` filter applies only to candidate-owned assignments because it joins through `ownerCandidate`; group-owned agents are excluded from that filter.
 
-The `delivery-send` worker tries Telegram first. A blocked/removed chat or permanent Telegram failure falls back to SMS immediately; transient failures retry and fall back after the final retry. An OK tap only updates a delivery when it comes from the recipient's linked Telegram chat. The SMS provider is still a placeholder (`SMS_PROVIDER=none`), so SMS fallbacks currently finish as `failed`.
+The `delivery-send` worker tries Telegram first. A blocked/removed chat or permanent Telegram failure falls back to SMS immediately; transient failures retry and fall back after the final retry. An OK tap only updates a delivery when it comes from the recipient's linked Telegram chat. Brevo SMS is implemented and is enabled with `SMS_PROVIDER=brevo` plus `BREVO_API_KEY`; the default remains `SMS_PROVIDER=none`, in which case SMS fallbacks finish as `failed`. The SMS fallback does not currently re-check consent, and a delivery whose retries are exhausted after being marked `sent` can leave the delivery and broadcast in a non-terminal state.
+
+Broadcast cancellation is not implemented yet, and no endpoint prefills a gap message from coverage. Scheduled broadcasts are dispatched by `startAfter`; they cannot be cancelled through the API.
 
 > **Run exactly one worker process for Telegram sending.** The per-process token bucket (`TELEGRAM_MAX_PER_SECOND`, default `25`) and 429 pause are not shared across processes. Set `TELEGRAM_DRY_RUN=true` to exercise the flow without sending messages; it is refused when `NODE_ENV=production`.
 
@@ -222,6 +244,8 @@ The `delivery-send` worker tries Telegram first. A blocked/removed chat or perma
 Both `GET /api/coverage/summary` and `GET /api/coverage/gaps` accept optional `stateId`, `lgaId`, `wardId`, and `politicalUnitId` query filters. A supplied filter must be a positive integer; multiple filters are ANDed together and are always intersected with the caller's access scope.
 
 `GET /api/coverage/gaps` returns polling units with **no official assignment**, with their code/name, coordinates and `hasGPS`, plus ward/LGA/state code and name. It accepts `limit` from `1` to `500` (default `100`) and `offset` (non-negative integer, default `0`). Its `data` contains `totalCount`, `limit`, `offset`, and `items`. The reported gaps do not imply that there are no extra agents at those units.
+
+Coverage is currently computed live from `polling_unit` and `agent_assignment`; the `coverage_count` table is populated by the demo seed but is not read by these endpoints. There is no API yet for coverage by candidate, coverage by group, child-group unions, selected-group comparison, the position-doubtful flag, or offices-at-stake/Nil reasons on a polling unit. Extra agents are returned in the ward polling-unit response, but their owner and slot are not exposed accurately there.
 
 ### Assignment API
 
@@ -269,13 +293,14 @@ Delete with `DELETE /api/coverage/assignments/{assignmentId}`. The caller must b
 ### Development and documentation endpoints
 
 - `GET /api/health` performs `SELECT 1` against PostgreSQL. It does not expose connection details.
+- `GET /api/admin/queue` requires an admin session and returns per-queue counts and recent jobs. It reads pg-boss tables directly and is separate from the admin settings area.
 - `GET /api/openapi` serves `public/openapi.yaml`; `SERVER_BASE_URL` can override its server base URL.
 - `GET /api/docs` serves Swagger UI. Sign in in that browser session before trying protected operations.
 - `GET /api/dev/queue-test` reports queue counts; `POST /api/dev/queue-test` enqueues test jobs. Both return `404` in production. See [Worker](#worker) for the smoke-test procedure.
 
 ## Worker
 
-A separate Node process (`worker/`) consumes jobs from a pg-boss queue backed by the same Postgres database. It shares the DB with the app, takes no HTTP traffic, and opens no port. It runs `broadcast-resolve` (materialize deliveries), `delivery-send` (send one delivery through Telegram/SMS) and the `test-job` smoke-test queue.
+A separate Node process (`worker/`) consumes jobs from a pg-boss queue backed by the same Postgres database. It shares the DB with the app, takes no HTTP traffic, and opens no port. It runs `broadcast-resolve` (materialize deliveries), `delivery-send` (send one delivery through Telegram/SMS) and the `test-job` smoke-test queue. There is no coverage-refresh or import job yet. The app and worker use the same Postgres instance through `DATABASE_URL` (or `QUEUE_DATABASE_URL` for pg-boss); no Redis or Docker is required.
 
 Queue names and default retry options live in `lib/queue/names.ts`; the app enqueues through `lib/queue/index.ts` (server-only). Both sides never import files marked `server-only` inside the worker.
 
