@@ -2,6 +2,105 @@
 
 collation system for election data
 
+## Technical review guide (backend)
+
+A quick reference for explaining and defending the backend. Details live in the sections below and in [Backend system design](./docs/backend-system-design.md).
+
+### 30-second pitch
+
+Collate is a Next.js (App Router) REST API on a single PostgreSQL database, accessed with TypeORM and raw SQL. It lets party, campaign and admin users see polling-unit coverage across Nigeria's state → LGA → ward → polling-unit hierarchy, manage polling-unit agents, and broadcast messages to those agents (Telegram first, SMS fallback). A separate Node worker sends the broadcasts through a pg-boss queue that also lives in Postgres. Sign-in is passwordless (email OTP). Every read of protected data is filtered by the caller's membership scope, and sensitive data (phone numbers) is masked.
+
+### Architecture at a glance
+
+| Piece | Choice | Why |
+| --- | --- | --- |
+| API | Next.js route handlers (`app/api/**/route.ts`) | One deployable for UI and API; the REST contract is documented in `public/openapi.yaml` (served at `/api/openapi`, Swagger UI at `/api/docs`) |
+| Database | PostgreSQL (cloud-hosted) | Relational, constraint-heavy domain; the database is the last line of defence for invariants |
+| Data access | TypeORM `DataSource` for entities and migrations, parameterised raw SQL for scoped reads | Entities and migrations for structure; hand-written SQL where scope filters and aggregates need control |
+| Schema changes | Migrations only, `synchronize` always off | Reviewable, reversible, repeatable (`lib/db/migrations/`) |
+| Background jobs | pg-boss on the same Postgres, run by a standalone worker (`worker/`) | No Redis or extra infrastructure to run or secure; jobs are durable, retried with backoff, and de-duplicated by `singletonKey` |
+| Auth | Email OTP, server-side sessions, `HttpOnly` cookie | No passwords to leak; sessions can be revoked server-side |
+| Validation | Zod schemas at the API boundary | One source of truth for input rules and field-level error messages |
+| Responses | `{ status, data, meta? }` / `{ status: "error", error: { code, message, fields? } }` via `lib/api/response.ts` | Consistent client handling; internal errors are never leaked |
+| Channels | Telegram (grammY) with Brevo SMS fallback behind a `ChannelAdapter` / `SmsChannel` interface | Providers can be swapped or faked in tests |
+
+### Key design decisions and how to defend them
+
+1. **Why PostgreSQL and a relational model?** The domain is relational and rule-heavy (geography hierarchy, who owns which agent, who may see what). Invariants are enforced in the database so that no code path, race condition or future endpoint can break them:
+   - `ck_agent_assignment_owner_xor`: an assignment has exactly one owner (group *or* candidate).
+   - `ck_agent_assignment_slot`: official agents use slot `0`, extra agents slot `1+`.
+   - `uq_agent_assignment_official_polling_unit`: a partial unique index allows at most one official agent per polling unit.
+   - `ck_phone_number_e164`: phone numbers must be valid E.164. `uq_person_email_address_lower`: case-insensitive unique email.
+   - `ck_membership_scope_unit_exactly_one`, `ck_candidate_seat_or_principal`, `ck_coverage_count_*`: scope/shape checks.
+   - `delivery` is unique per broadcast and person, so a person can never receive the same broadcast twice.
+2. **Why is "agent" not its own table?** An agent is a role: a row in `agent_assignment` linking a `person` to a `polling_unit` for one owner. One identity table avoids duplicate people and keeps phone/consent/audit data in one place.
+3. **Why a job queue and a worker, and why pg-boss?** Creating a broadcast returns `201` immediately and never sends synchronously; sending thousands of messages inside a request would time out and could not respect Telegram's rate limits. pg-boss uses Postgres, so the stack stays at one stateful dependency. Jobs are retried with backoff, `singletonKey` prevents duplicate jobs, and the worker drains in-flight jobs on `SIGTERM`/`SIGINT`.
+4. **Why does the worker not share code with Next.js?** Files marked `server-only` throw outside Next.js, so the worker imports only `lib/db/data-source.ts`, `lib/queue/names.ts` and its own job files.
+5. **How are broadcasts made reliable?** `broadcast-resolve` flips the broadcast to `sending` and materialises one `delivery` row per recipient in a single transaction, then enqueues one `delivery-send` job per delivery (batches of 500, `singletonKey = deliveryId`). `delivery-send` is idempotent: it exits if the delivery is already terminal or the broadcast is cancelled. Telegram is tried first; blocked/removed chats and permanent errors fall back to SMS immediately; transient errors retry and fall back after the last retry. 429s pause the shared token bucket (`TELEGRAM_MAX_PER_SECOND`, default 25). A broadcast is completed or failed only when no delivery is `pending` or `sent`.
+6. **Consent and privacy.** Audience resolution excludes anyone whose newest consent decision is a decline. Delivery re-checks consent at send time. Phone numbers are masked in `/api/agents` and in broadcast deliveries, and email and voter-card numbers are never returned. Telegram linking accepts only the sender's own shared contact.
+7. **Authorization is layered.** Authentication (who) → membership scope (which geography/data) → owner checks (which assignments you may change). Scope predicates are applied inside the SQL query, not after fetching, so out-of-scope rows are never loaded; resources outside scope return `404`, not `403`, so their existence is not revealed. Agent reads additionally apply `group_visibility_grant`. API handlers for policy-managed reads may not import `typeorm`, `pg` or `lib/db`, which is enforced by `lib/policy/route-imports.test.ts`.
+8. **Auditability.** Assignment create/delete and broadcast creation write `audit_log` rows in the same transaction as the change, and every agent-list and delivery-list page read is logged. The table is append-only at the database level: a trigger (`audit_log_append_only`, migration `1790000002000`) rejects every `UPDATE` and `DELETE`.
+9. **Concurrency.** Assignment creation locks the polling-unit row (`SELECT ... FOR UPDATE`), checks for conflicts, inserts and audits in one transaction, and a unique violation (`23505`) is mapped to `409` as a final safety net for races.
+
+### Security checklist
+
+| Concern | Control |
+| --- | --- |
+| OTP storage | 6-digit code from `crypto.randomInt`; only an HMAC-SHA256 hash (keyed with `AUTH_SECRET`, bound to the person ID) is stored; 10-minute expiry; single use |
+| OTP brute force | 5 failed attempts per code (the code is burned on the fifth); verification limited to 10 per 15 min per IP and per email hash; hashes compared with `timingSafeEqual` |
+| OTP abuse | Requests limited to 5/hour per email and 20/hour per IP; email bucket keys are hashed; counters are updated atomically with `INSERT ... ON CONFLICT DO UPDATE` |
+| Sessions | 32 random bytes; only the SHA-256 hash is stored, so a database leak does not expose live sessions; 12 h absolute and 2 h idle expiry; logout deletes the row |
+| Cookie | `HttpOnly`, `SameSite=Lax`, `Secure` and `__Host-` prefix in production |
+| CSRF | Mutating routes (assignments, broadcasts, preview) require an `Origin` header matching the request origin, on top of `SameSite=Lax` |
+| SQL injection | Parameterised queries and Zod validation of every ID, filter and cursor |
+| Secrets | `.env` is git-ignored; `AUTH_SECRET` must be 32+ characters; the console OTP sender and demo seed refuse to run in production; `/api/dev/*` returns `404` in production |
+| Error handling | Handlers catch, log server-side and return a generic `500`; database errors are never returned |
+| Telegram webhook | Authenticated with `TELEGRAM_WEBHOOK_SECRET`; group chats and forwarded contacts are ignored; an OK tap only counts from the linked chat |
+| Tenancy | Scope filtering in SQL, `404` for out-of-scope resources, masked phone numbers |
+
+### Testing
+
+`npm test` runs Vitest. Coverage includes the scope and policy rules, cursor pagination, agent and ward queries, broadcast schemas, queries and DB-level behaviour, OTP verification (attempt limits, rate limits), the Telegram webhook, linking and consent decisions, the rate limiter, delivery fallback decisions and the send job, phone normalisation, the API response helpers, the append-only audit migration, and structural rules for the route handlers (no direct DB imports, no raw JSON responses). Tests named `*.db.test.ts` and migration tests require a database.
+
+### Known limitations (own them before you are asked)
+
+| Limitation | Honest answer | Next step |
+| --- | --- | --- |
+| Enqueue happens after the broadcast transaction commits | If the process dies in between, a `sending` broadcast has no job | The queue is in the same Postgres: enqueue inside the transaction, or add a sweeper for stale broadcasts |
+| OTP request returns `404` for unknown or ineligible emails | This allows email enumeration (this is an invite-only system, and requests are rate-limited) | Always return success and send nothing; `OTP_REQUEST_MIN_RESPONSE_MS` is declared but not yet applied |
+| OTP routes have no explicit `Origin` check | They rely on `SameSite=Lax`; they set no session, so login CSRF is the only exposure | Call `assertSameOrigin` in both handlers |
+| Fixed-window rate limits | Bursts across a window boundary can briefly double the allowance | Sliding window or token bucket |
+| `TRUST_PROXY` defaults to `false` | Behind a proxy all IP limits share one bucket | Set `TRUST_PROXY=true` only behind a trusted proxy |
+| Ward polling-unit endpoint returns unmasked agent phones | Intended for authorised, scoped viewers only; not an export | Mask it to match `/api/agents` |
+| Per-process Telegram rate limiter | Valid only with exactly one worker | Move the bucket into Postgres or enforce a single worker |
+| SMS fallback re-checks a decline but not a missing consent row | Flagged in code as a product/legal decision (NDPA) | Decide the policy, then require accepted consent |
+| Retries exhausted after `sent` can leave a delivery non-terminal | Edge case in the send job | Reconcile stale `sent` deliveries |
+| No broadcast cancellation, INEC/agent import, candidate APIs or access-link API | Schema exists; routes are future work | See [Current implementation status](#current-implementation-status) |
+| `coverage_count` is not used | Coverage is computed live from `agent_assignment` | Use it as a refreshed cache if live queries become slow |
+| Tree rule (office overlap) not enforced | TODO in the policy layer | Implement in `lib/policy` |
+
+### Likely questions and short answers
+
+- **Why not microservices?** One team, one database and a small number of bounded areas. A modular monolith plus one worker gives the same separation of concerns without distributed-system cost. The queue is already the seam if a service has to be split out later.
+- **Why not Redis/BullMQ?** It would add another stateful system to host and secure. pg-boss gives durable jobs, retries, scheduling and de-duplication from the database we already operate.
+- **How does it scale?** The API is stateless and can be scaled horizontally; sessions are in Postgres. Reads are indexed on the foreign keys used by scope and geography joins and use cursor pagination. The bottleneck would be Telegram's send rate, which is controlled deliberately. Connection use is bounded (worker pool `max: 10`).
+- **What stops one user from seeing another party's agents?** Membership scope and `group_visibility_grant` are applied in the SQL query; there is no post-filtering. Out-of-scope IDs return `404`.
+- **What if two people assign the same polling unit at once?** The row lock serialises them and the partial unique index guarantees one official agent even if application code is wrong.
+- **What if the worker crashes mid-broadcast?** pg-boss retries the job; `delivery-send` is idempotent on delivery status, and `singletonKey` prevents duplicates on re-enqueue.
+- **Can audit logs be tampered with?** Not through the application or normal SQL: the trigger blocks `UPDATE` and `DELETE`. A database superuser could drop the trigger, which is why database credentials are kept out of the app's user-facing paths.
+- **What if a session cookie is stolen?** It expires after at most 12 hours (2 hours idle), is `HttpOnly`, and the server stores only its hash; deleting the `auth_session` row revokes it immediately.
+- **How is the data demonstrated safely?** A deterministic demo seed with fake people, `+234000000…` numbers and `@demo.collate.test` emails; it refuses to run in production.
+
+### Demo script
+
+1. `npm run db:migrate`, then `npm run db:seed:demo:fresh` (development database only).
+2. `npm run dev`; check `/api/health`; open `/api/docs`.
+3. Sign in: `POST /api/auth/otp/request`, read the code from the server log (`OTP_DELIVERY=console`), then `POST /api/auth/otp/verify`.
+4. Walk the hierarchy: `/api/geography/states` → LGAs → wards → polling units; show `/api/coverage/summary` and `/api/coverage/gaps`.
+5. Show `/api/agents` (masked phones, cursor pagination), then `POST /api/coverage/assignments` and the `409` on a second official agent.
+6. Run `npm run worker`, call `POST /api/broadcasts/preview` and `POST /api/broadcasts` (with `TELEGRAM_DRY_RUN=true`), then show the broadcast and its deliveries.
+7. Finish with the audit trail and the append-only trigger.
+
 ## Database setup
 
 The app talks to a cloud-hosted PostgreSQL instance through TypeORM. Schema changes only ever happen through migrations (`synchronize` is always off).
@@ -149,12 +248,12 @@ Paginated APIs can also return `meta`. Errors use:
 | Candidate access links | Not implemented as API | `access_link` exists in the schema and demo data only; no create/use/revoke/reissue route or access log. |
 | Admin settings | Partial | Only the queue inspector (`GET /api/admin/queue`) exists; there are no group, user, access-link, audit, channel, or view-as APIs. |
 | Tree rule | Not implemented | Scope and owner visibility work, but the office-overlap tree rule is still a TODO in the policy layer. |
-| Audit log | Partial | Application code inserts events for assignment changes and some reads; the table is not append-only and polling-unit/coverage reads are not all logged. |
+| Audit log | Partial | Application code inserts events for assignment changes, broadcast creation and some reads; the table is append-only (database trigger rejects `UPDATE`/`DELETE`), but polling-unit/coverage reads are not all logged. |
 | Data protection | Partial | Most agent/broadcast responses mask phones, but the ward polling-unit endpoint currently returns full agent phone values; do not treat it as a safe agent export. |
 
 
 
-Authentication is passwordless. The person must already exist and be eligible: they must have a `membership` or a `candidate` row. OTPs are six digits and expire after 10 minutes. The OTP itself is not stored in the database; only an HMAC hash is stored. Requests are limited to 5 per hour per normalized email and 20 per hour per IP. Verification attempts are limited to 10 per IP per 15 minutes.
+Authentication is passwordless. The person must already exist and be eligible: they must have a `membership` or a `candidate` row. OTPs are six digits and expire after 10 minutes. The OTP itself is not stored in the database; only an HMAC hash is stored. Requests are limited to 5 per hour per normalized email and 20 per hour per IP. Verification attempts are limited to 10 per IP and 10 per email per 15 minutes, and each code is burned after 5 wrong guesses.
 
 1. Request an OTP:
 
@@ -231,7 +330,7 @@ A broadcast moves through four stages: preview the audience, create the broadcas
 
 Both list endpoints use cursor pagination from `meta.nextCursor`, with `limit` from `1` to `100` (default `50`). Audience resolution reuses the same geographical and owner-visibility rules as `GET /api/agents`: official and extra counts are kept separate, and a person whose newest consent decision is a decline is excluded. Recipients need a `delivery` row, not a Telegram account; delivery-time checks decide whether Telegram or SMS can be used. Audience rows come from `agent_assignment`, so candidates who are not themselves agents are not recipients. The `officeId` filter applies only to candidate-owned assignments because it joins through `ownerCandidate`; group-owned agents are excluded from that filter.
 
-The `delivery-send` worker tries Telegram first. A blocked/removed chat or permanent Telegram failure falls back to SMS immediately; transient failures retry and fall back after the final retry. An OK tap only updates a delivery when it comes from the recipient's linked Telegram chat. Brevo SMS is implemented and is enabled with `SMS_PROVIDER=brevo` plus `BREVO_API_KEY`; the default remains `SMS_PROVIDER=none`, in which case SMS fallbacks finish as `failed`. The SMS fallback does not currently re-check consent, and a delivery whose retries are exhausted after being marked `sent` can leave the delivery and broadcast in a non-terminal state.
+The `delivery-send` worker tries Telegram first. A blocked/removed chat or permanent Telegram failure falls back to SMS immediately; transient failures retry and fall back after the final retry. An OK tap only updates a delivery when it comes from the recipient's linked Telegram chat. Brevo SMS is implemented and is enabled with `SMS_PROVIDER=brevo` plus `BREVO_API_KEY`; the default remains `SMS_PROVIDER=none`, in which case SMS fallbacks finish as `failed`. The SMS fallback re-checks for a decline but does not require an accepted consent row (a pending product/legal decision), and a delivery whose retries are exhausted after being marked `sent` can leave the delivery and broadcast in a non-terminal state.
 
 Broadcast cancellation is not implemented yet, and no endpoint prefills a gap message from coverage. Scheduled broadcasts are dispatched by `startAfter`; they cannot be cancelled through the API.
 
@@ -332,7 +431,7 @@ Smoke-test it end to end:
 
 > The endpoint returns 404 in production (`NODE_ENV=production`) and exposes no auth — it must stay dev-only.
 
-> Pool note: one worker instance uses at most 3 Postgres connections (`max: 3`), but pg-boss also runs background maintenance queries, so connection budgets matter: if your provider gives a **pooled** and a **direct** connection string (PgBouncer in transaction mode), the worker may need the **direct** one too (LISTEN/NOTIFY and prepared statements don't always behave behind transaction-mode poolers). Also note cloud providers often drop idle TLS connections; pg-boss logs reconnects on its `error` event and keeps polling — a burst of `ECONNRESET`/timeout errors after idle periods is recoverable noise, not a crash.
+> Pool note: one worker instance uses at most 10 Postgres connections (`max: 10` in `worker/index.ts`, covering one per active queue plus pg-boss maintenance), so connection budgets matter: if your provider gives a **pooled** and a **direct** connection string (PgBouncer in transaction mode), the worker may need the **direct** one too (LISTEN/NOTIFY and prepared statements don't always behave behind transaction-mode poolers). Also note cloud providers often drop idle TLS connections; pg-boss logs reconnects on its `error` event and keeps polling — a burst of `ECONNRESET`/timeout errors after idle periods is recoverable noise, not a crash.
 
 ## Database model and API relationships
 
