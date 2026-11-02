@@ -118,14 +118,13 @@ export interface WardCoverage {
   extraAgentsCount: number;
 }
 
-export interface ExtraAgent {
-  id: string;
-  assignmentId?: string;
-  name: string;
-  owner: string;
-  role: string;
-  phone?: string | null;
-  telegramStatus?: string;
+export interface PollingUnitAgent {
+  assignmentId: string;
+  agentKind: "official" | "extra";
+  slotNumber: number;
+  fullName: string;
+  maskedPhone: string | null;
+  owner: AgentOwner;
 }
 
 export interface PollingUnit {
@@ -139,12 +138,8 @@ export interface PollingUnit {
   longitude: number | null;
   hasGPS: boolean;
   hasOfficialAgent: boolean;
-  officialAssignmentId?: string;
-  officialAgentName?: string;
-  officialAgentPhone?: string;
-  officialAgentTelegramStatus?: string;
+  agents: PollingUnitAgent[];
   locationDescription?: string;
-  extraAgents: ExtraAgent[];
 }
 
 // ==========================================

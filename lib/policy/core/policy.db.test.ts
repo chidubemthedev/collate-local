@@ -7,6 +7,7 @@ import { canAccessPollingUnit, describeScope } from "./scope-queries";
 import { loadPolicyUser } from "./policy-user";
 import { InvalidFilterError } from "../errors";
 import { AgentKind } from "../../db/entities/agent-assignment.entity";
+import { AuditLog } from "../../db/entities/audit-log.entity";
 
 vi.setConfig({ hookTimeout: 60_000, testTimeout: 60_000 });
 
@@ -268,9 +269,9 @@ describe.skipIf(!shouldRun)("policy database integration", () => {
     const after = await requireManager().query(
       `SELECT action_type, target_entity_type, target_entity_id, ip_address
        FROM audit_log
-       WHERE actor_person_id = $1 AND action_type = 'view_agents'
-       ORDER BY created_at DESC LIMIT 1`,
-      [adminPersonId],
+       WHERE actor_person_id = $1 AND action_type = 'view_agents' AND ip_address = $2
+       LIMIT 1`,
+      [adminPersonId, "203.0.113.42"],
     ) as Array<{
       action_type: string;
       target_entity_type: string | null;
@@ -295,28 +296,19 @@ describe.skipIf(!shouldRun)("policy database integration", () => {
   it("fails the read when its audit write fails", async () => {
     const { adminPersonId } = requireFixtures();
     const admin = await loadPolicyUser(adminPersonId, requireManager());
-    const runner = requireQueryRunner();
-    const originalQuery = runner.query.bind(runner);
-    let auditWriteFailed = false;
-    let auditAttempted = false;
-
-    runner.query = ((sql: string, parameters?: unknown[]) => {
-      if (/INSERT INTO "audit_log"/i.test(sql)) {
-        auditAttempted = true;
-        return Promise.reject(new Error("injected audit failure"));
-      }
-      return originalQuery(sql, parameters);
-    }) as typeof runner.query;
+    const auditRepository = requireManager().getRepository(AuditLog);
+    const auditInsert = vi
+      .spyOn(auditRepository, "insert")
+      .mockRejectedValue(new Error("injected audit failure"));
 
     try {
-      await listAgents(admin, { limit: 1 }, undefined, requireManager());
-    } catch {
-      auditWriteFailed = true;
+      await expect(
+        listAgents(admin, { limit: 1 }, undefined, requireManager()),
+      ).rejects.toThrow("injected audit failure");
+      expect(auditInsert).toHaveBeenCalledOnce();
     } finally {
-      runner.query = originalQuery;
+      auditInsert.mockRestore();
     }
-
-    expect(auditAttempted && auditWriteFailed).toBe(true);
   });
 
   it("keeps scope descriptions and polling-unit access aligned with returned agents", async () => {
@@ -375,6 +367,7 @@ async function createFixtures(entityManager: EntityManager): Promise<Fixtures> {
       [kanoStateId, `92${key}1`, `Policy Kano LGA 1 ${key}`],
       [kanoStateId, `92${key}2`, `Policy Kano LGA 2 ${key}`],
     ],
+    "id, state_id",
   );
 
   const wards = await insertRows<{ id: number; lga_id: number }>(
@@ -388,6 +381,7 @@ async function createFixtures(entityManager: EntityManager): Promise<Fixtures> {
         `Policy Ward ${lgaIndex}-${wardNumber} ${key}`,
       ]),
     ),
+    "id, lga_id",
   );
 
   const pollingUnits = await insertRows<{ id: number; ward_id: number }>(
@@ -401,6 +395,7 @@ async function createFixtures(entityManager: EntityManager): Promise<Fixtures> {
         Number(ward.id),
       ]),
     ),
+    "id, ward_id",
   );
   const pollingUnitIds = pollingUnits.map((unit) => Number(unit.id));
   const wardLgaIds = new Map(wards.map((ward) => [Number(ward.id), Number(ward.lga_id)]));
@@ -752,13 +747,6 @@ function requireManager(): EntityManager {
     throw new Error("Database test manager is not initialized.");
   }
   return manager;
-}
-
-function requireQueryRunner(): QueryRunner {
-  if (!queryRunner) {
-    throw new Error("Database test query runner is not initialized.");
-  }
-  return queryRunner;
 }
 
 function requireDataSource(): DataSource {

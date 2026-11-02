@@ -17,7 +17,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   validation_failed: 400,
   invalid_filter: 400,
   unauthorized: 401,
-  invalid_or_expired_code: 400,
+  invalid_or_expired_code: 401,
   forbidden: 403,
   invalid_origin: 403,
   not_found: 404,
