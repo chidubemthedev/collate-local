@@ -174,9 +174,6 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
                   <div className="font-semibold text-sm text-foreground">
                     {pu.officialAgentName}
                   </div>
-                  <Badge variant="outline" className="text-[10px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-300">
-                    {pu.officialAgentTelegramStatus === "connected" ? "Telegram Connected" : "SMS Only"}
-                  </Badge>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-1.5 text-muted-foreground font-mono">
@@ -281,16 +278,16 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-indigo-600" />
-                Candidate-Sponsored Extra Agents ({pu.extraAgents.length})
+                Extra Agents ({pu.extraAgents.length})
               </h4>
               <Badge variant="outline" className="text-[10px]">
-                Tagged by Sponsor
+                Owner shown
               </Badge>
             </div>
 
             {pu.extraAgents.length === 0 ? (
               <div className="text-xs text-muted-foreground p-3 rounded-lg border border-dashed text-center">
-                No candidate extra agents assigned to this PU.
+                No extra agents assigned to this PU.
               </div>
             ) : (
               <div className="space-y-2">

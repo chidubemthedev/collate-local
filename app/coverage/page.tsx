@@ -418,36 +418,38 @@ export default function CoveragePage() {
     let rawList: PollingUnitData[];
 
     if (apiPollingUnits.length > 0) {
-      rawList = apiPollingUnits.map((p) => ({
-        id: p.id,
-        code: p.code,
-        name: p.name,
-        wardCode: p.wardCode || selectedWardCode,
-        lgaCode: p.lgaCode || selectedLgaCode,
-        stateCode: p.stateCode || selectedStateCode,
-        latitude: p.latitude ?? 9.082,
-        longitude: p.longitude ?? 8.6753,
-        hasGPS: p.latitude !== null && p.longitude !== null,
-        hasOfficialAgent: Boolean(p.hasOfficialAgent),
-        officialAgentName: p.officialAgentName ?? undefined,
-        officialAgentPhone: p.officialAgentPhone ?? undefined,
-        officialAgentTelegramStatus:
-          p.officialAgentTelegramStatus === "connected"
-            ? ("connected" as const)
-            : ("sms_only" as const),
-        officialAssignmentId: p.officialAssignmentId ?? undefined,
-        extraAgents: (p.extraAgents ?? []).map((ea) => ({
-          id: ea.id,
-          assignmentId: ea.assignmentId,
-          name: ea.name,
-          phone: ea.phone ?? "",
-          role: ea.role ?? "Extra Agent",
-          owner: ea.owner ?? "Candidate",
-          telegramStatus: "sms_only" as const,
-        })),
-        location:
-          p.locationDescription || `${p.name}, Ward ${selectedWard?.name || selectedWardCode}`,
-      }));
+      rawList = apiPollingUnits.map((p) => {
+        const officialAgent = p.agents.find((agent) => agent.agentKind === "official");
+        const extraAgents = p.agents
+          .filter((agent) => agent.agentKind === "extra")
+          .map((agent) => ({
+            id: agent.assignmentId,
+            assignmentId: agent.assignmentId,
+            name: agent.fullName,
+            phone: agent.maskedPhone ?? undefined,
+            role: agent.agentKind,
+            owner: agent.owner.displayName,
+          }));
+
+        return {
+          id: p.id,
+          code: p.code,
+          name: p.name,
+          wardCode: p.wardCode || selectedWardCode,
+          lgaCode: p.lgaCode || selectedLgaCode,
+          stateCode: p.stateCode || selectedStateCode,
+          latitude: p.latitude ?? 9.082,
+          longitude: p.longitude ?? 8.6753,
+          hasGPS: p.latitude !== null && p.longitude !== null,
+          hasOfficialAgent: Boolean(p.hasOfficialAgent),
+          officialAgentName: officialAgent?.fullName,
+          officialAgentPhone: officialAgent?.maskedPhone ?? undefined,
+          officialAssignmentId: officialAgent?.assignmentId,
+          extraAgents,
+          location:
+            p.locationDescription || `${p.name}, Ward ${selectedWard?.name || selectedWardCode}`,
+        };
+      });
     } else {
       rawList = POLLING_UNITS_DATA.filter((p) => p.wardCode === selectedWardCode);
     }

@@ -46,11 +46,12 @@ export function getScope(user: PolicyUser, _manager?: EntityManager): Scope {
       if (user.seatId !== null) {
         const parameter = `${parameterPrefix}SeatId`;
         parameters[parameter] = user.seatId;
-        // A country-level political unit maps every polling unit, granting national scope.
+        // A seat maps to its political unit; a country-level unit maps every polling unit.
         sources.push(
           `SELECT seat_mapping.polling_unit_id
            FROM pu_political_unit seat_mapping
-           WHERE seat_mapping.political_unit_id = :${parameter}`,
+           JOIN seat user_seat ON user_seat.political_unit_id = seat_mapping.political_unit_id
+           WHERE user_seat.id = :${parameter}`,
         );
       }
 

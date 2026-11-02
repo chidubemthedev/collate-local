@@ -23,6 +23,7 @@ export function getAuthSecret(): string {
 // ASSUMPTION: OTPs are 6 digits and valid for 10 minutes.
 export const OTP_LENGTH = 6;
 export const OTP_TTL_MS = 10 * 60 * 1000;
+// ASSUMPTION: each OTP allows 5 failed code attempts.
 export const OTP_MAX_ATTEMPTS = 5;
 export const OTP_REQUEST_COOLDOWN_MS = 60 * 1000;
 
@@ -31,8 +32,9 @@ export const OTP_REQUESTS_PER_HOUR_PER_EMAIL = 5;
 export const OTP_REQUESTS_PER_HOUR_PER_IP = 20;
 export const OTP_REQUEST_WINDOW_MS = 60 * 60 * 1000;
 
-// ASSUMPTION: verify attempts are capped at 10 per 15 minutes per IP.
+// ASSUMPTION: verify attempts are capped at 10 per 15 minutes per IP and email hash.
 export const OTP_VERIFY_LIMIT_PER_IP = 10;
+export const OTP_VERIFY_LIMIT_PER_EMAIL = 10;
 export const OTP_VERIFY_WINDOW_MS = 15 * 60 * 1000;
 
 // ASSUMPTION: session lifetime is 12 hours absolute and idle timeout is 2 hours.

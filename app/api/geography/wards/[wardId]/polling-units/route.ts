@@ -1,149 +1,60 @@
 import "server-only";
 import { connection } from "next/server";
-import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
+import { z } from "zod";
+import { requireUser } from "@/lib/auth/current-user";
+import { getClientIp } from "@/lib/auth/request";
 import { failure, internalError, success } from "@/lib/api/response";
+import { InvalidFilterError } from "@/lib/policy/errors";
+import { policyErrorResponse } from "@/lib/policy/http";
+import {
+  listWardPollingUnits,
+  wardPollingUnitsQuerySchema,
+} from "@/lib/policy/core/list-ward-polling-units";
 
-export async function GET(_: Request, { params }: { params: Promise<{ wardId: string }> }) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ wardId: string }> },
+): Promise<Response> {
   await connection();
 
-  const { wardId } = await params;
-
   try {
-    const wardIdNum = Number(wardId);
-    if (!Number.isInteger(wardIdNum)) {
+    const currentUser = await requireUser();
+    const { wardId: rawWardId } = await params;
+    const parsedWardId = z.coerce.number().int().positive().safeParse(rawWardId);
+    if (!parsedWardId.success) {
       return failure("validation_failed", "Invalid ward ID");
     }
 
-    const auth = await requireApiAuth();
-    if (!auth.ok) return auth.response;
+    const parsedQuery = wardPollingUnitsQuerySchema.safeParse(
+      Object.fromEntries(new URL(request.url).searchParams.entries()),
+    );
+    if (!parsedQuery.success) {
+      return failure("validation_failed", "Invalid request parameters");
+    }
 
-    const { dataSource } = auth.context;
-    const scope = getCoverageScopeFilter(auth.context, {
-      state: "s",
-      lga: "l",
-      ward: "w",
-      pollingUnit: "pu",
+    const page = await listWardPollingUnits(
+      currentUser.personId,
+      parsedWardId.data,
+      parsedQuery.data,
+      { ipAddress: getClientIp(request) },
+    );
+    if (!page) {
+      return failure("not_found", "Ward not found");
+    }
+
+    return success(page.items, {
+      nextCursor: page.nextCursor,
+      limit: parsedQuery.data.limit,
     });
-    const rows = await dataSource.query<Array<{
-      id: number;
-      code: string;
-      name: string | null;
-      latitude: number | null;
-      longitude: number | null;
-      ward_id: number;
-      lga_id: number;
-      state_id: number;
-      ward_code: string;
-      lga_code: string;
-      state_code: string;
-      official_name: string | null;
-      official_phone: string | null;
-      official_status: string | null;
-      official_assignment_id: string | null;
-      extra_agents: Array<{
-        id: string;
-        assignmentId?: string;
-        name: string;
-        owner: string;
-        role: string;
-        phone: string | null;
-        telegramStatus: string;
-      }>;
-    }>>(`
-      SELECT
-        pu.id,
-        pu.inec_polling_unit_code AS code,
-        pu.polling_unit_name AS name,
-        pu.latitude,
-        pu.longitude,
-        w.id AS ward_id,
-        l.id AS lga_id,
-        s.id AS state_id,
-        w.inec_ward_code AS ward_code,
-        l.inec_lga_code AS lga_code,
-        s.inec_state_code AS state_code,
-        p.full_name AS official_name,
-        pn.e164_number AS official_phone,
-        aa.id AS official_assignment_id,
-        CASE 
-          WHEN aa.agent_kind = 'official' THEN 'connected'
-          ELSE NULL
-        END AS official_status,
-        COALESCE(
-          json_agg(
-            json_build_object(
-              'id', p2.id,
-              'assignmentId', aa2.id,
-              'name', p2.full_name,
-              'owner', 'Party',
-              'role', 'Protector',
-              'phone', pn2.e164_number,
-              'telegramStatus', 'connected'
-            )
-          ) FILTER (WHERE aa2.agent_kind = 'extra'),
-          '[]'::json
-        ) AS extra_agents
-      FROM polling_unit pu
-      JOIN ward w ON w.id = pu.ward_id
-      JOIN lga l ON l.id = w.lga_id
-      JOIN state s ON s.id = l.state_id
-      LEFT JOIN LATERAL (
-        SELECT aa.id, aa.person_id, aa.agent_kind
-        FROM agent_assignment aa
-        WHERE aa.polling_unit_id = pu.id AND aa.agent_kind = 'official'
-        LIMIT 1
-      ) aa ON true
-      LEFT JOIN person p ON p.id = aa.person_id
-      LEFT JOIN LATERAL (
-        SELECT e164_number
-        FROM phone_number
-        WHERE person_id = p.id
-        ORDER BY is_confirmed DESC, created_at ASC
-        LIMIT 1
-      ) pn ON true
-      LEFT JOIN LATERAL (
-        SELECT aa2.id, aa2.person_id, aa2.agent_kind
-        FROM agent_assignment aa2
-        WHERE aa2.polling_unit_id = pu.id AND aa2.agent_kind = 'extra'
-      ) aa2 ON true
-      LEFT JOIN person p2 ON p2.id = aa2.person_id
-      LEFT JOIN LATERAL (
-        SELECT e164_number
-        FROM phone_number
-        WHERE person_id = p2.id
-        ORDER BY is_confirmed DESC, created_at ASC
-        LIMIT 1
-      ) pn2 ON true
-      WHERE pu.ward_id = $6 AND ${scope.sql}
-      GROUP BY
-        pu.id, pu.inec_polling_unit_code, pu.polling_unit_name, pu.latitude, pu.longitude,
-        w.id, l.id, s.id,
-        w.inec_ward_code, l.inec_lga_code, s.inec_state_code,
-        p.full_name, pn.e164_number, aa.id, aa.agent_kind
-      ORDER BY pu.polling_unit_name ASC;
-    `, [...scope.parameters, wardIdNum]);
-
-    const result = rows.map((row) => ({
-      id: row.id,
-      code: row.code,
-      name: row.name ?? "Unnamed PU",
-      wardCode: row.ward_code,
-      lgaCode: row.lga_code,
-      stateCode: row.state_code,
-      latitude: row.latitude,
-      longitude: row.longitude,
-      hasGPS: Boolean(row.latitude !== null && row.longitude !== null),
-      hasOfficialAgent: Boolean(row.official_name),
-      officialAssignmentId: row.official_assignment_id ?? undefined,
-      officialAgentName: row.official_name ?? undefined,
-      officialAgentPhone: row.official_phone ?? undefined,
-      officialAgentTelegramStatus: row.official_status ?? undefined,
-      extraAgents: row.extra_agents,
-    }));
-
-    return success(result);
   } catch (error) {
-    console.error("[/api/geography/wards/[wardId]/polling-units] failed", error);
+    const policyResponse = policyErrorResponse(error);
+    if (policyResponse) {
+      return policyResponse;
+    }
+    if (error instanceof InvalidFilterError) {
+      return failure("validation_failed", "Invalid request parameters");
+    }
+    console.error("[/api/geography/wards/[wardId]/polling-units] failed");
     return internalError();
   }
 }

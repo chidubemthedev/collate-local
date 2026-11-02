@@ -52,11 +52,12 @@ export async function canAccessPollingUnit(
 
   getScope(user, entityManager).apply(scopedPollingUnits, "pollingUnit.id");
 
-  const result = await entityManager
-    .createQueryBuilder()
-    .select(`EXISTS (${scopedPollingUnits.getQuery()})`, "allowed")
-    .setParameters(scopedPollingUnits.getParameters())
-    .getRawOne<{ allowed: boolean | string }>();
+  const [sql, parameters] = scopedPollingUnits.getQueryAndParameters();
+  const rows = (await entityManager.query(
+    `SELECT EXISTS (${sql}) AS allowed`,
+    parameters,
+  )) as Array<{ allowed: boolean | string }>;
 
-  return result?.allowed === true || result?.allowed === "true";
+  const allowed = rows[0]?.allowed;
+  return allowed === true || allowed === "true";
 }
