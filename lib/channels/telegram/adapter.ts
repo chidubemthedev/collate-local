@@ -11,14 +11,34 @@ export interface TelegramSendApi {
   ): Promise<{ message_id: number }>;
 }
 
+let dryRunMessageCount = 0;
+
+export function isTelegramDryRun(): boolean {
+  if (process.env.TELEGRAM_DRY_RUN !== "true") {
+    return false;
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("TELEGRAM_DRY_RUN is not allowed in production.");
+  }
+  return true;
+}
+
 export class TelegramChannel implements ChannelAdapter {
-  constructor(private readonly api: TelegramSendApi = getBot().api) {}
+  constructor(private readonly api?: TelegramSendApi) {}
 
   async send({
     chatId,
     text,
     okButtonDeliveryId,
   }: ChannelSendInput): Promise<ChannelSendResult> {
+    if (isTelegramDryRun()) {
+      dryRunMessageCount += 1;
+      console.log(
+        `[telegram] dry run: ${dryRunMessageCount} message(s) not sent`,
+      );
+      return { providerMessageId: `dry-run-${dryRunMessageCount}` };
+    }
+
     try {
       const options = okButtonDeliveryId
         ? {
@@ -28,7 +48,8 @@ export class TelegramChannel implements ChannelAdapter {
             ),
           }
         : undefined;
-      const message = await this.api.sendMessage(chatId, text, options);
+      const api = this.api ?? getBot().api;
+      const message = await api.sendMessage(chatId, text, options);
       return { providerMessageId: String(message.message_id) };
     } catch (error) {
       throw mapTelegramError(error);

@@ -7,5 +7,5 @@ export function toE164(input: string): string | null {
     return null;
   }
 
-  return parsed.formatInternational();
+  return parsed.number;
 }
