@@ -73,6 +73,8 @@ npm run telegram:webhook:set -- https://<tunnel-url>/api/telegram/webhook
 
 Then message the bot. The tunnel URL changes every time it restarts, so set the webhook again after each restart. A bot can have only one webhook at a time.
 
+The bot links a Telegram chat to an existing phone number through Telegram's contact-sharing button. Only the sender's own contact is accepted; forwarded contacts and group chats are ignored. A matched, unconfirmed number is confirmed and attached to the chat, a conflicting chat writes a conflict audit event without changing data, and an unknown number writes nothing. After linking, the bot asks for consent to the versioned consent text (`PRIVACY_POLICY_URL` is shown when set). A decline is recorded and excludes the person from future broadcasts. `/start` re-sends the share-number or consent prompt when needed.
+
 ## Backend API
 
 The REST API is available independently of frontend pages. Its machine-readable contract is [`/api/openapi`](http://localhost:3000/api/openapi), and the interactive Swagger UI is at [`/api/docs`](http://localhost:3000/api/docs). The Swagger UI loads its assets from a pinned CDN release. See [Backend system design](./docs/backend-system-design.md) for architecture and request-flow diagrams.
@@ -113,6 +115,10 @@ Paginated APIs can also return `meta`. Errors use:
 | `POST /api/auth/logout` | Session cookie, if present | Delete the current session and clear its cookie |
 | `GET /api/auth/permissions` | Required | Return the caller's role names and permission flags |
 | `GET /api/agents` | Required | List policy-visible agent assignments |
+| `POST /api/broadcasts/preview` | Required, same-origin | Count the official and extra agents an audience filter reaches |
+| `GET, POST /api/broadcasts` | Required (POST same-origin) | List visible broadcasts or create a broadcast |
+| `GET /api/broadcasts/{broadcastId}` | Required | Read a broadcast with delivery counts by status |
+| `GET /api/broadcasts/{broadcastId}/deliveries` | Required | List a broadcast's deliveries with masked phone numbers |
 | `GET /api/geography/states` | Required | List accessible states and counts |
 | `GET /api/geography/states/{stateId}` | Required | Read one accessible state's counts |
 | `GET /api/geography/states/{stateId}/lgas` | Required | List accessible LGAs and counts within a state |
@@ -157,7 +163,7 @@ Authentication is passwordless. The person must already exist and be eligible: t
    - `GET /api/auth/session` returns `data.authenticated: false` if there is no valid session; otherwise it returns the signed-in person. This is a status endpoint, not a way to extend the absolute session lifetime.
    - `POST /api/auth/logout` deletes the session row and expires the cookie.
 
-Sessions have a 12-hour absolute lifetime and a 2-hour idle timeout. Protected requests validate the token by hashing it and looking up `auth_session`; raw session tokens are not stored in the database. `GET /api/auth/permissions` returns `isAdmin`, `canManageCoverage`, `canBroadcast`, and role names. Currently `canBroadcast` mirrors `canManageCoverage`; it does not mean a broadcast API is implemented.
+Sessions have a 12-hour absolute lifetime and a 2-hour idle timeout. Protected requests validate the token by hashing it and looking up `auth_session`; raw session tokens are not stored in the database. `GET /api/auth/permissions` returns `isAdmin`, `canManageCoverage`, `canBroadcast`, and role names. Currently `canBroadcast` mirrors `canManageCoverage`. The broadcast routes additionally require a usable policy scope, so an admin or member with global scope can create a broadcast, while a caller with no scope is refused.
 
 For local development, `OTP_DELIVERY=console` logs the code to the server terminal and is forbidden in production. When `OTP_DELIVERY=brevo`, configure `BREVO_API_KEY` and optionally `BREVO_FROM_EMAIL` and `BREVO_FROM_NAME`. `AUTH_SECRET` must contain at least 32 characters. See `.env.example`.
 
@@ -193,6 +199,21 @@ Optional query parameters:
 | `limit` | Page size, default `50`, range `1–100` |
 
 Filters may be combined. Non-admin candidates may not use `lgaId`. Invalid filters return `400`. Each page read writes an audit event. The response is a success envelope whose `data` is an array of assignments and whose `meta` contains `nextCursor` (null when finished) and `limit`. Each item includes the assignment ID/kind/slot, person ID/name, masked phone, polling-unit and hierarchy details, and an `owner` with `type` (`group` or `candidate`), ID, and display name.
+
+### Broadcasts API
+
+A broadcast moves through four stages: preview the audience, create the broadcast, let the worker materialize one delivery per recipient, then send each delivery through Telegram with SMS fallback. Creating a broadcast returns HTTP `201`; it does not send synchronously.
+
+- `POST /api/broadcasts/preview` accepts an audience filter and returns `officialCount` and `extraCount`. The request must include a matching `Origin` header. The filter fields are `stateId`, `lgaId`, `wardId`, `politicalUnitId`, `officeId`, `ownerGroupId`, and `agentKind` (`official`, `extra`, or `all`, default `all`).
+- `POST /api/broadcasts` accepts `audienceFilter`, `messageText` (1–1000 characters after trimming, no control characters), and optional `scheduledSendAt` (ISO timestamp within the next 90 days). Immediate broadcasts are queued as `sending`; scheduled broadcasts are queued as `scheduled` and become `sending` at their send time. It also requires a matching `Origin` header.
+- `GET /api/broadcasts` returns the caller's own broadcasts, or every broadcast for an admin. `GET /api/broadcasts/{broadcastId}` returns the broadcast and its delivery counts by status; a broadcast outside the caller's visibility returns `404`.
+- `GET /api/broadcasts/{broadcastId}/deliveries` returns per-person delivery rows with masked phone numbers and writes a `view_broadcast_deliveries` audit event. It never returns a full phone number.
+
+Both list endpoints use cursor pagination from `meta.nextCursor`, with `limit` from `1` to `100` (default `50`). Audience resolution reuses the same geographical and owner-visibility rules as `GET /api/agents`: official and extra counts are kept separate, and a person whose newest consent decision is a decline is excluded. Recipients need a `delivery` row, not a Telegram account; delivery-time checks decide whether Telegram or SMS can be used.
+
+The `delivery-send` worker tries Telegram first. A blocked/removed chat or permanent Telegram failure falls back to SMS immediately; transient failures retry and fall back after the final retry. An OK tap only updates a delivery when it comes from the recipient's linked Telegram chat. The SMS provider is still a placeholder (`SMS_PROVIDER=none`), so SMS fallbacks currently finish as `failed`.
+
+> **Run exactly one worker process for Telegram sending.** The per-process token bucket (`TELEGRAM_MAX_PER_SECOND`, default `25`) and 429 pause are not shared across processes. Set `TELEGRAM_DRY_RUN=true` to exercise the flow without sending messages; it is refused when `NODE_ENV=production`.
 
 ### Coverage API
 
@@ -254,9 +275,11 @@ Delete with `DELETE /api/coverage/assignments/{assignmentId}`. The caller must b
 
 ## Worker
 
-A separate Node process (`worker/`) consumes jobs from a pg-boss queue backed by the same Postgres database. It shares the DB with the app, takes no HTTP traffic, and opens no port. It will later run broadcasts, imports and coverage refresh jobs; only a `test-job` smoke-test queue exists right now.
+A separate Node process (`worker/`) consumes jobs from a pg-boss queue backed by the same Postgres database. It shares the DB with the app, takes no HTTP traffic, and opens no port. It runs `broadcast-resolve` (materialize deliveries), `delivery-send` (send one delivery through Telegram/SMS) and the `test-job` smoke-test queue.
 
 Queue names and default retry options live in `lib/queue/names.ts`; the app enqueues through `lib/queue/index.ts` (server-only). Both sides never import files marked `server-only` inside the worker.
+
+> **Telegram rate limiting is per worker process.** Start a single worker for broadcast sends. Multiple worker processes would each keep their own `TELEGRAM_MAX_PER_SECOND` bucket and Telegram 429 pause, so the combined send rate could exceed the configured limit.
 
 Run it (keep the app running in another terminal for enqueueing):
 
@@ -327,6 +350,7 @@ In the diagram, `groups` is named `GROUPS` because `GROUPS` is a Mermaid keyword
 | OTP verify | `person`, `auth_rate_limit`, `login_otp`, `auth_session` |
 | Session, permissions, logout | `auth_session`, `person`, `membership`, `groups`, `membership_scope_unit`, `candidate` |
 | Agent list | `agent_assignment`, `person`, `phone_number`, `polling_unit`, `ward`, `lga`, `state`, `groups`, `candidate`, `group_visibility_grant`, `audit_log` |
+| Broadcasts | `broadcast`, `delivery`, `agent_assignment`, `person`, `phone_number`, `consent`, `candidate`, geography and scope tables, `audit_log` |
 | Geography | `state`, `lga`, `ward`, `polling_unit`, `agent_assignment`, `person`, `phone_number`, `pu_political_unit`, plus membership scope tables |
 | Coverage summary and gaps | `state`, `lga`, `ward`, `polling_unit`, `agent_assignment`, `pu_political_unit`, plus membership scope tables |
 | Assignment create/delete | `person`, `polling_unit`, `agent_assignment`, `groups` or `candidate`, membership/scope tables, `audit_log` |
@@ -371,8 +395,8 @@ In the diagram, `groups` is named `GROUPS` because `GROUPS` is a Mermaid keyword
 | `election_day` | An election date and optional label | Supports election configuration |
 | `election_day_office` | Offices scheduled for an election day | Join table between election day and office |
 | `election_day_off_cycle_state` | States with an off-cycle election for an election day | Join table between election day and state |
-| `broadcast` | Message text, audience filter, sender, schedule and broadcast status | Data model exists; a broadcast API/worker workflow is not currently exposed |
-| `delivery` | Per-person delivery status/channel and delivery timestamps for a broadcast | References `broadcast` and `person`; unique per broadcast/person |
+| `broadcast` | Message text, audience filter, sender, schedule and broadcast status | Created and read by the broadcast API; `broadcast-resolve` materializes its deliveries |
+| `delivery` | Per-person delivery status/channel and delivery timestamps for a broadcast | References `broadcast` and `person`; unique per broadcast/person; updated by `delivery-send` and OK callbacks |
 | `access_link` | Candidate access-link token hash, expiry and revocation state | References `candidate`; raw token is not stored |
 | `import_batch` | Import filename, uploader, row counts and JSON error details | References the uploader in `person`; import API/workflow is not currently exposed |
 

@@ -5,8 +5,41 @@ const telegramMocks = vi.hoisted(() => ({
   getTelegramConfig: vi.fn(),
 }));
 
+const linkMocks = vi.hoisted(() => ({
+  findPersonByChatId: vi.fn(),
+  hasAcceptedConsent: vi.fn(),
+  linkChatToPerson: vi.fn(),
+  recordConsent: vi.fn(),
+}));
+
+const okMocks = vi.hoisted(() => ({
+  applyOk: vi.fn(),
+}));
+
 vi.mock("../../../lib/channels/telegram/config", () => ({
   getTelegramConfig: telegramMocks.getTelegramConfig,
+}));
+
+vi.mock("./link/link", () => ({
+  findPersonByChatId: linkMocks.findPersonByChatId,
+  hasAcceptedConsent: linkMocks.hasAcceptedConsent,
+  linkChatToPerson: linkMocks.linkChatToPerson,
+  recordConsent: linkMocks.recordConsent,
+}));
+
+vi.mock("./ok", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./ok")>();
+  return {
+    ...original,
+    applyOk: okMocks.applyOk,
+  };
+});
+
+vi.mock("@/lib/auth/rate-limit", () => ({
+  consumeFixedWindowRateLimit: vi.fn(async () => ({
+    allowed: true,
+    hitCount: 1,
+  })),
 }));
 
 const secret = "local-webhook-secret-123";
@@ -42,6 +75,19 @@ describe("Telegram webhook route", () => {
       botUsername: "test_bot",
       webhookSecret: secret,
     });
+    linkMocks.findPersonByChatId.mockReset();
+    linkMocks.findPersonByChatId.mockResolvedValue(null);
+    linkMocks.hasAcceptedConsent.mockReset();
+    linkMocks.hasAcceptedConsent.mockResolvedValue(false);
+    linkMocks.linkChatToPerson.mockReset();
+    linkMocks.linkChatToPerson.mockResolvedValue({
+      result: "linked",
+      personId: "person-1",
+    });
+    linkMocks.recordConsent.mockReset();
+    linkMocks.recordConsent.mockResolvedValue(undefined);
+    okMocks.applyOk.mockReset();
+    okMocks.applyOk.mockResolvedValue(true);
     apiCalls.length = 0;
     failNextApiCall = false;
 
@@ -145,8 +191,8 @@ describe("Telegram webhook route", () => {
     });
   });
 
-  it("replies to contact updates without logging the phone number", async () => {
-    const phoneNumber = "+15555550123";
+  it("links a matched contact, removes the keyboard and asks for consent", async () => {
+    const phoneNumber = "+2348030000000";
     const logError = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       const response = await postUpdate(
@@ -165,15 +211,41 @@ describe("Telegram webhook route", () => {
       );
 
       expect(response.status).toBe(200);
-      expect(apiCalls).toHaveLength(1);
-      expect(apiCalls[0].method).toBe("sendMessage");
-      expect(apiCalls[0].payload.text).toBe(
-        "Thanks. We are checking your number.",
-      );
+      expect(apiCalls).toHaveLength(2);
+      expect(apiCalls[0].payload.text).toBe("Number linked.");
+      expect(apiCalls[0].payload.reply_markup).toEqual({
+        remove_keyboard: true,
+      });
+      expect(apiCalls[1].payload.text).toContain("Tap Accept");
+      expect(linkMocks.linkChatToPerson).toHaveBeenCalledWith({
+        e164: "+2348030000000",
+        chatId: 123,
+      });
       expect(JSON.stringify(logError.mock.calls)).not.toContain(phoneNumber);
     } finally {
       logError.mockRestore();
     }
+  });
+
+  it("says nothing when a contact does not match anyone", async () => {
+    linkMocks.linkChatToPerson.mockResolvedValue({ result: "no_match" });
+    const response = await postUpdate(
+      messageUpdate({
+        message_id: 2,
+        date: 1,
+        chat: { id: 123, type: "private", first_name: "Test" },
+        from: { id: 123, is_bot: false, first_name: "Test" },
+        contact: {
+          phone_number: "+2348030000000",
+          first_name: "Test",
+          user_id: 123,
+        },
+      }, 2),
+      secret,
+    );
+
+    expect(response.status).toBe(200);
+    expect(apiCalls).toHaveLength(0);
   });
 
   it("returns 200 when a handler API call throws", async () => {
@@ -186,7 +258,7 @@ describe("Telegram webhook route", () => {
           id: "callback-throw",
           from: { id: 123, is_bot: false, first_name: "Test" },
           chat_instance: "chat-instance",
-          data: "ok:delivery-throw",
+          data: "ok:0b3f6f9e-5c47-4b8e-9f4b-2f5b5a6c7d8e",
         },
       },
       secret,
@@ -195,13 +267,13 @@ describe("Telegram webhook route", () => {
     expect(response.status).toBe(200);
     expect(logError).toHaveBeenCalledTimes(1);
     expect(logError.mock.calls[0][0]).toMatch(
-      /^\[telegram\] Update handler failed \(.+\)$/,
+      /^\[telegram\] Handler failed \(.+\)$/,
     );
     expect(JSON.stringify(logError.mock.calls)).not.toContain("test API failure");
     logError.mockRestore();
   });
 
-  it("answers OK callbacks only", async () => {
+  it("answers and clears the button on an OK callback", async () => {
     const response = await postUpdate(
       {
         update_id: 4,
@@ -209,7 +281,12 @@ describe("Telegram webhook route", () => {
           id: "callback-1",
           from: { id: 123, is_bot: false, first_name: "Test" },
           chat_instance: "chat-instance",
-          data: "ok:delivery-1",
+          message: {
+            message_id: 1,
+            date: 1,
+            chat: { id: 123, type: "private", first_name: "Test" },
+          },
+          data: "ok:0b3f6f9e-5c47-4b8e-9f4b-2f5b5a6c7d8e",
         },
       },
       secret,
@@ -218,6 +295,42 @@ describe("Telegram webhook route", () => {
     expect(response.status).toBe(200);
     expect(apiCalls.map(({ method }) => method)).toEqual([
       "answerCallbackQuery",
+      "editMessageReplyMarkup",
+    ]);
+    expect(okMocks.applyOk).toHaveBeenCalledWith({
+      deliveryId: "0b3f6f9e-5c47-4b8e-9f4b-2f5b5a6c7d8e",
+      chatId: 123,
+    });
+  });
+
+  it("answers consent callbacks and records the decision", async () => {
+    linkMocks.findPersonByChatId.mockResolvedValue("person-1");
+    const response = await postUpdate(
+      {
+        update_id: 6,
+        callback_query: {
+          id: "callback-consent",
+          from: { id: 123, is_bot: false, first_name: "Test" },
+          chat_instance: "chat-instance",
+          message: {
+            message_id: 1,
+            date: 1,
+            chat: { id: 123, type: "private", first_name: "Test" },
+          },
+          data: "consent:accept",
+        },
+      },
+      secret,
+    );
+
+    expect(response.status).toBe(200);
+    expect(linkMocks.recordConsent).toHaveBeenCalledWith({
+      personId: "person-1",
+      accepted: true,
+    });
+    expect(apiCalls.map(({ method }) => method)).toEqual([
+      "answerCallbackQuery",
+      "editMessageText",
     ]);
   });
 
