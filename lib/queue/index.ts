@@ -15,6 +15,11 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
+// pg-boss requires a direct (non-pooler) connection for advisory locks and
+// SET commands. On Neon, set QUEUE_DATABASE_URL to the direct URL
+// (remove "-pooler" from the hostname). Falls back to DATABASE_URL.
+const queueDatabaseUrl = process.env.QUEUE_DATABASE_URL?.trim() || process.env.DATABASE_URL;
+
 // Same convention as the TypeORM data source: enable SSL with a provider CA
 // certificate in production instead of rejectUnauthorized:false.
 const ssl =
@@ -27,11 +32,15 @@ const globalForQueue = globalThis as unknown as {
 
 async function startBoss(): Promise<PgBoss> {
   const boss = new PgBoss({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: queueDatabaseUrl,
     ssl,
     // Keep the pool small to respect cloud provider connection limits,
     // especially alongside the app's own TypeORM pool on the same database.
     max: 3,
+    // Neon and other serverless Postgres providers close idle connections
+    // after ~5 minutes. Recycle sooner to avoid ECONNRESET errors.
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
   });
   // pg-boss emits runtime/connection errors on this event; without a listener
   // an unhandled 'error' event would crash the Node process.

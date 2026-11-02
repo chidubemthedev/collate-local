@@ -1,7 +1,10 @@
 import "dotenv/config";
 import { PgBoss } from "pg-boss";
-import { QUEUES, TEST_JOB } from "../lib/queue/names";
+import { BROADCAST_RESOLVE, DELIVERY_SEND, QUEUES, TEST_JOB } from "../lib/queue/names";
+import { handleBroadcastResolve } from "./jobs/broadcast-resolve";
+import { handleDeliverySend } from "./jobs/delivery-send";
 import { handleTestJob } from "./jobs/test-job";
+import { setWorkerBoss } from "./lib/boss";
 
 /**
  * Standalone worker process: consumes pg-boss jobs from the shared Postgres
@@ -24,16 +27,26 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // pg-boss requires a direct (non-pooler) connection for advisory locks and
+  // SET commands. On Neon, set QUEUE_DATABASE_URL to the direct URL
+  // (remove "-pooler" from the hostname). Falls back to DATABASE_URL.
+  const workerDatabaseUrl = process.env.QUEUE_DATABASE_URL?.trim() || process.env.DATABASE_URL;
+
   // Same SSL convention as lib/db/data-source.ts.
   const ssl =
     process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false;
 
   const boss = new PgBoss({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: workerDatabaseUrl,
     ssl,
-    // Keep the pool small to respect cloud provider connection limits (the
-    // app's TypeORM pool shares the same database).
-    max: 3,
+    // pg-boss needs one connection per active worker queue plus a few for
+    // maintenance tasks (monitor, cron, send-it). With 3 queues + overhead,
+    // 10 is a safe minimum. Raise if you see timeout errors in production.
+    max: 10,
+    // Neon and other serverless Postgres providers close idle connections
+    // after ~5 minutes. Keep idle connections alive by recycling them sooner.
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
   });
   boss.on("error", (error) => {
     console.error("[worker] pg-boss error", error);
@@ -73,6 +86,7 @@ async function main(): Promise<void> {
 
   console.log("[worker] starting...");
   await boss.start();
+  setWorkerBoss(boss);
   console.log("[worker] connected, ensuring queues exist");
 
   for (const queue of QUEUES) {
@@ -84,6 +98,8 @@ async function main(): Promise<void> {
   // typing through pg-boss's generic work<T>(). Add new jobs here as they
   // are introduced in later issues.
   await boss.work(TEST_JOB, handleTestJob);
+  await boss.work(BROADCAST_RESOLVE, handleBroadcastResolve);
+  await boss.work(DELIVERY_SEND, { batchSize: 1, includeMetadata: true }, handleDeliverySend);
 
   console.log("[worker] running. Waiting for jobs. Press Ctrl+C to stop.");
 }

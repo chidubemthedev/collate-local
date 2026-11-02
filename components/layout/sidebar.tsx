@@ -221,6 +221,17 @@ export function Sidebar() {
                 <ShieldCheck className="w-4 h-4 shrink-0" />
                 <span>Groups and access</span>
               </Link>
+              <Link
+                href="/admin/queue"
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  isLinkActive("/admin/queue")
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                }`}
+              >
+                <Layers className="w-4 h-4 shrink-0" />
+                <span>Job queues</span>
+              </Link>
             </div>
           </div>
         )}
