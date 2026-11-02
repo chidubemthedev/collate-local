@@ -130,6 +130,15 @@ export async function hasAcceptedConsent(
   return consent?.consentTextVersion === CONSENT_TEXT_VERSION && consent.isAccepted;
 }
 
+export async function hasDeclinedConsent(
+  personId: string,
+  manager?: EntityManager,
+): Promise<boolean> {
+  const entityManager = await resolveManager(manager);
+  const consent = await newestConsent(personId, entityManager);
+  return consent !== null && !consent.isAccepted;
+}
+
 export async function recordConsent(
   { personId, accepted }: { personId: string; accepted: boolean },
   manager?: EntityManager,

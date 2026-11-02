@@ -92,8 +92,19 @@ export function useGeographyPollingUnits(wardId?: number | string | null) {
   return useQuery<PollingUnit[], ApiClientError>({
     queryKey: GEOGRAPHY_KEYS.pollingUnits(validId ?? 0),
     queryFn: async () => {
-      const res = await apiClient.get<PollingUnit[]>(`/api/geography/wards/${validId}/polling-units`);
-      return res.data;
+      const items: PollingUnit[] = [];
+      let cursor: string | undefined;
+
+      do {
+        const res = await apiClient.get<PollingUnit[]>(
+          `/api/geography/wards/${validId}/polling-units`,
+          { limit: 100, cursor },
+        );
+        items.push(...res.data);
+        cursor = res.meta?.nextCursor ?? undefined;
+      } while (cursor);
+
+      return items;
     },
     enabled: Boolean(validId && !Number.isNaN(validId)),
     staleTime: 1000 * 60 * 3,
