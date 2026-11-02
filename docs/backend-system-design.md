@@ -107,7 +107,7 @@ sequenceDiagram
 
 ### Current implementation caveats
 
-- `OTP_MAX_ATTEMPTS` and `login_otp.failed_attempt_count` exist, but the verify handler does not currently increment or enforce a per-code failure limit.
+- Each OTP allows `OTP_MAX_ATTEMPTS` (5) wrong guesses: the verify handler increments `login_otp.failed_attempt_count` and consumes the code on the last failure. Verification is additionally limited per IP and per email.
 - `OTP_REQUEST_MIN_RESPONSE_MS` is declared, but the request handler does not currently pad its response time.
 - `assertSameOrigin` exists, but the OTP request/verify handlers do not currently call it. Do not treat the cookie's `SameSite=Lax` setting as an explicit Origin check.
 - `TRUST_PROXY` defaults to false. Configure proxy trust only when the application is behind a trusted proxy that controls `X-Forwarded-For`; otherwise the IP-based limiter sees the fallback IP value.
