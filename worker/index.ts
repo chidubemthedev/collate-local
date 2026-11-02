@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { PgBoss } from "pg-boss";
+import { PgBoss, type ConstructorOptions } from "pg-boss";
 import { BROADCAST_RESOLVE, DELIVERY_SEND, QUEUES, TEST_JOB } from "../lib/queue/names";
 import { handleBroadcastResolve } from "./jobs/broadcast-resolve";
 import { handleDeliverySend } from "./jobs/delivery-send";
@@ -36,7 +36,12 @@ async function main(): Promise<void> {
   const ssl =
     process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false;
 
-  const boss = new PgBoss({
+  // pg-boss passes its constructor options straight through to its pg.Pool, so
+  // pg pool options it does not declare in ConstructorOptions (idleTimeoutMillis)
+  // still take effect. Declaring them here keeps the literal type-checked.
+  type BossOptions = ConstructorOptions & { idleTimeoutMillis?: number };
+
+  const options: BossOptions = {
     connectionString: workerDatabaseUrl,
     ssl,
     // pg-boss needs one connection per active worker queue plus a few for
@@ -47,7 +52,8 @@ async function main(): Promise<void> {
     // after ~5 minutes. Keep idle connections alive by recycling them sooner.
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
-  });
+  };
+  const boss = new PgBoss(options);
   boss.on("error", (error) => {
     console.error("[worker] pg-boss error", error);
   });
