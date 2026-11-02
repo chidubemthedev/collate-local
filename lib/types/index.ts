@@ -78,6 +78,7 @@ export interface WardData {
 }
 
 export interface PollingUnitData {
+  id?: number;
   code: string;
   wardCode: string;
   lgaCode: string;
@@ -88,11 +89,13 @@ export interface PollingUnitData {
   longitude: number;
   hasGPS: boolean;
   hasOfficialAgent: boolean;
+  officialAssignmentId?: string;
   officialAgentName?: string;
   officialAgentPhone?: string;
   officialAgentTelegramStatus?: "connected" | "sms_only" | "not_matched";
   extraAgents: Array<{
     id: string;
+    assignmentId?: string;
     owner: string; // e.g. "Party", "Senate · Nwoye Tony Okechukwu", "House of Reps · Emeka Idu Godwin Obiajulu"
     name: string;
     phone?: string;

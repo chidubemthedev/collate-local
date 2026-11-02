@@ -1,8 +1,11 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { POLLING_UNITS_DATA, WARDS_DATA, LGAS_DATA, STATES_DATA, NIGERIA_SUMMARY } from "@/lib/data/inec-data";
 import { useApp } from "@/lib/context/app-context";
+import { STATES_DATA, LGAS_DATA, WARDS_DATA } from "@/lib/data/inec-data";
+import { useGeographyStates, useGeographyLgas, useGeographyWards } from "@/lib/hooks/use-geography";
+import { useCoverageSummary, useCoverageGaps } from "@/lib/hooks/use-coverage";
+import { useAgents } from "@/lib/hooks/use-agents";
 import { AgentsKPISummary } from "@/components/agents/agents-kpi-summary";
 import { AgentsFilters } from "@/components/agents/agents-filters";
 import { AgentsTable } from "@/components/agents/agents-table";
@@ -15,138 +18,212 @@ import {
   Send,
   Download,
   AlertCircle,
-  Sparkles,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
 
 export default function AgentsPage() {
-  const { activePersona } = useApp();
+  const {
+    activePersona,
+    selectedStateCode,
+    setSelectedStateCode,
+    selectedLgaCode,
+    setSelectedLgaCode,
+    selectedWardCode,
+    setSelectedWardCode,
+    resetAreaFilters,
+  } = useApp();
 
   const [selectedTypeTab, setSelectedTypeTab] = useState<"all" | "official" | "extra" | "gaps">("all");
-  const [selectedState, setSelectedState] = useState<string>("all");
-  const [selectedLga, setSelectedLga] = useState<string>("all");
-  const [selectedWard, setSelectedWard] = useState<string>("all");
   const [selectedSponsor, setSelectedSponsor] = useState<string>("all");
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Build unified agent records list
-  const [puList, setPuList] = useState(POLLING_UNITS_DATA);
+  // 1. Resolve numeric geography IDs for API filtering
+  const { data: apiStates = [], isLoading: isLoadingStates } = useGeographyStates();
+  const statesList = useMemo(() => (apiStates.length > 0 ? apiStates : STATES_DATA), [apiStates]);
 
-  // Generate full unified agent records from polling units
+  const selectedState = useMemo(() => {
+    return statesList.find(
+      (s) => s.code === selectedStateCode || ("id" in s && String(s.id) === selectedStateCode)
+    );
+  }, [statesList, selectedStateCode]);
+
+  const selectedStateId = useMemo(() => {
+    return selectedState && "id" in selectedState ? (selectedState.id as number) : null;
+  }, [selectedState]);
+
+  const { data: apiLgas = [], isLoading: isLoadingLgas } = useGeographyLgas(selectedStateId);
+  const lgasList = useMemo(() => {
+    if (selectedStateCode === "all") return [];
+    if (apiLgas.length > 0) return apiLgas;
+    return LGAS_DATA.filter((l) => l.stateCode === selectedStateCode);
+  }, [selectedStateCode, apiLgas]);
+
+  const selectedLga = useMemo(() => {
+    return lgasList.find(
+      (l) => l.code === selectedLgaCode || ("id" in l && String(l.id) === selectedLgaCode)
+    );
+  }, [lgasList, selectedLgaCode]);
+
+  const selectedLgaId = useMemo(() => {
+    return selectedLga && "id" in selectedLga ? (selectedLga.id as number) : null;
+  }, [selectedLga]);
+
+  const { data: apiWards = [], isLoading: isLoadingWards } = useGeographyWards(selectedLgaId);
+  const wardsList = useMemo(() => {
+    if (selectedLgaCode === "all") return [];
+    if (apiWards.length > 0) return apiWards;
+    return WARDS_DATA.filter((w) => w.lgaCode === selectedLgaCode);
+  }, [selectedLgaCode, apiWards]);
+
+  const selectedWard = useMemo(() => {
+    return wardsList.find(
+      (w) => w.code === selectedWardCode || ("id" in w && String(w.id) === selectedWardCode)
+    );
+  }, [wardsList, selectedWardCode]);
+
+  const selectedWardId = useMemo(() => {
+    return selectedWard && "id" in selectedWard ? (selectedWard.id as number) : null;
+  }, [selectedWard]);
+
+  // 2. Fetch live coverage summary for header KPIs and tab counters
+  const { data: summary, isLoading: isLoadingSummary } = useCoverageSummary({
+    stateId: selectedStateId ?? undefined,
+    lgaId: selectedLgaId ?? undefined,
+    wardId: selectedWardId ?? undefined,
+  });
+
+  // 3. Fetch live agents list
+  const agentKindParam =
+    selectedTypeTab === "official"
+      ? "official"
+      : selectedTypeTab === "extra"
+      ? "extra"
+      : undefined;
+
+  const {
+    data: agentsData,
+    isLoading: isLoadingAgents,
+    isFetching: isFetchingAgents,
+  } = useAgents(
+    {
+      stateId: selectedStateId ?? undefined,
+      lgaId: selectedLgaId ?? undefined,
+      wardId: selectedWardId ?? undefined,
+      agentKind: agentKindParam,
+      limit: 100,
+    },
+    {
+      enabled: selectedTypeTab !== "gaps",
+    }
+  );
+
+  // 4. Fetch live coverage gaps (when viewing gaps or all records)
+  const {
+    data: gapsData,
+    isLoading: isLoadingGaps,
+    isFetching: isFetchingGaps,
+  } = useCoverageGaps(
+    {
+      stateId: selectedStateId ?? undefined,
+      lgaId: selectedLgaId ?? undefined,
+      wardId: selectedWardId ?? undefined,
+      limit: 100,
+    },
+    {
+      enabled: selectedTypeTab === "gaps" || selectedTypeTab === "all",
+    }
+  );
+
+  const isSyncing = isFetchingAgents || isFetchingGaps || isLoadingSummary;
+
+  // 5. Build unified agent records list
   const allAgentRecords = useMemo<UnifiedAgentRecord[]>(() => {
     const list: UnifiedAgentRecord[] = [];
 
-    puList.forEach((pu) => {
-      const coAgents = pu.extraAgents.map((ex) => ({
-        name: ex.name,
-        sponsor: ex.owner,
-        role: ex.role || "Protector",
-        type: "extra",
-      }));
-
-      // 1. Official Party Agent
-      if (pu.hasOfficialAgent) {
+    // A. Map agents returned from API
+    if (agentsData?.items && selectedTypeTab !== "gaps") {
+      for (const item of agentsData.items) {
+        const isOfficial = item.agentKind === "official";
         list.push({
-          id: `off-${pu.code}`,
-          name: pu.officialAgentName || `Official Agent – ${pu.code}`,
-          type: "official",
-          sponsor: "Party Official",
-          role: "Official Party Agent",
-          phoneMasked: pu.officialAgentPhone || "+234 ••• ••• 671",
-          telegramStatus: pu.officialAgentTelegramStatus || "connected",
-          puCode: pu.code,
-          puName: pu.name,
-          puLocation: pu.location,
-          latitude: pu.latitude,
-          longitude: pu.longitude,
-          hasGPS: pu.hasGPS,
-          wardCode: pu.wardCode,
-          lgaCode: pu.lgaCode,
-          stateCode: pu.stateCode,
-          coAgents,
+          id: item.assignmentId,
+          assignmentId: item.assignmentId,
+          personId: item.personId,
+          puId: item.pollingUnit.id,
+          name: item.fullName,
+          type: item.agentKind,
+          sponsor: item.owner?.displayName || (isOfficial ? "Party Official" : "Candidate Campaign"),
+          role: isOfficial
+            ? "Official Party Agent"
+            : item.slotNumber === 1
+            ? "Protector"
+            : item.slotNumber === 2
+            ? "Mobiliser"
+            : "Snapper",
+          phoneMasked: item.maskedPhone || "—",
+          telegramStatus: "connected",
+          puCode: item.pollingUnit.inecPollingUnitCode,
+          puName: item.pollingUnit.name || `Polling Unit ${item.pollingUnit.inecPollingUnitCode}`,
+          puLocation: `${item.pollingUnit.wardName}, ${item.pollingUnit.lgaName}`,
+          latitude: 0,
+          longitude: 0,
+          hasGPS: true,
+          wardCode: selectedWardCode !== "all" ? selectedWardCode : "",
+          lgaCode: selectedLgaCode !== "all" ? selectedLgaCode : "",
+          stateCode: selectedStateCode !== "all" ? selectedStateCode : "",
+          wardName: item.pollingUnit.wardName,
+          lgaName: item.pollingUnit.lgaName,
+          stateName: item.pollingUnit.stateName,
         });
-      } else {
-        // Gap record
+      }
+    }
+
+    // B. Map gaps returned from API (unassigned PUs)
+    if (gapsData?.items && (selectedTypeTab === "gaps" || selectedTypeTab === "all")) {
+      for (const gap of gapsData.items) {
         list.push({
-          id: `gap-${pu.code}`,
+          id: `gap-${gap.id}`,
+          puId: gap.id,
           name: "Unassigned Agent Slot",
           type: "gap",
           sponsor: "Party Official (Vacant)",
           role: "Unassigned Official Agent",
           phoneMasked: "—",
           telegramStatus: "not_matched",
-          puCode: pu.code,
-          puName: pu.name,
-          puLocation: pu.location,
-          latitude: pu.latitude,
-          longitude: pu.longitude,
-          hasGPS: pu.hasGPS,
-          wardCode: pu.wardCode,
-          lgaCode: pu.lgaCode,
-          stateCode: pu.stateCode,
-          coAgents,
+          puCode: gap.code,
+          puName: gap.name,
+          puLocation: `${gap.ward.name}, ${gap.lga.name}`,
+          latitude: gap.latitude ?? 0,
+          longitude: gap.longitude ?? 0,
+          hasGPS: gap.hasGPS,
+          wardCode: gap.ward.code,
+          lgaCode: gap.lga.code,
+          stateCode: gap.state.code,
+          wardName: gap.ward.name,
+          lgaName: gap.lga.name,
+          stateName: gap.state.name,
         });
       }
-
-      // 2. Extra Agents
-      pu.extraAgents.forEach((ex) => {
-        const otherAgents = [
-          ...(pu.hasOfficialAgent
-            ? [
-                {
-                  name: pu.officialAgentName || "Official Agent",
-                  sponsor: "Party Official",
-                  role: "Official Party Agent",
-                  type: "official",
-                },
-              ]
-            : []),
-          ...pu.extraAgents
-            .filter((e) => e.id !== ex.id)
-            .map((e) => ({
-              name: e.name,
-              sponsor: e.owner,
-              role: e.role || "Protector",
-              type: "extra",
-            })),
-        ];
-
-        list.push({
-          id: `ex-${ex.id}`,
-          name: ex.name,
-          type: "extra",
-          sponsor: ex.owner,
-          role: ex.role || "Protector",
-          phoneMasked: ex.phone || "+234 ••• ••• •••",
-          telegramStatus: ex.telegramStatus || "connected",
-          puCode: pu.code,
-          puName: pu.name,
-          puLocation: pu.location,
-          latitude: pu.latitude,
-          longitude: pu.longitude,
-          hasGPS: pu.hasGPS,
-          wardCode: pu.wardCode,
-          lgaCode: pu.lgaCode,
-          stateCode: pu.stateCode,
-          coAgents: otherAgents,
-        });
-      });
-    });
+    }
 
     return list;
-  }, [puList]);
+  }, [agentsData, gapsData, selectedTypeTab, selectedStateCode, selectedLgaCode, selectedWardCode]);
 
-  // Tab counts
+  // Tab counts driven by live coverage summary
   const counts = useMemo(() => {
+    const covered = summary?.coveredPUs ?? 0;
+    const extra = summary?.extraAgentsCount ?? 0;
+    const gaps = summary?.noCoveragePUs ?? 0;
     return {
-      all: allAgentRecords.length,
-      official: allAgentRecords.filter((r) => r.type === "official").length,
-      extra: allAgentRecords.filter((r) => r.type === "extra").length,
-      gaps: allAgentRecords.filter((r) => r.type === "gap").length,
+      all: covered + extra + gaps,
+      official: covered,
+      extra,
+      gaps,
     };
-  }, [allAgentRecords]);
+  }, [summary]);
 
   // Filter records
   const filteredAgents = useMemo(() => {
@@ -156,22 +233,13 @@ export default function AgentsPage() {
       if (selectedTypeTab === "extra" && record.type !== "extra") return false;
       if (selectedTypeTab === "gaps" && record.type !== "gap") return false;
 
-      // State filter
-      if (selectedState !== "all" && record.stateCode !== selectedState) return false;
-
-      // LGA filter
-      if (selectedLga !== "all" && record.lgaCode !== selectedLga) return false;
-
-      // Ward filter
-      if (selectedWard !== "all" && record.wardCode !== selectedWard) return false;
-
       // Sponsor filter
       if (selectedSponsor !== "all") {
-        if (selectedSponsor === "Party" && !record.sponsor.includes("Party")) return false;
-        if (selectedSponsor === "President" && !record.sponsor.includes("President")) return false;
-        if (selectedSponsor === "Senate" && !record.sponsor.includes("Senate")) return false;
-        if (selectedSponsor === "House of Reps" && !record.sponsor.includes("House of Reps")) return false;
-        if (selectedSponsor === "State Assembly" && !record.sponsor.includes("State Assembly")) return false;
+        if (selectedSponsor === "Party" && !record.sponsor.toLowerCase().includes("party")) return false;
+        if (selectedSponsor === "President" && !record.sponsor.toLowerCase().includes("president")) return false;
+        if (selectedSponsor === "Senate" && !record.sponsor.toLowerCase().includes("senate")) return false;
+        if (selectedSponsor === "House of Reps" && !record.sponsor.toLowerCase().includes("rep")) return false;
+        if (selectedSponsor === "State Assembly" && !record.sponsor.toLowerCase().includes("assembly")) return false;
       }
 
       // Role filter
@@ -197,9 +265,6 @@ export default function AgentsPage() {
   }, [
     allAgentRecords,
     selectedTypeTab,
-    selectedState,
-    selectedLga,
-    selectedWard,
     selectedSponsor,
     selectedRole,
     selectedChannel,
@@ -208,29 +273,11 @@ export default function AgentsPage() {
 
   const handleResetFilters = () => {
     setSelectedTypeTab("all");
-    setSelectedState("all");
-    setSelectedLga("all");
-    setSelectedWard("all");
+    resetAreaFilters();
     setSelectedSponsor("all");
     setSelectedRole("all");
     setSelectedChannel("all");
     setSearchQuery("");
-  };
-
-  const handleAssignOfficial = (puCode: string) => {
-    setPuList((prev) =>
-      prev.map((pu) =>
-        pu.code === puCode
-          ? {
-              ...pu,
-              hasOfficialAgent: true,
-              officialAgentName: `Official Agent – ${puCode}`,
-              officialAgentPhone: "+234 ••• ••• 700",
-              officialAgentTelegramStatus: "connected",
-            }
-          : pu
-      )
-    );
   };
 
   const handleExportCSV = () => {
@@ -263,6 +310,17 @@ export default function AgentsPage() {
               <ShieldCheck className="w-3 h-3 text-emerald-600" />
               1 Official Agent = Covered
             </Badge>
+            {isSyncing ? (
+              <Badge variant="secondary" className="text-[11px] px-2 py-0.5 gap-1 bg-muted/60 text-muted-foreground">
+                <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                Live Sync
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[11px] px-2 py-0.5 gap-1 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                Live API Connected
+              </Badge>
+            )}
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Monitor and coordinate official party agents and candidate-sponsored extra agents across polling units.
@@ -285,7 +343,7 @@ export default function AgentsPage() {
         officialCount={counts.official}
         extraCount={counts.extra}
         gapsCount={counts.gaps}
-        totalPUs={puList.length}
+        totalPUs={summary?.totalPUs ?? 0}
         telegramPct={72}
         smsPct={24}
       />
@@ -294,12 +352,12 @@ export default function AgentsPage() {
       <AgentsFilters
         selectedTypeTab={selectedTypeTab}
         setSelectedTypeTab={setSelectedTypeTab}
-        selectedState={selectedState}
-        setSelectedState={setSelectedState}
-        selectedLga={selectedLga}
-        setSelectedLga={setSelectedLga}
-        selectedWard={selectedWard}
-        setSelectedWard={setSelectedWard}
+        selectedState={selectedStateCode}
+        setSelectedState={setSelectedStateCode}
+        selectedLga={selectedLgaCode}
+        setSelectedLga={setSelectedLgaCode}
+        selectedWard={selectedWardCode}
+        setSelectedWard={setSelectedWardCode}
         selectedSponsor={selectedSponsor}
         setSelectedSponsor={setSelectedSponsor}
         selectedRole={selectedRole}
@@ -315,10 +373,7 @@ export default function AgentsPage() {
       />
 
       {/* Table */}
-      <AgentsTable
-        agents={filteredAgents}
-        onAssignOfficial={handleAssignOfficial}
-      />
+      <AgentsTable agents={filteredAgents} />
     </div>
   );
 }

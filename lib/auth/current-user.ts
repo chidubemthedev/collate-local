@@ -1,7 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { getDataSource } from "@/lib/db";
-import { AuthSession } from "@/lib/db/entities/auth-session.entity";
 import { getSessionCookieName } from "./config";
 import { hashSessionToken, isSessionValid } from "./session";
 import { UnauthorizedError } from "./errors";
@@ -18,15 +17,35 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   }
 
   const dataSource = await getDataSource();
-  const session = await dataSource.getRepository(AuthSession).findOne({
-    where: { sessionTokenHash: hashSessionToken(token) },
-  });
+  const sessionRows = await dataSource.query<Array<{
+    person_id: string;
+    expires_at: Date;
+    last_active_at: Date;
+    revoked_at: Date | null;
+  }>>(
+    `
+      SELECT person_id, expires_at, last_active_at, revoked_at
+      FROM auth_session
+      WHERE session_token_hash = $1
+      ORDER BY created_at DESC
+      LIMIT 1;
+    `,
+    [hashSessionToken(token)],
+  );
 
-  if (!session || !isSessionValid(session)) {
+  const session = sessionRows[0];
+  if (
+    !session ||
+    !isSessionValid({
+      revokedAt: session.revoked_at,
+      expiresAt: session.expires_at,
+      lastActiveAt: session.last_active_at,
+    })
+  ) {
     return null;
   }
 
-  return { personId: session.personId };
+  return { personId: session.person_id };
 }
 
 export async function requireUser(): Promise<CurrentUser> {
