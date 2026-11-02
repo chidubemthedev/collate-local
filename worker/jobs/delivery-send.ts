@@ -19,7 +19,10 @@ import {
   getTelegramLimiter,
   type TelegramLimiter,
 } from "../../lib/channels/telegram/limiter";
-import { hasAcceptedConsent } from "../../lib/channels/telegram/link/link";
+import {
+  hasAcceptedConsent,
+  hasDeclinedConsent,
+} from "../../lib/channels/telegram/link/link";
 import { getWorkerDataSource } from "../lib/database";
 import {
   isTerminalDeliveryStatus,
@@ -87,6 +90,17 @@ export async function sendDelivery(
 
   await limiter.acquire();
   try {
+    if (await hasDeclinedConsent(delivery.personId, manager)) {
+      await markFailed(manager, delivery.id);
+      await completeBroadcastIfFinished(manager, broadcast.id);
+      return;
+    }
+
+    if (!(await hasAcceptedConsent(delivery.personId, manager))) {
+      await fallbackToSms(manager, delivery, broadcast, deps);
+      return;
+    }
+
     await telegram.send({
       chatId: telegramPhone.telegramChatId as string,
       text: broadcast.messageText,
@@ -195,8 +209,15 @@ async function fallbackToSms(
     [delivery.id],
   );
 
+  if (await hasDeclinedConsent(delivery.personId, manager)) {
+    await markFailed(manager, delivery.id);
+    await completeBroadcastIfFinished(manager, broadcast.id);
+    return;
+  }
+
   try {
     const sms = deps.sms ?? getSmsChannel();
+    // TODO(decision): SMS to a person with no consent row; needs a product and legal decision (NDPA s.30)
     await sms.send({ e164: phone.e164Number, text: broadcast.messageText });
     await markDelivered(manager, delivery.id, DeliveryStatus.DELIVERED_BY_SMS);
   } catch (error) {

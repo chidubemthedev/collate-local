@@ -236,92 +236,99 @@ export async function listBroadcastDeliveries(
   manager?: EntityManager,
 ): Promise<DeliveryPage | null> {
   const entityManager = await resolveManager(manager);
-  const broadcast = await findAccessibleBroadcast(user, broadcastId, entityManager);
-  if (!broadcast) {
-    return null;
-  }
+  const execute = async (transactionManager: EntityManager): Promise<DeliveryPage | null> => {
+    const broadcast = await findAccessibleBroadcast(user, broadcastId, transactionManager);
+    if (!broadcast) {
+      return null;
+    }
 
-  const parsedCursor = cursor ? decodeCursor(cursor) : null;
-  const query = entityManager
-    .getRepository(Delivery)
-    .createQueryBuilder("delivery")
-    .innerJoin("delivery.person", "person")
-    .select("delivery.id", "id")
-    .addSelect("person.id", "personId")
-    .addSelect("person.fullName", "fullName")
-    .addSelect(
-      (subquery) =>
-        subquery
-          .select("phone.e164Number")
-          .from(PhoneNumber, "phone")
-          .where("phone.personId = person.id")
-          .orderBy("phone.isConfirmed", "DESC")
-          .addOrderBy("phone.createdAt", "ASC")
-          .addOrderBy("phone.id", "ASC")
-          .limit(1),
-      "phoneNumber",
-    )
-    .addSelect("delivery.deliveryChannel", "channel")
-    .addSelect("delivery.deliveryStatus", "status")
-    .addSelect("delivery.sentAt", "sentAt")
-    .addSelect("delivery.deliveredAt", "deliveredAt")
-    .addSelect("delivery.tappedOkAt", "tappedOkAt")
-    .addSelect("delivery.failedAt", "failedAt")
-    .addSelect("delivery.createdAt", "createdAt")
-    .where("delivery.broadcastId = :broadcastId", { broadcastId });
+    const parsedCursor = cursor ? decodeCursor(cursor) : null;
+    const query = transactionManager
+      .getRepository(Delivery)
+      .createQueryBuilder("delivery")
+      .innerJoin("delivery.person", "person")
+      .select("delivery.id", "id")
+      .addSelect("person.id", "personId")
+      .addSelect("person.fullName", "fullName")
+      .addSelect(
+        (subquery) =>
+          subquery
+            .select("phone.e164Number")
+            .from(PhoneNumber, "phone")
+            .where("phone.personId = person.id")
+            .orderBy("phone.isConfirmed", "DESC")
+            .addOrderBy("phone.createdAt", "ASC")
+            .addOrderBy("phone.id", "ASC")
+            .limit(1),
+        "phoneNumber",
+      )
+      .addSelect("delivery.deliveryChannel", "channel")
+      .addSelect("delivery.deliveryStatus", "status")
+      .addSelect("delivery.sentAt", "sentAt")
+      .addSelect("delivery.deliveredAt", "deliveredAt")
+      .addSelect("delivery.tappedOkAt", "tappedOkAt")
+      .addSelect("delivery.failedAt", "failedAt")
+      .addSelect("delivery.createdAt", "createdAt")
+      .where("delivery.broadcastId = :broadcastId", { broadcastId });
 
-  applyBroadcastCursor(query, parsedCursor, "delivery");
+    applyBroadcastCursor(query, parsedCursor, "delivery");
 
-  const rows = await query
-    .orderBy("delivery.createdAt", "DESC")
-    .addOrderBy("delivery.id", "DESC")
-    .limit(limit + 1)
-    .getRawMany<{
-      id: string;
-      personId: string;
-      fullName: string;
-      phoneNumber: string | null;
-      channel: string;
-      status: string;
-      sentAt: Date | null;
-      deliveredAt: Date | null;
-      tappedOkAt: Date | null;
-      failedAt: Date | null;
-      createdAt: Date;
-    }>();
+    const rows = await query
+      .orderBy("delivery.createdAt", "DESC")
+      .addOrderBy("delivery.id", "DESC")
+      .limit(limit + 1)
+      .getRawMany<{
+        id: string;
+        personId: string;
+        fullName: string;
+        phoneNumber: string | null;
+        channel: string;
+        status: string;
+        sentAt: Date | null;
+        deliveredAt: Date | null;
+        tappedOkAt: Date | null;
+        failedAt: Date | null;
+        createdAt: Date;
+      }>();
 
-  const hasNextPage = rows.length > limit;
-  const pageRows = hasNextPage ? rows.slice(0, limit) : rows;
-  const lastRow = pageRows.at(-1);
+    const hasNextPage = rows.length > limit;
+    const pageRows = hasNextPage ? rows.slice(0, limit) : rows;
+    const lastRow = pageRows.at(-1);
 
-  await entityManager.getRepository(AuditLog).insert({
-    actorPersonId: user.personId,
-    actionType: "view_broadcast_deliveries",
-    targetEntityType: "broadcast",
-    targetEntityId: broadcastId,
-    ipAddress: ipAddress ?? null,
-  });
+    await transactionManager.getRepository(AuditLog).insert({
+      actorPersonId: user.personId,
+      actionType: "view_broadcast_deliveries",
+      targetEntityType: "broadcast",
+      targetEntityId: broadcastId,
+      ipAddress: ipAddress ?? null,
+    });
 
-  return {
-    items: pageRows.map((row) => ({
-      id: row.id,
-      personId: row.personId,
-      fullName: row.fullName,
-      maskedPhone: maskPhoneNumber(row.phoneNumber),
-      channel: row.channel,
-      status: row.status,
-      sentAt: row.sentAt,
-      deliveredAt: row.deliveredAt,
-      tappedOkAt: row.tappedOkAt,
-      failedAt: row.failedAt,
-      createdAt: row.createdAt,
-    })),
-    nextCursor:
-      hasNextPage && lastRow
-        ? encodeCursor({
-            createdAt: new Date(lastRow.createdAt).toISOString(),
-            id: lastRow.id,
-          })
-        : null,
+    return {
+      items: pageRows.map((row) => ({
+        id: row.id,
+        personId: row.personId,
+        fullName: row.fullName,
+        maskedPhone: maskPhoneNumber(row.phoneNumber),
+        channel: row.channel,
+        status: row.status,
+        sentAt: row.sentAt,
+        deliveredAt: row.deliveredAt,
+        tappedOkAt: row.tappedOkAt,
+        failedAt: row.failedAt,
+        createdAt: row.createdAt,
+      })),
+      nextCursor:
+        hasNextPage && lastRow
+          ? encodeCursor({
+              createdAt: new Date(lastRow.createdAt).toISOString(),
+              id: lastRow.id,
+            })
+          : null,
+    };
   };
+
+  if (entityManager.queryRunner?.isTransactionActive) {
+    return execute(entityManager);
+  }
+  return entityManager.transaction(execute);
 }
