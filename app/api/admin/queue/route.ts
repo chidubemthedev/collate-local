@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth/current-user";
 import { failure, internalError, success } from "@/lib/api/response";
 import { policyUserFromCurrentUser } from "@/lib/policy";
+import { policyErrorResponse } from "@/lib/policy/http";
 import { getDataSource } from "@/lib/db";
 
 export interface QueueSummaryRow {
@@ -72,7 +73,6 @@ export async function GET(): Promise<Response> {
 
     return success({ summary, recent });
   } catch (error) {
-    const { policyErrorResponse } = await import("@/lib/policy/http");
     const policyResponse = policyErrorResponse(error);
     if (policyResponse) return policyResponse;
     return internalError();

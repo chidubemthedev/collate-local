@@ -43,6 +43,10 @@ async function main(): Promise<void> {
     // maintenance tasks (monitor, cron, send-it). With 3 queues + overhead,
     // 10 is a safe minimum. Raise if you see timeout errors in production.
     max: 10,
+    // Neon and other serverless Postgres providers close idle connections
+    // after ~5 minutes. Keep idle connections alive by recycling them sooner.
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
   });
   boss.on("error", (error) => {
     console.error("[worker] pg-boss error", error);

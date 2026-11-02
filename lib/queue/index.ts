@@ -37,6 +37,10 @@ async function startBoss(): Promise<PgBoss> {
     // Keep the pool small to respect cloud provider connection limits,
     // especially alongside the app's own TypeORM pool on the same database.
     max: 3,
+    // Neon and other serverless Postgres providers close idle connections
+    // after ~5 minutes. Recycle sooner to avoid ECONNRESET errors.
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
   });
   // pg-boss emits runtime/connection errors on this event; without a listener
   // an unhandled 'error' event would crash the Node process.
