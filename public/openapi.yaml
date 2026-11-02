@@ -19,6 +19,7 @@ tags:
   - name: Health
   - name: Authentication
   - name: Agents
+  - name: Broadcasts
   - name: Geography
   - name: Coverage
 paths:
@@ -279,6 +280,193 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /api/broadcasts/preview:
+    post:
+      tags: [Broadcasts]
+      summary: Preview an audience
+      description: Returns the official and extra agent counts the caller's filters would reach. The request must include a matching Origin header.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AudienceFilter"
+      responses:
+        "200":
+          description: Audience counts.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AudiencePreview"
+        "400":
+          $ref: "#/components/responses/InvalidFilter"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /api/broadcasts:
+    get:
+      tags: [Broadcasts]
+      summary: List broadcasts
+      description: Admins see every broadcast; other callers see only broadcasts they sent.
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 512
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: A page of broadcasts.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/BroadcastListItem"
+                      meta:
+                        $ref: "#/components/schemas/SuccessMeta"
+        "400":
+          $ref: "#/components/responses/InvalidFilter"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags: [Broadcasts]
+      summary: Create a broadcast
+      description: Creates a broadcast and queues audience resolution. The request must include a matching Origin header. Scheduled broadcasts are queued for their send time.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBroadcastInput"
+      responses:
+        "201":
+          description: Broadcast created and queued.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/CreatedBroadcast"
+        "400":
+          $ref: "#/components/responses/InvalidFilter"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /api/broadcasts/{broadcastId}:
+    get:
+      tags: [Broadcasts]
+      summary: Read a broadcast
+      description: Returns delivery counts by status. A broadcast outside the caller's visibility returns 404.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/broadcastId"
+      responses:
+        "200":
+          description: Broadcast detail and delivery counts.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/BroadcastDetail"
+        "400":
+          $ref: "#/components/responses/InvalidId"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /api/broadcasts/{broadcastId}/deliveries:
+    get:
+      tags: [Broadcasts]
+      summary: List broadcast deliveries
+      description: Returns delivery rows with masked phone numbers and writes an audit event. A broadcast outside the caller's visibility returns 404.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/broadcastId"
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 512
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: A page of deliveries.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/BroadcastDelivery"
+                      meta:
+                        $ref: "#/components/schemas/SuccessMeta"
+        "400":
+          $ref: "#/components/responses/InvalidId"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
   /api/geography/states:
@@ -630,6 +818,13 @@ components:
       schema:
         type: integer
         minimum: 1
+    broadcastId:
+      name: broadcastId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     stateFilter:
       name: stateId
       in: query
@@ -789,6 +984,151 @@ components:
           type: string
           format: uuid
       required: [ok, id]
+    AudienceFilter:
+      type: object
+      properties:
+        stateId:
+          type: integer
+          minimum: 1
+        lgaId:
+          type: integer
+          minimum: 1
+        wardId:
+          type: integer
+          minimum: 1
+        politicalUnitId:
+          type: integer
+          minimum: 1
+        officeId:
+          type: integer
+          minimum: 1
+        ownerGroupId:
+          type: integer
+          minimum: 1
+        agentKind:
+          type: string
+          enum: [official, extra, all]
+          default: all
+      additionalProperties: false
+    AudiencePreview:
+      type: object
+      properties:
+        officialCount:
+          type: integer
+        extraCount:
+          type: integer
+      required: [officialCount, extraCount]
+    CreateBroadcastInput:
+      type: object
+      properties:
+        audienceFilter:
+          $ref: "#/components/schemas/AudienceFilter"
+        messageText:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        scheduledSendAt:
+          type: string
+          format: date-time
+          description: Optional send time within the next 90 days. Omit to send immediately.
+      required: [audienceFilter, messageText]
+      additionalProperties: false
+    CreatedBroadcast:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [draft, scheduled, sending, completed, failed, cancelled]
+      required: [id, status]
+    BroadcastListItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [draft, scheduled, sending, completed, failed, cancelled]
+        messageText:
+          type: string
+          description: Truncated to 200 characters.
+        scheduledSendAt:
+          type: [string, "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, status, messageText, scheduledSendAt, createdAt]
+    BroadcastDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [draft, scheduled, sending, completed, failed, cancelled]
+        scheduledSendAt:
+          type: [string, "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        counts:
+          type: object
+          properties:
+            pending:
+              type: integer
+            sent:
+              type: integer
+            delivered:
+              type: integer
+            delivered_by_sms:
+              type: integer
+            failed:
+              type: integer
+            tapped_ok:
+              type: integer
+          required: [pending, sent, delivered, delivered_by_sms, failed, tapped_ok]
+      required: [id, status, scheduledSendAt, createdAt, counts]
+    BroadcastDelivery:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        personId:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        maskedPhone:
+          type: [string, "null"]
+        channel:
+          type: string
+          enum: [telegram, sms]
+        status:
+          type: string
+          enum: [pending, sent, delivered, delivered_by_sms, failed, tapped_ok]
+        sentAt:
+          type: [string, "null"]
+          format: date-time
+        deliveredAt:
+          type: [string, "null"]
+          format: date-time
+        tappedOkAt:
+          type: [string, "null"]
+          format: date-time
+        failedAt:
+          type: [string, "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, personId, fullName, maskedPhone, channel, status, sentAt, deliveredAt, tappedOkAt, failedAt, createdAt]
     Agent:
       type: object
       properties:

@@ -21,7 +21,7 @@ async function findRouteFiles(directory: string): Promise<string[]> {
 }
 
 function isExempt(routePath: string): boolean {
-  return ["auth", "health", "dev"].some(
+  return ["auth", "health", "dev", "admin"].some(
     (segment) => routePath === segment || routePath.startsWith(`${segment}/`),
   );
 }
