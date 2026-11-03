@@ -52,6 +52,20 @@ export async function resetDemoData(dataSource: DataSource): Promise<{ deleted_c
         DELETE FROM pu_political_unit WHERE polling_unit_id IN (
           SELECT id FROM polling_unit WHERE inec_polling_unit_code LIKE '90-%' OR inec_polling_unit_code LIKE '91-%' OR inec_polling_unit_code LIKE '92-%'
         );
+        DELETE FROM seat WHERE political_unit_id IN (
+          SELECT id FROM political_unit WHERE political_unit_name IN (
+            'Nigeria', 'Lagos', 'Anambra', 'Kano',
+            'Lagos Senatorial District 1', 'Lagos Senatorial District 2', 'Lagos Senatorial District 3',
+            'Anambra Senatorial District 1', 'Anambra Senatorial District 2', 'Anambra Senatorial District 3',
+            'Kano Senatorial District 1', 'Kano Senatorial District 2', 'Kano Senatorial District 3',
+            'Lagos Federal Constituency 1', 'Lagos Federal Constituency 2',
+            'Anambra Federal Constituency 1', 'Anambra Federal Constituency 2',
+            'Kano Federal Constituency 1', 'Kano Federal Constituency 2',
+            'Lagos State Constituency 1', 'Lagos State Constituency 2', 'Lagos State Constituency 3',
+            'Anambra State Constituency 1', 'Anambra State Constituency 2', 'Anambra State Constituency 3',
+            'Kano State Constituency 1', 'Kano State Constituency 2', 'Kano State Constituency 3'
+          )
+        );
         DELETE FROM political_unit WHERE political_unit_name IN (
           'Nigeria', 'Lagos', 'Anambra', 'Kano',
           'Lagos Senatorial District 1', 'Lagos Senatorial District 2', 'Lagos Senatorial District 3',

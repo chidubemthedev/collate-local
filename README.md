@@ -56,7 +56,7 @@ Collate is a Next.js (App Router) REST API on a single PostgreSQL database, acce
 | Secrets | `.env` is git-ignored; `AUTH_SECRET` must be 32+ characters; the console OTP sender and demo seed refuse to run in production; `/api/dev/*` returns `404` in production |
 | Error handling | Handlers catch, log server-side and return a generic `500`; database errors are never returned |
 | Telegram webhook | Authenticated with `TELEGRAM_WEBHOOK_SECRET`; group chats and forwarded contacts are ignored; an OK tap only counts from the linked chat |
-| Tenancy | Scope filtering in SQL, `404` for out-of-scope resources, masked phone numbers |
+| Tenancy | Single-party system: scope filtering in SQL by group/membership, `404` for out-of-scope resources, masked phone numbers |
 
 ### Testing
 
@@ -84,7 +84,8 @@ Collate is a Next.js (App Router) REST API on a single PostgreSQL database, acce
 - **Why not microservices?** One team, one database and a small number of bounded areas. A modular monolith plus one worker gives the same separation of concerns without distributed-system cost. The queue is already the seam if a service has to be split out later.
 - **Why not Redis/BullMQ?** It would add another stateful system to host and secure. pg-boss gives durable jobs, retries, scheduling and de-duplication from the database we already operate.
 - **How does it scale?** The API is stateless and can be scaled horizontally; sessions are in Postgres. Reads are indexed on the foreign keys used by scope and geography joins and use cursor pagination. The bottleneck would be Telegram's send rate, which is controlled deliberately. Connection use is bounded (worker pool `max: 10`).
-- **What stops one user from seeing another party's agents?** Membership scope and `group_visibility_grant` are applied in the SQL query; there is no post-filtering. Out-of-scope IDs return `404`.
+- **What stops one user from seeing another group's agents?** Membership scope and `group_visibility_grant` are applied in the SQL query; there is no post-filtering. Out-of-scope IDs return `404`.
+- **Why one official agent per polling unit?** Collate serves a single party, so each polling unit has one official agent and any number of extra agents, whichever group or candidate owns them. The partial unique index `uq_agent_assignment_official_polling_unit` enforces this in the database.
 - **What if two people assign the same polling unit at once?** The row lock serialises them and the partial unique index guarantees one official agent even if application code is wrong.
 - **What if the worker crashes mid-broadcast?** pg-boss retries the job; `delivery-send` is idempotent on delivery status, and `singletonKey` prevents duplicates on re-enqueue.
 - **Can audit logs be tampered with?** Not through the application or normal SQL: the trigger blocks `UPDATE` and `DELETE`. A database superuser could drop the trigger, which is why database credentials are kept out of the app's user-facing paths.
@@ -100,6 +101,53 @@ Collate is a Next.js (App Router) REST API on a single PostgreSQL database, acce
 5. Show `/api/agents` (masked phones, cursor pagination), then `POST /api/coverage/assignments` and the `409` on a second official agent.
 6. Run `npm run worker`, call `POST /api/broadcasts/preview` and `POST /api/broadcasts` (with `TELEGRAM_DRY_RUN=true`), then show the broadcast and its deliveries.
 7. Finish with the audit trail and the append-only trigger.
+
+## To-do
+
+### Real INEC data for NDC
+
+The demo seed uses fake geography. It is replaced by real INEC data (Nigeria Democratic Congress is the party this system serves). Everything below loads with `npm run db:seed:inec` and then `npm run db:seed:inec:politics`, in that order, and both seeds are safe to re-run.
+
+**Done**
+
+- [x] **Geography.** `npx tsx scripts/inec-scrape.ts` scrapes the [INEC polling unit locator](https://cvr.inecnigeria.org/pu) (37 states, 774 LGAs, 8,839 wards, 177,299 polling units) and writes the compressed, committed `data/inec/geography.json.gz`. `npm run db:seed:inec` (`lib/db/seeds/inec.ts`) upserts `state`, `lga`, `ward` and `polling_unit` in one transaction and never overwrites `latitude`, `longitude` or `is_position_doubtful`. Polling-unit codes use the full path `STATE/LGA/WARD/PU`, for example `24/01/01/001`. The duplicate, empty ward `09 MBAIKYAAN` in Benue → Gwer East is skipped, so the database holds 8,838 wards.
+- [x] **NDC candidates.** INEC's final candidate lists (PDFs on the [INEC press page](https://www.inecnigeria.org/press), downloaded into the git-ignored `data/inec/candidates/`) are read by `python scripts/inec-extract-candidates.py` (needs `pip install pymupdf`, about 4 minutes) into the committed `data/inec/candidates.json.gz`. It holds every NDC candidate plus every constituency name in any party's list.
+- [x] **Political units and seats.** `python scripts/inec-build-political-units.py` builds `data/inec/political-units.json.gz` from the candidate lists, the INEC geography and Wikipedia's [List of Nigerian federal constituencies](https://en.wikipedia.org/wiki/List_of_Nigerian_federal_constituencies) (committed as `data/inec/sources/wiki-federal.txt`, CC BY-SA). `npm run db:seed:inec:politics` (`lib/db/seeds/inec-politics.ts`) loads it in one transaction:
+
+  | Loaded | Rows |
+  | --- | --- |
+  | `political_unit` (1 country, 37 states, 109 senatorial districts, 350 federal and 991 state constituencies) | 1,488 |
+  | `seat` (President, 36 Governor seats, and one per senatorial, federal and state constituency) | 1,487 |
+  | `candidate` (1 President + VP, 25 governors + deputies, 99 senators, 315 House of Reps, 954 State Assembly) | 1,420 |
+  | `pu_political_unit` | 784,550 |
+
+  Running mates (the VP and deputy governors) are `candidate` rows with `principal_candidate_id` set. Candidates are `person` rows with a name only: INEC publishes no emails or phone numbers, so they cannot sign in yet.
+
+**How constituencies map to polling units.** Constituencies are groupings of LGAs or wards, and INEC publishes no polling-unit mapping, so membership is worked out at LGA level from the constituency names (INEC's LGA names contain typos and combined LGAs, so a small alias table in the build script resolves the differences). A unit is mapped only when its LGAs can be determined exactly, so a candidate's scope is never wider than their seat:
+
+| Level | Polling units mapped | Notes |
+| --- | --- | --- |
+| Country, state | all | Computed from the geography |
+| Senatorial district | 177,299 of 177,299 (109 of 109 districts) | Every LGA is in exactly one district in all 37 states |
+| Federal constituency | 168,487 (340 of 350) | The 10 unmapped split an LGA below LGA level: 8 in Lagos (Lagos Island, Mushin, Oshodi/Isolo, Surulere, each I and II) and 2 in Port Harcourt |
+| State constituency | 84,166 (449 of 991) | The rest share an LGA with another constituency (names with I, II, III or a bracket) or are not named after an LGA |
+
+An unmapped constituency still has its `political_unit` and `seat`, but no `pu_political_unit` rows, so a candidate for it currently sees no polling units.
+
+**Gaps in INEC's data**
+
+- Niger's House of Representatives list is missing from the INEC National Assembly page, so there are no Niger House of Reps candidates (the 10 Niger constituencies are therefore not loaded either).
+- Borno is missing from INEC's combined State Assembly PDF, so there are no Borno State Assembly constituencies or candidates.
+- INEC lists NDC in 26 of 28 governorship states. Kano's NDC row is blank in INEC's list (no candidate named), so it is skipped.
+- INEC has changed constituencies in Delta and Kogi (see the INEC press release "Restoration of constituencies in Delta and Kogi states"), so their state constituency counts differ from the older figures.
+
+**Still to do**
+
+- [ ] **Ward-level constituency data**, to map the 10 federal and 542 state constituencies that split an LGA, plus Niger and Borno. No source has been found.
+- [ ] **Polling-unit GPS (`latitude`, `longitude`).** The locator's "Get Directions" form (`POST /pu_locator/index`) redirects to a Google Maps URL containing the coordinates (`?q=lat,lng`). In a 40-unit test about 85% had coordinates and the rest returned only a text address. It needs one request per polling unit (about 177,000, roughly 3 to 5 hours), so it will run later in resumable batches. Decide the scope (all states or some first), the request speed, and flag points outside Nigeria or their state as `is_position_doubtful = true` instead of dropping them.
+- [ ] **Candidate scope in the API.** A candidate's access should be exactly their seat's area, in every view. Today only `/api/agents` and the broadcast endpoints use the seat; the geography and coverage routes use `requireApiAuth`, which needs a membership and reads only `membership_scope_unit`, so a candidate with no membership is refused. Make those routes use the seat scope for candidates.
+- [ ] Agents, phone numbers and emails come from NDC's own data. INEC does not publish them.
+- [ ] Review the 4 candidate names flagged by the extraction (initials such as `NWITE JAMES N`) against INEC's PDFs.
 
 ## Database setup
 
@@ -302,6 +350,32 @@ Geography is a hierarchy: **state → LGA → ward → polling unit**. IDs in pa
 
 Coverage figures in these responses are calculated from the geography tables and `agent_assignment`. `coveredPUs` counts polling units with an official assignment; extra-agent presence alone does not count as official coverage. Phone values exposed with agent details are selected from `phone_number`. The ward polling-unit endpoint currently returns those values in full, while `/api/agents` and broadcast deliveries mask them; treat the ward endpoint as restricted data and do not use it as a phone-number export.
 
+### INEC codes and polling unit codes
+
+Geography rows carry INEC's own codes alongside the database IDs. Each level's code is only unique inside its parent, so `polling_unit.inec_polling_unit_code` stores the **full path** of the four levels, which makes it globally unique. Every code is exactly 12 characters.
+
+```text
+24 / 01 / 01 / 001
+│    │    │    └─ polling unit  (3 digits, unique within its ward)
+│    │    └────── ward          (2 digits, unique within its LGA)
+│    └─────────── LGA           (2 digits, unique within its state)
+└──────────────── state         (2 digits, INEC state code)
+```
+
+| Segment | Stored in | Example | Example value |
+| --- | --- | --- | --- |
+| State | `state.inec_state_code` | `24` | LAGOS |
+| LGA | `lga.inec_lga_code` | `01` | AGEGE |
+| Ward | `ward.inec_ward_code` | `01` | ISALE/IDIMANGORO |
+| Polling unit | last segment of `polling_unit.inec_polling_unit_code` | `001` | ST. JOSEPH SECONDARY SCHOOL, MANGORO |
+
+So `24/01/01/001` is polling unit 001 in ward 01 of LGA 01 of Lagos State.
+
+- The state code follows INEC's alphabetical list (`01` Abia … `36` Zamfara), except the FCT, which is `37`.
+- The short LGA, ward and polling-unit codes repeat across the country. Always use the full code to identify a polling unit, never the last segment alone.
+- Database IDs (`state.id`, `ward.id`, `polling_unit.id` and so on) are different from these codes. API paths use database IDs; the INEC codes are only for display, search and matching imported data. See [IDs and assignment ownership](#ids-and-assignment-ownership).
+- The data comes from the [INEC polling unit locator](https://cvr.inecnigeria.org/pu) and is loaded by `npm run db:seed:inec`.
+
 ### Agents API
 
 `GET /api/agents` returns assignments, not every row in `person`. A person appears as an agent when they have an `agent_assignment`. The response joins the person, assignment, polling unit, geography, and owner, and masks phone numbers. It never returns email addresses or voter-card numbers.
@@ -487,7 +561,7 @@ In the diagram, `groups` is named `GROUPS` because `GROUPS` is a Mermaid keyword
 | `state` | An electoral state, with an INEC code and name | Parent of `lga`; top geography level |
 | `lga` | A local government area | `state_id → state.id`; parent of `ward` |
 | `ward` | A ward | `lga_id → lga.id`; parent of `polling_unit` |
-| `polling_unit` | A polling unit, including its INEC code, optional name and coordinates | `ward_id → ward.id`; destination location for an agent assignment |
+| `polling_unit` | A polling unit, including its full INEC code (`STATE/LGA/WARD/PU`, see [INEC codes](#inec-codes-and-polling-unit-codes)), optional name and coordinates | `ward_id → ward.id`; destination location for an agent assignment |
 | `political_unit` | Country, state, senatorial district, federal constituency, or state constituency | Can have a parent political unit; many-to-many with polling units through `pu_political_unit` |
 | `pu_political_unit` | The mapping between a polling unit and a political unit | Composite key `(political_unit_id, polling_unit_id)`; enables political-unit filtering and access scopes |
 | `person` | A human identity, including name, optional email, optional home polling unit, voter-card number and verification status | Referenced by memberships, candidates, assignments, OTPs, sessions, phones, consent, broadcasts, deliveries and audit events. “Agent” is a role recorded by `agent_assignment`, not a separate `agents` table. |

@@ -37,6 +37,15 @@ yarn-error.log*
 # demo tokens
 .demo-seed-output.json
 
+# scraped INEC data (only the compressed outputs and the wiki source are committed)
+/data/inec/*
+!/data/inec/geography.json.gz
+!/data/inec/candidates.json.gz
+!/data/inec/political-units.json.gz
+!/data/inec/sources/
+/data/inec/sources/*
+!/data/inec/sources/wiki-federal.txt
+
 # npm configuration (machine-specific registry overrides)
 .npmrc
 
