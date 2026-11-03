@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { AgentAutocomplete } from "./agent-autocomplete";
 import { useCreateAssignment, useDeleteAssignment } from "@/lib/hooks/use-coverage";
 import {
   ShieldCheck,
@@ -304,15 +304,25 @@ export function AgentDetailModal({
                 </Button>
               ) : (
                 <div className="space-y-2 pt-1 border-t border-amber-200 dark:border-amber-800">
-                  <label className="text-xs font-semibold text-foreground block">
-                    Assign Official Agent
-                  </label>
-                  <Input
-                    placeholder="Person UUID (e.g. f0ebf80e-...)"
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground block">
+                      Assign Official Agent
+                    </label>
+                    <span className="text-[10px] text-muted-foreground">
+                      Type to filter available agents
+                    </span>
+                  </div>
+
+                  <AgentAutocomplete
                     value={personIdInput}
-                    onChange={(e) => setPersonIdInput(e.target.value)}
-                    className="h-8 text-xs font-mono bg-background"
+                    onChange={(personId) => {
+                      setPersonIdInput(personId);
+                      setAssignError(null);
+                    }}
+                    preferredState={agent.stateName}
+                    disabled={createAssignment.isPending}
                   />
+
                   {assignError && (
                     <p className="text-[11px] text-destructive">{assignError}</p>
                   )}
@@ -334,6 +344,7 @@ export function AgentDetailModal({
                       onClick={() => {
                         setIsAssigning(false);
                         setAssignError(null);
+                        setPersonIdInput("");
                       }}
                       className="text-xs h-7.5"
                     >
@@ -352,7 +363,7 @@ export function AgentDetailModal({
             {!isGap && (
               <Link
                 href={`/broadcasts/new?target=${encodeURIComponent(agent.name)}`}
-                className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-8 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm flex-1"
+                className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-8 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all flex-1"
                 onClick={() => onOpenChange(false)}
               >
                 <Send className="w-3.5 h-3.5" />

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { UnifiedAgentRecord, AgentDetailModal } from "./agent-detail-modal";
 import {
   Table,
@@ -32,6 +32,19 @@ interface AgentsTableProps {
 export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
   const [selectedAgent, setSelectedAgent] = useState<UnifiedAgentRecord | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  // Auto-reset to first page when the agent dataset changes (e.g. filters applied)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [agents.length]);
+
+  const totalPages = Math.max(1, Math.ceil(agents.length / PAGE_SIZE));
+  const paginatedAgents = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return agents.slice(start, start + PAGE_SIZE);
+  }, [agents, currentPage]);
 
   const handleOpenAgent = (agent: UnifiedAgentRecord) => {
     setSelectedAgent(agent);
@@ -54,7 +67,7 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
   };
 
   return (
-    <div className="border border-border/80 rounded-xl overflow-hidden bg-card shadow-sm">
+    <div className="border border-border/70 rounded-xl overflow-hidden bg-card">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className="bg-muted/40 text-xs">
@@ -76,7 +89,7 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
                 </TableCell>
               </TableRow>
             ) : (
-              agents.map((agent) => {
+              paginatedAgents.map((agent) => {
                 const isGap = agent.type === "gap";
                 const isOfficial = agent.type === "official";
 
@@ -218,6 +231,44 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Footer */}
+      {agents.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-border/60 bg-muted/20 text-xs text-muted-foreground">
+          <div>
+            Showing <span className="font-semibold text-foreground">{(currentPage - 1) * PAGE_SIZE + 1}</span> to{" "}
+            <span className="font-semibold text-foreground">
+              {Math.min(currentPage * PAGE_SIZE, agents.length)}
+            </span>{" "}
+            of <span className="font-semibold text-foreground">{agents.length}</span> agent records
+          </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2.5 text-xs border-border/70"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <span className="px-2 font-medium text-foreground text-xs">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2.5 text-xs border-border/70"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       <AgentDetailModal
         agent={selectedAgent}
