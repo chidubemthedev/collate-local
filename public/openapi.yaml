@@ -272,6 +272,19 @@ paths:
           schema:
             type: string
             enum: [official, extra]
+        - name: channel
+          in: query
+          description: Telegram readiness. `telegram` means a confirmed linked phone and accepted consent.
+          schema:
+            type: string
+            enum: [telegram, not_connected]
+        - name: q
+          in: query
+          description: Case-insensitive match on name, polling unit, ward or LGA.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
         - name: cursor
           in: query
           schema:
@@ -300,6 +313,54 @@ paths:
                           $ref: "#/components/schemas/Agent"
                       meta:
                         $ref: "#/components/schemas/SuccessMeta"
+        "400":
+          $ref: "#/components/responses/InvalidFilter"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /api/agents/summary:
+    get:
+      tags: [Agents]
+      summary: Count visible agents by role and Telegram readiness
+      description: Aggregate counts only; no individual data is returned. Ignores agentKind and channel so tab counts stay stable.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/stateFilter"
+        - $ref: "#/components/parameters/lgaFilter"
+        - $ref: "#/components/parameters/wardFilter"
+        - $ref: "#/components/parameters/politicalUnitFilter"
+        - name: ownerGroupId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: ownerCandidateId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: q
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        "200":
+          description: Agent counts.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AgentSummary"
         "400":
           $ref: "#/components/responses/InvalidFilter"
         "401":
@@ -1318,6 +1379,8 @@ components:
           type: string
         maskedPhone:
           type: [string, "null"]
+        telegramConnected:
+          type: boolean
         pollingUnit:
           type: object
           properties:
@@ -1345,7 +1408,21 @@ components:
             displayName:
               type: string
           required: [type, id, displayName]
-      required: [assignmentId, agentKind, slotNumber, personId, fullName, maskedPhone, pollingUnit, owner]
+      required: [assignmentId, agentKind, slotNumber, personId, fullName, maskedPhone, telegramConnected, pollingUnit, owner]
+    AgentSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        official:
+          type: integer
+        extra:
+          type: integer
+        telegramConnected:
+          type: integer
+        notConnected:
+          type: integer
+      required: [total, official, extra, telegramConnected, notConnected]
     SessionPerson:
       type: object
       properties:

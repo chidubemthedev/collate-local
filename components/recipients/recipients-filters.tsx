@@ -21,7 +21,6 @@ import {
   Download,
   RotateCcw,
   Bot,
-  Smartphone,
   AlertCircle,
   Users,
 } from "lucide-react";
@@ -29,14 +28,13 @@ import {
 interface StatusCounts {
   all: number;
   telegramConnected: number;
-  smsOnly: number;
-  notMatched: number;
+  notConnected: number;
 }
 
 interface RecipientsFiltersProps {
   statusTab: string;
   onStatusTabChange: (tab: string) => void;
-  statusCounts: StatusCounts;
+  statusCounts: StatusCounts | undefined;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   selectedGroup: string;
@@ -45,12 +43,16 @@ interface RecipientsFiltersProps {
   onStateChange: (state: string) => void;
   selectedLga: string;
   onLgaChange: (lga: string) => void;
-  selectedSource: string;
-  onSourceChange: (source: string) => void;
   onReset: () => void;
   isFiltered: boolean;
   onExportCSV: () => void;
+  canExport: boolean;
 }
+
+const STATUS_LABELS: Record<string, string> = {
+  telegram: "Telegram Connected",
+  not_connected: "Not Connected",
+};
 
 export function RecipientsFilters({
   statusTab,
@@ -64,10 +66,9 @@ export function RecipientsFilters({
   onStateChange,
   selectedLga,
   onLgaChange,
-  selectedSource,
-  onSourceChange,
   onReset,
   onExportCSV,
+  canExport,
 }: RecipientsFiltersProps) {
   const statesQuery = useGeographyStates();
   const states = statesQuery.data ?? [];
@@ -99,14 +100,14 @@ export function RecipientsFilters({
                   : "bg-background/80 text-muted-foreground"
               }`}
             >
-              {statusCounts.all}
+              {statusCounts?.all ?? "–"}
             </Badge>
           </button>
 
           <button
-            onClick={() => onStatusTabChange("Telegram connected")}
+            onClick={() => onStatusTabChange("telegram")}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              statusTab === "Telegram connected"
+              statusTab === "telegram"
                 ? "bg-emerald-600 text-white shadow-xs font-semibold"
                 : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
@@ -116,56 +117,34 @@ export function RecipientsFilters({
             <Badge
               variant="outline"
               className={`text-[10px] px-1.5 py-0 h-4 border-0 ${
-                statusTab === "Telegram connected"
+                statusTab === "telegram"
                   ? "bg-white/20 text-white"
                   : "bg-background/80 text-muted-foreground"
               }`}
             >
-              {statusCounts.telegramConnected}
+              {statusCounts?.telegramConnected ?? "–"}
             </Badge>
           </button>
 
           <button
-            onClick={() => onStatusTabChange("SMS only")}
+            onClick={() => onStatusTabChange("not_connected")}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              statusTab === "SMS only"
-                ? "bg-blue-600 text-white shadow-xs font-semibold"
-                : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span>SMS Fallback</span>
-            <Badge
-              variant="outline"
-              className={`text-[10px] px-1.5 py-0 h-4 border-0 ${
-                statusTab === "SMS only"
-                  ? "bg-white/20 text-white"
-                  : "bg-background/80 text-muted-foreground"
-              }`}
-            >
-              {statusCounts.smsOnly}
-            </Badge>
-          </button>
-
-          <button
-            onClick={() => onStatusTabChange("Number not matched")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              statusTab === "Number not matched"
+              statusTab === "not_connected"
                 ? "bg-amber-600 text-white shadow-xs font-semibold"
                 : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
             <AlertCircle className="w-3.5 h-3.5" />
-            <span>Not Matched</span>
+            <span>Not Connected</span>
             <Badge
               variant="outline"
               className={`text-[10px] px-1.5 py-0 h-4 border-0 ${
-                statusTab === "Number not matched"
+                statusTab === "not_connected"
                   ? "bg-white/20 text-white"
                   : "bg-background/80 text-muted-foreground"
               }`}
             >
-              {statusCounts.notMatched}
+              {statusCounts?.notConnected ?? "–"}
             </Badge>
           </button>
         </div>
@@ -175,12 +154,11 @@ export function RecipientsFilters({
       <TableToolbar
         onClear={onReset}
         activeFilters={[
-          ...(statusTab !== "all" ? [{ id: "status", label: `Status: ${statusTab}`, onRemove: () => onStatusTabChange("all") }] : []),
+          ...(statusTab !== "all" ? [{ id: "status", label: `Status: ${STATUS_LABELS[statusTab] ?? statusTab}`, onRemove: () => onStatusTabChange("all") }] : []),
           ...(searchQuery ? [{ id: "search", label: `Search: ${searchQuery}`, onRemove: () => onSearchChange("") }] : []),
-          ...(selectedGroup !== "all" ? [{ id: "group", label: `Role: ${selectedGroup}`, onRemove: () => onGroupChange("all") }] : []),
+          ...(selectedGroup !== "all" ? [{ id: "group", label: `Role: ${selectedGroup === "official" ? "Official Agents" : "Extra Agents"}`, onRemove: () => onGroupChange("all") }] : []),
           ...(selectedState !== "all" ? [{ id: "state", label: `State: ${selectedStateName ?? selectedState}`, onRemove: () => { onStateChange("all"); onLgaChange("all"); } }] : []),
           ...(selectedLga !== "all" ? [{ id: "lga", label: `LGA: ${availableLgas.find((lga) => lga.code === selectedLga)?.name ?? selectedLga}`, onRemove: () => onLgaChange("all") }] : []),
-          ...(selectedSource !== "all" ? [{ id: "source", label: `Source: ${selectedSource}`, onRemove: () => onSourceChange("all") }] : []),
         ]}
         actions={
           <>
@@ -207,6 +185,8 @@ export function RecipientsFilters({
               variant="outline"
               size="sm"
               onClick={onExportCSV}
+              disabled={!canExport}
+              title="Exports the rows currently loaded"
               className="h-9 text-xs font-medium gap-1.5 border-border shrink-0"
             >
               <Download className="w-3.5 h-3.5" />
@@ -222,7 +202,7 @@ export function RecipientsFilters({
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search by name, phone, PU, or source..."
+              placeholder="Search by name, polling unit, ward or LGA..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="pl-8.5 h-9 text-xs bg-background"
@@ -240,7 +220,6 @@ export function RecipientsFilters({
                   {(val) => {
                     if (!val || val === "all") return "All Roles";
                     const labels: Record<string, string> = {
-                      candidate: "NDC Candidates",
                       official: "Official Party Agents",
                       extra: "Candidate Extra Agents",
                     };
@@ -250,7 +229,6 @@ export function RecipientsFilters({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="candidate">NDC Candidates</SelectItem>
                 <SelectItem value="official">Official Party Agents</SelectItem>
                 <SelectItem value="extra">Candidate Extra Agents</SelectItem>
               </SelectContent>

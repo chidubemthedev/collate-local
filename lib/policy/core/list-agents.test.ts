@@ -4,6 +4,7 @@ import { AgentAssignment } from "../../db/entities/agent-assignment.entity";
 import { AuditLog } from "../../db/entities/audit-log.entity";
 import { listAgents, maskPhoneNumber, validateAgentFilters } from "./list-agents";
 import { InvalidFilterError } from "../errors";
+import { agentFiltersSchema, agentSummaryFiltersSchema } from "../schemas";
 import type { PolicyUser } from "./policy-user";
 
 const candidateUser: PolicyUser = {
@@ -22,6 +23,15 @@ const adminUser: PolicyUser = {
 };
 
 describe("agent policy filters and phone masking", () => {
+  it("accepts search and channel filters and rejects unknown channels", () => {
+    expect(agentFiltersSchema.parse({ q: "  ikeja ", channel: "telegram" })).toMatchObject({
+      q: "ikeja",
+      channel: "telegram",
+    });
+    expect(agentFiltersSchema.safeParse({ channel: "sms" }).success).toBe(false);
+    expect(agentSummaryFiltersSchema.safeParse({ cursor: "x" }).success).toBe(false);
+  });
+
   it("keeps the country code and last four digits only", () => {
     expect(maskPhoneNumber("+2348012345678")).toBe("+234******5678");
     expect(maskPhoneNumber(null)).toBeNull();
@@ -41,6 +51,7 @@ describe("agent policy filters and phone masking", () => {
       leftJoin: vi.fn().mockReturnThis(),
       select: vi.fn().mockReturnThis(),
       addSelect: vi.fn().mockReturnThis(),
+      setParameter: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
       andWhere: vi.fn().mockReturnThis(),
       orderBy: vi.fn().mockReturnThis(),

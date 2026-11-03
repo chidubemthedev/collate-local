@@ -4,15 +4,33 @@ import type { EntityManager, SelectQueryBuilder } from "typeorm";
 import { AgentAssignment } from "../../db/entities/agent-assignment.entity";
 import { AuditLog } from "../../db/entities/audit-log.entity";
 import { PhoneNumber } from "../../db/entities/phone-number.entity";
-import { agentFiltersSchema } from "../schemas";
+import { agentFiltersSchema, agentSummaryFiltersSchema } from "../schemas";
 import { InvalidFilterError } from "../errors";
 import { resolveManager } from "./database";
 import { decodeCursor, encodeCursor } from "./cursor";
 import type { AgentCursor } from "./cursor";
-import type { AgentFilters } from "../schemas";
+import type { AgentFilters, AgentSummaryFilters } from "../schemas";
+import { CONSENT_TEXT_VERSION } from "../../channels/telegram/consent-text";
 import { getScope } from "./scope";
 import { getVisibleOwners } from "./owners";
 import type { PolicyUser } from "./policy-user";
+
+// Mirrors the worker's Telegram eligibility: a confirmed, linked phone and accepted current consent.
+const TELEGRAM_READY_SQL = `(
+  EXISTS (
+    SELECT 1 FROM phone_number telegram_phone
+    WHERE telegram_phone.person_id = person.id
+      AND telegram_phone.is_confirmed = TRUE
+      AND telegram_phone.telegram_chat_id IS NOT NULL
+  )
+  AND COALESCE((
+    SELECT telegram_consent.is_accepted FROM consent telegram_consent
+    WHERE telegram_consent.person_id = person.id
+      AND telegram_consent.consent_text_version = :agentConsentVersion
+    ORDER BY telegram_consent.created_at DESC, telegram_consent.id DESC
+    LIMIT 1
+  ), FALSE)
+)`;
 
 export interface AgentListContext {
   ipAddress?: string | null;
@@ -25,6 +43,7 @@ export interface AgentDto {
   personId: string;
   fullName: string;
   maskedPhone: string | null;
+  telegramConnected: boolean;
   pollingUnit: {
     id: number;
     inecPollingUnitCode: string;
@@ -52,6 +71,7 @@ interface AgentRawRow {
   personId: string;
   fullName: string;
   phoneNumber: string | null;
+  telegramConnected: boolean;
   pollingUnitId: number;
   pollingUnitCode: string;
   pollingUnitName: string | null;
@@ -63,7 +83,7 @@ interface AgentRawRow {
   ownerDisplayName: string;
 }
 
-export function validateAgentFilters(user: PolicyUser, filters: AgentFilters): void {
+export function validateAgentFilters(user: PolicyUser, filters: Partial<AgentFilters>): void {
   // ASSUMPTION: non-admin candidates cannot use LGA filters; they can filter by political unit or ward.
   if (user.candidateId !== null && !user.isAdmin && filters.lgaId !== undefined) {
     throw new InvalidFilterError();
@@ -142,6 +162,7 @@ async function queryAgents(
           .limit(1),
       "phoneNumber",
     )
+    .addSelect(TELEGRAM_READY_SQL, "telegramConnected")
     .addSelect("pollingUnit.id", "pollingUnitId")
     .addSelect("pollingUnit.inecPollingUnitCode", "pollingUnitCode")
     .addSelect("pollingUnit.pollingUnitName", "pollingUnitName")
@@ -161,10 +182,113 @@ async function queryAgents(
       "ownerDisplayName",
     );
 
+  query.setParameter("agentConsentVersion", CONSENT_TEXT_VERSION);
   getScope(user).apply(query, "pollingUnit.id");
   getVisibleOwners(user).apply(query, "assignment.ownerGroupId");
   // TODO(tree-rule): apply personnel hierarchy rules when that policy is introduced.
 
+  applyAgentFilters(query, filters);
+
+  const cursor = filters.cursor ? decodeCursor(filters.cursor) : null;
+  if (cursor) {
+    applyCursor(query, cursor);
+  }
+
+  // Candidates must not get bulk export; the schema caps every page at 100.
+  const rawRows = await query
+    .orderBy("pollingUnit.inecPollingUnitCode", "ASC")
+    .addOrderBy("assignment.slotNumber", "ASC")
+    .addOrderBy("assignment.id", "ASC")
+    .limit(filters.limit + 1)
+    .getRawMany<AgentRawRow>();
+
+  const hasNextPage = rawRows.length > filters.limit;
+  const pageRows = hasNextPage ? rawRows.slice(0, filters.limit) : rawRows;
+  const items = pageRows.map(toAgentDto);
+  const lastRow = pageRows.at(-1);
+  const nextCursor = hasNextPage && lastRow
+    ? encodeCursor({
+        pollingUnitCode: lastRow.pollingUnitCode,
+        slotNumber: Number(lastRow.slotNumber),
+        assignmentId: lastRow.assignmentId,
+      })
+    : null;
+
+  await manager.getRepository(AuditLog).insert({
+    actorPersonId: user.personId,
+    actionType: "view_agents",
+    targetEntityType: null,
+    targetEntityId: null,
+    ipAddress: context?.ipAddress ?? null,
+  });
+
+  return { items, nextCursor };
+}
+
+export interface AgentSummary {
+  total: number;
+  official: number;
+  extra: number;
+  telegramConnected: number;
+  notConnected: number;
+}
+
+export async function summarizeAgents(
+  user: PolicyUser,
+  filters: AgentSummaryFilters,
+  manager?: EntityManager,
+): Promise<AgentSummary> {
+  const parsedFilters = agentSummaryFiltersSchema.safeParse(filters);
+  if (!parsedFilters.success) {
+    throw new InvalidFilterError();
+  }
+  validateAgentFilters(user, parsedFilters.data);
+
+  const entityManager = await resolveManager(manager);
+  const query = entityManager
+    .getRepository(AgentAssignment)
+    .createQueryBuilder("assignment")
+    .innerJoin("assignment.person", "person")
+    .innerJoin("assignment.pollingUnit", "pollingUnit")
+    .innerJoin("pollingUnit.ward", "ward")
+    .innerJoin("ward.lga", "lga")
+    .innerJoin("lga.state", "state")
+    .select("COUNT(*)", "total")
+    .addSelect("COUNT(*) FILTER (WHERE assignment.agentKind = 'official')", "official")
+    .addSelect("COUNT(*) FILTER (WHERE assignment.agentKind = 'extra')", "extra")
+    .addSelect(`COUNT(*) FILTER (WHERE ${TELEGRAM_READY_SQL})`, "telegramConnected")
+    .setParameter("agentConsentVersion", CONSENT_TEXT_VERSION);
+
+  getScope(user).apply(query, "pollingUnit.id");
+  getVisibleOwners(user).apply(query, "assignment.ownerGroupId");
+  applyAgentFilters(query, parsedFilters.data);
+
+  const row = await query.getRawOne<{
+    total: string;
+    official: string;
+    extra: string;
+    telegramConnected: string;
+  }>();
+  const total = Number(row?.total ?? 0);
+  const telegramConnected = Number(row?.telegramConnected ?? 0);
+
+  return {
+    total,
+    official: Number(row?.official ?? 0),
+    extra: Number(row?.extra ?? 0),
+    telegramConnected,
+    notConnected: Math.max(total - telegramConnected, 0),
+  };
+}
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
+}
+
+function applyAgentFilters(
+  query: SelectQueryBuilder<AgentAssignment>,
+  filters: Partial<AgentFilters>,
+): void {
   if (filters.stateId !== undefined) {
     query.andWhere("state.id = :agentFilterStateId", {
       agentFilterStateId: filters.stateId,
@@ -206,41 +330,25 @@ async function queryAgents(
       agentFilterAgentKind: filters.agentKind,
     });
   }
-
-  const cursor = filters.cursor ? decodeCursor(filters.cursor) : null;
-  if (cursor) {
-    applyCursor(query, cursor);
+  if (filters.channel === "telegram") {
+    query.andWhere(TELEGRAM_READY_SQL);
+  } else if (filters.channel === "not_connected") {
+    query.andWhere(`NOT ${TELEGRAM_READY_SQL}`);
   }
-
-  // Candidates must not get bulk export; the schema caps every page at 100.
-  const rawRows = await query
-    .orderBy("pollingUnit.inecPollingUnitCode", "ASC")
-    .addOrderBy("assignment.slotNumber", "ASC")
-    .addOrderBy("assignment.id", "ASC")
-    .limit(filters.limit + 1)
-    .getRawMany<AgentRawRow>();
-
-  const hasNextPage = rawRows.length > filters.limit;
-  const pageRows = hasNextPage ? rawRows.slice(0, filters.limit) : rawRows;
-  const items = pageRows.map(toAgentDto);
-  const lastRow = pageRows.at(-1);
-  const nextCursor = hasNextPage && lastRow
-    ? encodeCursor({
-        pollingUnitCode: lastRow.pollingUnitCode,
-        slotNumber: Number(lastRow.slotNumber),
-        assignmentId: lastRow.assignmentId,
-      })
-    : null;
-
-  await manager.getRepository(AuditLog).insert({
-    actorPersonId: user.personId,
-    actionType: "view_agents",
-    targetEntityType: null,
-    targetEntityId: null,
-    ipAddress: context?.ipAddress ?? null,
-  });
-
-  return { items, nextCursor };
+  if (filters.q !== undefined) {
+    // Phones are masked in responses, so search covers names and places only.
+    query.andWhere(
+      new Brackets((where) => {
+        where
+          .where("person.fullName ILIKE :agentFilterSearch")
+          .orWhere("pollingUnit.pollingUnitName ILIKE :agentFilterSearch")
+          .orWhere("pollingUnit.inecPollingUnitCode ILIKE :agentFilterSearch")
+          .orWhere("ward.wardName ILIKE :agentFilterSearch")
+          .orWhere("lga.lgaName ILIKE :agentFilterSearch");
+      }),
+    );
+    query.setParameter("agentFilterSearch", `%${escapeLike(filters.q)}%`);
+  }
 }
 
 function applyCursor(
@@ -282,6 +390,7 @@ function toAgentDto(row: AgentRawRow): AgentDto {
     personId: row.personId,
     fullName: row.fullName,
     maskedPhone: maskPhoneNumber(row.phoneNumber),
+    telegramConnected: row.telegramConnected === true,
     pollingUnit: {
       id: Number(row.pollingUnitId),
       inecPollingUnitCode: row.pollingUnitCode,

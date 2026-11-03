@@ -9,19 +9,19 @@ import {
   canAccessPollingUnit as canAccessPollingUnitCore,
   describeScope as describeScopeCore,
 } from "./core/scope-queries";
-import { listAgents as listAgentsCore } from "./core/list-agents";
-import type { AgentListContext, AgentPage } from "./core/list-agents";
+import { listAgents as listAgentsCore, summarizeAgents as summarizeAgentsCore } from "./core/list-agents";
+import type { AgentListContext, AgentPage, AgentSummary } from "./core/list-agents";
 import type { PolicyUser } from "./core/policy-user";
 import type { Scope } from "./core/scope";
 import type { VisibleOwners } from "./core/owners";
-import type { AgentFilters } from "./schemas";
+import type { AgentFilters, AgentSummaryFilters } from "./schemas";
 
-export { agentFiltersSchema } from "./schemas";
+export { agentFiltersSchema, agentSummaryFiltersSchema } from "./schemas";
 export { ForbiddenError, InvalidFilterError } from "./errors";
 export { maskPhoneNumber } from "./core/list-agents";
 export { decodeCursor, encodeCursor } from "./core/cursor";
-export type { AgentFilters } from "./schemas";
-export type { AgentDto, AgentPage, AgentListContext } from "./core/list-agents";
+export type { AgentFilters, AgentSummaryFilters } from "./schemas";
+export type { AgentDto, AgentPage, AgentListContext, AgentSummary } from "./core/list-agents";
 export type { PolicyUser } from "./core/policy-user";
 export type { Scope } from "./core/scope";
 export type { VisibleOwners } from "./core/owners";
@@ -65,4 +65,11 @@ export async function listAgents(
   context?: AgentListContext,
 ): Promise<AgentPage> {
   return listAgentsCore(user, filters, context, await getManager());
+}
+
+export async function summarizeAgents(
+  user: PolicyUser,
+  filters: AgentSummaryFilters,
+): Promise<AgentSummary> {
+  return summarizeAgentsCore(user, filters, await getManager());
 }

@@ -251,8 +251,27 @@ export interface AgentListItem {
   personId: string;
   fullName: string;
   maskedPhone: string | null;
+  telegramConnected: boolean;
   pollingUnit: AgentPollingUnit;
   owner: AgentOwner;
+}
+
+export interface AgentSummary {
+  total: number;
+  official: number;
+  extra: number;
+  telegramConnected: number;
+  notConnected: number;
+}
+
+export interface AgentsSummaryFilters {
+  stateId?: number;
+  lgaId?: number;
+  wardId?: number;
+  politicalUnitId?: number;
+  ownerGroupId?: number;
+  ownerCandidateId?: number;
+  q?: string;
 }
 
 export interface AgentsQueryFilters {
@@ -263,6 +282,8 @@ export interface AgentsQueryFilters {
   ownerGroupId?: number;
   ownerCandidateId?: number;
   agentKind?: "official" | "extra";
+  channel?: "telegram" | "not_connected";
+  q?: string;
   cursor?: string;
   limit?: number;
 }

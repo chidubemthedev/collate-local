@@ -53,6 +53,8 @@ function getValidationFields(
     "ownerGroupId",
     "ownerCandidateId",
     "agentKind",
+    "channel",
+    "q",
     "cursor",
     "limit",
   ]);
