@@ -7,7 +7,6 @@ import { ACCESS_GROUPS_DATA } from "@/lib/data/settings-data";
 import { SettingsKPISummary } from "@/components/settings/settings-kpi-summary";
 import { AccessMatrixTable } from "@/components/settings/access-matrix-table";
 import { AccessGroupsManager } from "@/components/settings/access-groups-manager";
-import { CustomGroupModal } from "@/components/settings/custom-group-modal";
 import { ChannelGatewaySettings } from "@/components/settings/channel-gateway-settings";
 import { SecurityPrivacySettings } from "@/components/settings/security-privacy-settings";
 import { Badge } from "@/components/ui/badge";
@@ -26,46 +25,9 @@ import {
 export default function SettingsPage() {
   const { activePersona } = useApp();
   const [activeTab, setActiveTab] = useState<"matrix" | "custom" | "gateways" | "security">("matrix");
-  const [allGroups, setAllGroups] = useState<AccessGroup[]>(ACCESS_GROUPS_DATA);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<AccessGroup | null>(null);
+  const [allGroups] = useState<AccessGroup[]>(ACCESS_GROUPS_DATA);
 
   const customGroups = allGroups.filter((g) => !g.isSystem);
-
-  const handleCreateGroup = () => {
-    setEditingGroup(null);
-    setIsModalOpen(true);
-  };
-
-  const handleEditGroup = (group: AccessGroup) => {
-    setEditingGroup(group);
-    setIsModalOpen(true);
-  };
-
-  const handleSaveGroup = (savedGroup: AccessGroup) => {
-    if (editingGroup) {
-      setAllGroups((prev) =>
-        prev.map((g) => (g.id === savedGroup.id ? savedGroup : g))
-      );
-    } else {
-      setAllGroups((prev) => [...prev, savedGroup]);
-    }
-  };
-
-  const handleDeleteGroup = (groupId: string) => {
-    setAllGroups((prev) => prev.filter((g) => g.id !== groupId));
-  };
-
-  const handleCloneGroup = (group: AccessGroup) => {
-    const cloned: AccessGroup = {
-      ...group,
-      id: `grp-custom-${Date.now()}`,
-      name: `${group.name} (Copy)`,
-      isSystem: false,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    setAllGroups((prev) => [...prev, cloned]);
-  };
 
   const isPartyOrAdmin =
     activePersona.role === "Party · National" || activePersona.role === "Admin";
@@ -95,12 +57,13 @@ export default function SettingsPage() {
         {/* Action Button */}
         <div className="flex items-center gap-2">
           <Button
-            onClick={handleCreateGroup}
+            disabled
+            title="Not available yet"
             size="sm"
-            className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-medium gap-1.5 shadow-xs"
+            className="text-xs font-medium gap-1.5"
           >
             <Plus className="h-4 w-4" />
-            <span>Create Custom Group</span>
+            <span>Create Custom Group: Not available yet</span>
           </Button>
         </div>
       </div>
@@ -171,36 +134,14 @@ export default function SettingsPage() {
 
       {/* Tab Content Panes */}
       <div className="pt-1">
-        {activeTab === "matrix" && (
-          <AccessMatrixTable
-            groups={allGroups}
-            onEditGroup={handleEditGroup}
-            onCreateGroup={handleCreateGroup}
-          />
-        )}
+        {activeTab === "matrix" && <AccessMatrixTable groups={allGroups} />}
 
-        {activeTab === "custom" && (
-          <AccessGroupsManager
-            customGroups={customGroups}
-            onCreateGroup={handleCreateGroup}
-            onEditGroup={handleEditGroup}
-            onDeleteGroup={handleDeleteGroup}
-            onCloneGroup={handleCloneGroup}
-          />
-        )}
+        {activeTab === "custom" && <AccessGroupsManager customGroups={customGroups} />}
 
         {activeTab === "gateways" && <ChannelGatewaySettings />}
 
         {activeTab === "security" && <SecurityPrivacySettings />}
       </div>
-
-      {/* Custom Group Creation / Editing Modal */}
-      <CustomGroupModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveGroup}
-        initialGroup={editingGroup}
-      />
     </div>
   );
 }

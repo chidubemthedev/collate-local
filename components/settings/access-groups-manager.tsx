@@ -23,22 +23,12 @@ import {
 
 interface AccessGroupsManagerProps {
   customGroups: AccessGroup[];
-  onCreateGroup: () => void;
-  onEditGroup: (group: AccessGroup) => void;
-  onDeleteGroup: (groupId: string) => void;
-  onCloneGroup: (group: AccessGroup) => void;
 }
 
 export function AccessGroupsManager({
   customGroups,
-  onCreateGroup,
-  onEditGroup,
-  onDeleteGroup,
-  onCloneGroup,
 }: AccessGroupsManagerProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
   const filteredGroups = customGroups.filter((g) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -77,12 +67,13 @@ export function AccessGroupsManager({
             />
           </div>
           <Button
-            onClick={onCreateGroup}
+            disabled
+            title="Not available yet"
             size="sm"
-            className="h-8 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-medium gap-1.5 shrink-0"
+            className="h-8 text-xs font-medium gap-1.5 shrink-0"
           >
             <Plus className="h-3.5 w-3.5" />
-            <span>Create Custom Group</span>
+            <span>Create Custom Group: Not available yet</span>
           </Button>
         </div>
       </div>
@@ -99,16 +90,17 @@ export function AccessGroupsManager({
               <p className="text-[11px] text-slate-500 mt-0.5">
                 {searchQuery
                   ? "No custom groups match your search query."
-                  : "Create custom groups to grant specialized subtree access to field teams."}
+                  : "Custom groups cannot be created yet."}
               </p>
             </div>
             <Button
-              onClick={onCreateGroup}
+              disabled
+              title="Not available yet"
               size="sm"
               variant="outline"
               className="text-xs font-medium"
             >
-              + Create First Group
+              Create First Group: Not available yet
             </Button>
           </CardContent>
         </Card>
@@ -182,30 +174,11 @@ export function AccessGroupsManager({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => onCloneGroup(group)}
-                        className="h-7 px-2 text-[11px] text-slate-600 hover:text-slate-900 gap-1"
-                        title="Clone as new group"
+                        disabled
+                        className="h-7 px-2 text-[11px] text-slate-500"
+                        title="Not available yet"
                       >
-                        <Copy className="h-3 w-3" />
-                        <span>Clone</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEditGroup(group)}
-                        className="h-7 px-2 text-[11px] text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 gap-1"
-                      >
-                        <Edit2 className="h-3 w-3" />
-                        <span>Edit</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onDeleteGroup(group.id)}
-                        className="h-7 px-2 text-[11px] text-red-600 hover:text-red-700 hover:bg-red-50 gap-1"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        <span>Delete</span>
+                        <span>Clone, Edit, Delete: Not available yet</span>
                       </Button>
                     </div>
                   </div>
