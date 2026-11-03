@@ -32,14 +32,11 @@ export function BroadcastsKPISummary({ broadcasts }: BroadcastsKPISummaryProps) 
   const totalSentMessages = sentBroadcasts.reduce((sum, b) => sum + b.sent, 0);
   const totalDeliveredMessages = sentBroadcasts.reduce((sum, b) => sum + b.delivered, 0);
   const totalTappedOk = sentBroadcasts.reduce((sum, b) => sum + b.tappedOk, 0);
-  const totalSmsFallback = sentBroadcasts.reduce((sum, b) => sum + (b.deliveredBySms || 0), 0);
 
   const avgDeliveryPct =
     totalSentMessages > 0 ? Math.round((totalDeliveredMessages / totalSentMessages) * 100) : 0;
   const avgTappedOkPct =
     totalDeliveredMessages > 0 ? Math.round((totalTappedOk / totalDeliveredMessages) * 100) : 0;
-  const smsFallbackPct =
-    totalDeliveredMessages > 0 ? Math.round((totalSmsFallback / totalDeliveredMessages) * 100) : 0;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
@@ -115,8 +112,8 @@ export function BroadcastsKPISummary({ broadcasts }: BroadcastsKPISummaryProps) 
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-            <Smartphone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            <span>{totalSmsFallback.toLocaleString()} via SMS fallback ({smsFallbackPct}%)</span>
+            <Radio className="w-3.5 h-3.5 text-primary shrink-0" />
+            <span>Direct Telegram bot dispatch</span>
           </p>
         </CardContent>
       </Card>
@@ -152,7 +149,7 @@ export function BroadcastsKPISummary({ broadcasts }: BroadcastsKPISummaryProps) 
         <CardContent className="p-4 sm:p-5">
           <div className="flex items-center justify-between text-muted-foreground mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
-              Channels Active
+              Channel Status
             </span>
             <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
               <Radio className="w-4 h-4 animate-pulse" />
@@ -164,14 +161,14 @@ export function BroadcastsKPISummary({ broadcasts }: BroadcastsKPISummaryProps) 
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 Telegram Bot
               </span>
-              <span className="text-muted-foreground font-mono text-[11px]">Primary · Ready</span>
+              <span className="text-emerald-600 font-mono text-[11px] font-semibold">Live · Ready</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-foreground flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-blue-500" />
-                Telco SMS
+              <span className="text-muted-foreground flex items-center gap-1.5 text-[11px]">
+                <CheckCircle2 className="w-3 h-3 text-primary" />
+                <span>1-Tap Confirm</span>
               </span>
-              <span className="text-muted-foreground font-mono text-[11px]">5m Fallback</span>
+              <span className="text-muted-foreground font-mono text-[11px]">Active</span>
             </div>
           </div>
         </CardContent>

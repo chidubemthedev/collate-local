@@ -1,19 +1,20 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
 import { usePermissions } from "@/lib/hooks/use-auth";
 import {
   useGeographyLgas,
   useGeographyStates,
   useGeographyWards,
 } from "@/lib/hooks/use-geography";
-import { apiClient, ApiClientError } from "@/lib/api/client";
+import {
+  useAudiencePreview,
+  useCreateBroadcast,
+} from "@/lib/hooks/use-broadcasts";
+import { ApiClientError } from "@/lib/api/client";
 import type {
   AudienceFilter,
-  AudiencePreview,
   CreateBroadcastInput,
-  CreatedBroadcast,
 } from "@/types/api";
 import { StepAudience, AudienceConfig } from "@/components/broadcasts/new/step-audience";
 import { StepMessage, MessageConfig } from "@/components/broadcasts/new/step-message";
@@ -73,25 +74,11 @@ export default function NewBroadcastPage() {
     return filter;
   }, [audience]);
 
-  const previewQuery = useQuery<AudiencePreview, ApiClientError>({
-    queryKey: ["broadcasts", "preview", audienceFilter],
-    queryFn: async () => {
-      const response = await apiClient.post<AudiencePreview>(
-        "/api/broadcasts/preview",
-        audienceFilter
-      );
-      return response.data;
-    },
+  const previewQuery = useAudiencePreview(audienceFilter, {
     enabled: Boolean(permissions?.canBroadcast),
-    retry: false,
   });
 
-  const createBroadcast = useMutation<CreatedBroadcast, ApiClientError, CreateBroadcastInput>({
-    mutationFn: async (payload) => {
-      const response = await apiClient.post<CreatedBroadcast>("/api/broadcasts", payload);
-      return response.data;
-    },
-  });
+  const createBroadcast = useCreateBroadcast();
 
   const preview = previewQuery.data ?? null;
   const totalRecipients = preview
@@ -213,12 +200,20 @@ export default function NewBroadcastPage() {
       </div>
 
       {createBroadcast.isSuccess && (
-        <div role="status" className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-800">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <span>
-            Broadcast queued. Status: {createBroadcast.data.status}. Reference:{" "}
-            <code className="font-mono">{createBroadcast.data.id}</code>
-          </span>
+        <div role="status" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-800 dark:text-emerald-300">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>
+              Telegram broadcast queued. Status: <strong className="font-semibold uppercase">{createBroadcast.data.status}</strong>.
+            </span>
+          </div>
+          <Link
+            href={`/broadcasts/${createBroadcast.data.id}`}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:underline shrink-0"
+          >
+            <span>View Delivery Report</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
       )}
 

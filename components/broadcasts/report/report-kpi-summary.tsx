@@ -8,7 +8,6 @@ import {
   Users,
   CheckCircle2,
   CheckCheck,
-  Smartphone,
   Clock,
   AlertTriangle,
   Radio,
@@ -23,8 +22,6 @@ export function ReportKPISummary({ broadcast }: ReportKPISummaryProps) {
   const total = broadcast.sent || 1;
   const deliveredPct = broadcast.deliveredPct || Math.round((broadcast.delivered / total) * 100);
   const tappedOkPct = broadcast.tappedOkPct || Math.round((broadcast.tappedOk / total) * 100);
-  const smsCount = broadcast.deliveredBySms || 0;
-  const smsPct = total > 0 ? Math.round((smsCount / total) * 100) : 0;
 
   const deliveredWidth = Math.min(100, Math.round((broadcast.delivered / total) * 100));
   const pendingWidth = Math.min(100, Math.round((broadcast.pending / total) * 100));
@@ -102,25 +99,22 @@ export function ReportKPISummary({ broadcast }: ReportKPISummaryProps) {
           </CardContent>
         </Card>
 
-        {/* 4. SMS Fallback Route */}
+        {/* 4. Telegram Direct Route */}
         <Card className="border-border/80 shadow-xs bg-card">
           <CardContent className="p-4">
             <div className="flex items-center justify-between text-muted-foreground mb-1.5">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
-                SMS Fallback
+                Channel
               </span>
-              <Smartphone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <Radio className="w-4 h-4 text-sky-500 animate-pulse" />
             </div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-blue-600 dark:text-blue-400 font-mono">
-                {smsCount.toLocaleString()}
-              </span>
-              <span className="text-xs font-semibold text-muted-foreground font-mono">
-                ({smsPct}%)
+              <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground font-mono">
+                Telegram
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Triggered after 5m timeout
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+              Verified Command Bot
             </p>
           </CardContent>
         </Card>
@@ -186,12 +180,6 @@ export function ReportKPISummary({ broadcast }: ReportKPISummaryProps) {
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 Delivered: <strong>{broadcast.delivered}</strong>
               </span>
-              {broadcast.deliveredBySms ? (
-                <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium">
-                  <Smartphone className="w-3 h-3" />
-                  ({broadcast.deliveredBySms} via SMS fallback)
-                </span>
-              ) : null}
               {broadcast.pending > 0 && (
                 <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
                   <span className="w-2 h-2 rounded-full bg-amber-400" />

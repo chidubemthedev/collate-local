@@ -263,5 +263,66 @@ export interface CreateBroadcastInput {
 
 export interface CreatedBroadcast {
   id: string;
-  status: "draft" | "scheduled" | "sending" | "completed" | "failed" | "cancelled";
+  status: "draft" | "scheduled" | "sending" | "completed" | "failed" | "cancelled" | string;
 }
+
+export interface BroadcastListItem {
+  id: string;
+  status: string;
+  messageText: string;
+  scheduledSendAt: string | null;
+  createdAt: string;
+}
+
+export interface BroadcastsQueryParams {
+  limit?: number;
+  cursor?: string;
+}
+
+export interface BroadcastsPageResponse {
+  items: BroadcastListItem[];
+  nextCursor: string | null;
+}
+
+export interface BroadcastDetailCounts {
+  pending?: number;
+  sent?: number;
+  delivered?: number;
+  delivered_by_sms?: number;
+  failed?: number;
+  tapped_ok?: number;
+  [key: string]: number | undefined;
+}
+
+export interface BroadcastDetail {
+  id: string;
+  status: string;
+  scheduledSendAt: string | null;
+  createdAt: string;
+  counts: BroadcastDetailCounts;
+}
+
+export interface DeliveryListItem {
+  id: string;
+  personId: string;
+  fullName: string;
+  maskedPhone: string | null;
+  channel: string;
+  status: string;
+  sentAt: string | null;
+  deliveredAt: string | null;
+  tappedOkAt: string | null;
+  failedAt: string | null;
+  createdAt: string;
+}
+
+export interface DeliveriesQueryParams {
+  limit?: number;
+  cursor?: string;
+}
+
+export interface DeliveriesPageResponse {
+  items: DeliveryListItem[];
+  nextCursor: string | null;
+}
+

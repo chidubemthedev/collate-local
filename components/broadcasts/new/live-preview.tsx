@@ -39,9 +39,9 @@ export function LivePreview({
 
       <Card className="overflow-hidden border-border/80 bg-card shadow-md">
         <div className="flex items-center justify-between border-b border-border bg-muted/50 px-4 py-2 text-[11px] text-muted-foreground">
-          <span>Message body</span>
-          <Badge variant="outline" className="text-[10px]">
-            Dispatch API
+          <span>Telegram Message</span>
+          <Badge variant="outline" className="text-[10px] bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20">
+            Telegram Dispatch
           </Badge>
         </div>
         <CardContent className="p-4">
