@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { PollingUnitData } from "@/lib/types";
 import type { StateCoverage, LgaCoverage, WardCoverage } from "@/types/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -65,20 +64,20 @@ export function CoverageMap({
   };
 
   const getCoverageBorderColor = (pct: number) => {
-    if (pct >= 50) return "border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/20";
-    if (pct >= 30) return "border-amber-500/40 bg-amber-50 dark:bg-amber-950/20";
-    return "border-rose-500/40 bg-rose-50 dark:bg-rose-950/20";
+    if (pct >= 50) return "border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/20";
+    if (pct >= 30) return "border-amber-500/30 bg-amber-50/60 dark:bg-amber-950/20";
+    return "border-rose-500/30 bg-rose-50/60 dark:bg-rose-950/20";
   };
 
   return (
-    <Card className="border-border/80 bg-card overflow-hidden shadow-sm">
-      <CardHeader className="py-2.5 px-4 bg-muted/30 border-b border-border/60 flex flex-row items-center justify-between space-y-0">
+    <div className="border border-border/60 bg-card rounded-xl overflow-hidden shadow-none">
+      <div className="py-2.5 px-4 bg-muted/20 border-b border-border/60 flex flex-row items-center justify-between space-y-0">
         <div className="flex items-center gap-2">
           <div className="p-1 rounded bg-primary/10 text-primary">
             <MapPin className="w-4 h-4" />
           </div>
           <div>
-            <CardTitle className="text-xs sm:text-sm font-semibold flex items-center gap-2">
+            <div className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
               <span>Geographic Coverage Visualizer</span>
               <Badge variant="outline" className="text-[10px] font-mono font-normal">
                 {isWardLevel
@@ -89,7 +88,7 @@ export function CoverageMap({
                   ? "State LGAs Map"
                   : `National ${states.length} States`}
               </Badge>
-            </CardTitle>
+            </div>
           </div>
         </div>
 
@@ -108,9 +107,9 @@ export function CoverageMap({
             <span>GPS Pin</span>
           </div>
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="p-4">
+      <div className="p-4">
         {/* WARD LEVEL - POLING UNITS DOT SCATTER MAP */}
         {isWardLevel && (
           <div className="space-y-3">
@@ -237,7 +236,7 @@ export function CoverageMap({
                   <button
                     key={w.code}
                     onClick={() => onSelectWard(w.code)}
-                    className={`p-3 rounded-lg border text-left transition-all hover:scale-[1.02] hover:shadow cursor-pointer ${
+                    className={`p-3 rounded-lg border text-left transition-colors shadow-none hover:border-primary/50 cursor-pointer ${
                       isSelected
                         ? "ring-2 ring-primary border-primary bg-primary/10"
                         : getCoverageBorderColor(w.officialAgentPct)
@@ -292,7 +291,7 @@ export function CoverageMap({
                   <button
                     key={lga.code}
                     onClick={() => onSelectLga(lga.code)}
-                    className={`p-3 rounded-lg border text-left transition-all hover:scale-[1.02] hover:shadow cursor-pointer ${
+                    className={`p-3 rounded-lg border text-left transition-colors shadow-none hover:border-primary/50 cursor-pointer ${
                       isSelected
                         ? "ring-2 ring-primary border-primary bg-primary/10"
                         : getCoverageBorderColor(lga.officialAgentPct)
@@ -340,7 +339,7 @@ export function CoverageMap({
                 <button
                   key={st.code}
                   onClick={() => onSelectState(st.code)}
-                  className={`p-2.5 rounded-lg border text-left transition-all hover:scale-105 hover:shadow-sm cursor-pointer ${getCoverageBorderColor(
+                  className={`p-2.5 rounded-lg border text-left transition-colors shadow-none hover:border-foreground/40 cursor-pointer ${getCoverageBorderColor(
                     st.officialAgentPct
                   )}`}
                 >
@@ -371,7 +370,7 @@ export function CoverageMap({
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

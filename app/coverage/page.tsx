@@ -20,6 +20,10 @@ import { CoverageMap } from "@/components/coverage/coverage-map";
 import { CoverageFilters } from "@/components/coverage/coverage-filters";
 import { CoverageTable } from "@/components/coverage/coverage-table";
 import { PoliticalUnitsView } from "@/components/coverage/political-units-view";
+import {
+  CoverageDashboardSkeleton,
+  KPISummarySkeleton,
+} from "@/components/coverage/coverage-skeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -423,12 +427,7 @@ export default function CoveragePage() {
   }
 
   if (isLoadingStates) {
-    return (
-      <div className="flex items-center justify-center gap-2 py-24 text-xs text-muted-foreground">
-        <Loader2 className="w-4 h-4 animate-spin" />
-        Loading coverage…
-      </div>
-    );
+    return <CoverageDashboardSkeleton />;
   }
 
   if (apiStates.length === 0) {
@@ -504,7 +503,9 @@ export default function CoveragePage() {
       />
 
       {/* Top Metric Cards */}
-      {kpiData && (
+      {isLoadingSummary && !kpiData ? (
+        <KPISummarySkeleton />
+      ) : kpiData ? (
         <KPISummary
           levelName={kpiData.levelName}
           totalPUs={kpiData.totalPUs}
@@ -517,7 +518,7 @@ export default function CoveragePage() {
           wardsCount={kpiData.wardsCount}
           statesCount={kpiData.statesCount}
         />
-      )}
+      ) : null}
       {/* "At stake here" Candidate Cards */}
       <AtStakeCandidates
         stateCode={selectedStateCode}
