@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useRef } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -94,118 +93,114 @@ export function StepMessage({ message, onChange }: StepMessageProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* 1. Quick Starter Templates */}
-      <Card className="border-border/80 shadow-xs bg-card">
-        <CardContent className="p-4 sm:p-5 space-y-3">
+      <div className="border border-border/70 rounded-xl bg-card p-4 sm:p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span>Quick Campaign Templates</span>
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Load a pre-configured template with proven high-response copy.
+            </p>
+          </div>
+          <Badge variant="outline" className="text-xs font-mono">
+            Step 2 of 3
+          </Badge>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+          {TEMPLATES.map((tmpl) => (
+            <button
+              key={tmpl.id}
+              type="button"
+              onClick={() => handleApplyTemplate(tmpl)}
+              className="p-2.5 rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors text-left group"
+            >
+              <div className="text-xs font-bold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
+                <Zap className="w-3 h-3 text-primary shrink-0" />
+                <span className="truncate">{tmpl.name}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 2. Message Composer */}
+      <div className="border border-border/70 rounded-xl bg-card p-4 sm:p-5 space-y-4">
+        {/* Dynamic Variable Chips */}
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary" />
-                <span>Quick Campaign Templates</span>
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Load a pre-configured template with proven high-response copy.
-              </p>
-            </div>
-            <Badge variant="outline" className="text-xs font-mono">
-              Step 2 of 3
-            </Badge>
+            <Label className="text-xs font-semibold flex items-center gap-1.5">
+              <span>Dynamic Tags</span>
+              <span className="text-[10px] text-muted-foreground font-normal">
+                (Click to insert personalized variable)
+              </span>
+            </Label>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-            {TEMPLATES.map((tmpl) => (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {VARIABLE_PILLS.map((pill) => (
               <button
-                key={tmpl.id}
+                key={pill.tag}
                 type="button"
-                onClick={() => handleApplyTemplate(tmpl)}
-                className="p-2.5 rounded-xl border border-border bg-muted/20 hover:bg-primary/5 hover:border-primary/40 transition-all text-left group"
+                onClick={() => handleInsertVariable(pill.tag)}
+                className="px-2.5 py-1 rounded-lg bg-muted/50 hover:bg-muted border border-border/60 text-[11px] font-mono font-medium transition-colors"
               >
-                <div className="text-xs font-bold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
-                  <Zap className="w-3 h-3 text-primary shrink-0" />
-                  <span className="truncate">{tmpl.name}</span>
-                </div>
+                +{pill.tag}
               </button>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* 2. Message Composer */}
-      <Card className="border-border/80 shadow-xs bg-card">
-        <CardContent className="p-4 sm:p-5 space-y-4">
-          {/* Dynamic Variable Chips */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <span>Dynamic Tags</span>
-                <span className="text-[10px] text-muted-foreground font-normal">
-                  (Click to insert personalized variable)
-                </span>
-              </Label>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-1.5">
-              {VARIABLE_PILLS.map((pill) => (
-                <button
-                  key={pill.tag}
-                  type="button"
-                  onClick={() => handleInsertVariable(pill.tag)}
-                  className="px-2.5 py-1 rounded-lg bg-muted/60 hover:bg-primary/10 hover:text-primary hover:border-primary/30 border border-border text-[11px] font-mono font-medium transition-colors"
-                >
-                  +{pill.tag}
-                </button>
-              ))}
+        {/* Message Body Textarea */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-semibold">Message Body (Telegram Markdown)</Label>
+            <div className="text-[11px] font-mono flex items-center gap-2">
+              <span className={isOverLimit ? "text-destructive font-bold" : "text-muted-foreground"}>
+                {charLength} / 1000 chars
+              </span>
+              <span>•</span>
+              <span className="text-muted-foreground">Telegram Direct</span>
             </div>
           </div>
 
-          {/* Message Body Textarea */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold">Message Body (Telegram Markdown)</Label>
-              <div className="text-[11px] font-mono flex items-center gap-2">
-                <span className={isOverLimit ? "text-destructive font-bold" : "text-muted-foreground"}>
-                  {charLength} / 1000 chars
+          <Textarea
+            ref={textareaRef}
+            rows={8}
+            placeholder="Type your alert message here... You can use markdown like *bold*, _italic_, and `code`."
+            value={message.body}
+            onChange={(e) => onChange({ ...message, body: e.target.value })}
+            className="text-xs font-sans leading-relaxed bg-background border-border/70"
+          />
+        </div>
+
+        {/* Unsupported interactive actions */}
+        <div className="space-y-2 border-t border-border/60 pt-3">
+          <Label className="text-xs font-semibold flex items-center gap-1.5">
+            <span>Interactive message actions</span>
+            <Badge variant="outline" className="px-1 py-0 text-[10px]">
+              Not available yet
+            </Badge>
+          </Label>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {["Acknowledgment", "Photo upload", "GPS location"].map((action) => (
+              <div
+                key={action}
+                className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 p-2.5 opacity-70"
+              >
+                <Checkbox checked={false} disabled aria-label={`${action} not available yet`} />
+                <span className="text-[11px] text-muted-foreground">
+                  {action} · Not available yet
                 </span>
-                <span>•</span>
-                <span className="text-muted-foreground">Telegram Direct</span>
               </div>
-            </div>
-
-            <Textarea
-              ref={textareaRef}
-              rows={8}
-              placeholder="Type your alert message here... You can use markdown like *bold*, _italic_, and `code`."
-              value={message.body}
-              onChange={(e) => onChange({ ...message, body: e.target.value })}
-              className="text-xs font-sans leading-relaxed bg-background"
-            />
+            ))}
           </div>
-
-          {/* Unsupported interactive actions */}
-          <div className="space-y-2 border-t border-border pt-2">
-            <Label className="text-xs font-semibold flex items-center gap-1.5">
-              <span>Interactive message actions</span>
-              <Badge variant="outline" className="px-1 py-0 text-[10px]">
-                Not available yet
-              </Badge>
-            </Label>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {["Acknowledgment", "Photo upload", "GPS location"].map((action) => (
-                <div
-                  key={action}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-muted/20 p-2.5 opacity-70"
-                >
-                  <Checkbox checked={false} disabled aria-label={`${action} not available yet`} />
-                  <span className="text-[11px] text-muted-foreground">
-                    {action} · Not available yet
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
