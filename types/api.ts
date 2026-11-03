@@ -156,6 +156,19 @@ export interface CoverageSummary {
   officialAgentPct: number;
 }
 
+export interface CandidateCoverage {
+  id: number;
+  office: string;
+  hierarchyLevel: number;
+  seat: string;
+  name: string;
+  deputyName: string | null;
+  totalPUs: number;
+  coveredPUs: number;
+  coveragePct: number;
+  extraAgentsCount: number;
+}
+
 export interface AreaRef {
   code: string;
   name: string;

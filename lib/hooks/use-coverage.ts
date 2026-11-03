@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiClientError } from "@/lib/api/client";
 import { GEOGRAPHY_KEYS } from "@/lib/hooks/use-geography";
 import type {
+  CandidateCoverage,
   CoverageSummary,
   CoverageGap,
   CoverageGapsResponse,
@@ -32,7 +33,10 @@ export const COVERAGE_KEYS = {
 /**
  * Fetch headline coverage metrics for the current scope.
  */
-export function useCoverageSummary(filters: CoverageFilters = {}) {
+export function useCoverageSummary(
+  filters: CoverageFilters = {},
+  options?: { enabled?: boolean },
+) {
   const cleanFilters: Record<string, number> = {};
   if (filters.stateId && filters.stateId > 0) cleanFilters.stateId = filters.stateId;
   if (filters.lgaId && filters.lgaId > 0) cleanFilters.lgaId = filters.lgaId;
@@ -43,6 +47,29 @@ export function useCoverageSummary(filters: CoverageFilters = {}) {
     queryKey: COVERAGE_KEYS.summary(cleanFilters),
     queryFn: async () => {
       const res = await apiClient.get<CoverageSummary>("/api/coverage/summary", cleanFilters);
+      return res.data;
+    },
+    staleTime: 1000 * 60 * 2,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+/**
+ * Fetch candidates whose seats fall in the current scope, with their coverage.
+ */
+export function useCandidateCoverage(filters: CoverageFilters = {}) {
+  const cleanFilters: Record<string, number> = {};
+  if (filters.stateId && filters.stateId > 0) cleanFilters.stateId = filters.stateId;
+  if (filters.lgaId && filters.lgaId > 0) cleanFilters.lgaId = filters.lgaId;
+  if (filters.wardId && filters.wardId > 0) cleanFilters.wardId = filters.wardId;
+
+  return useQuery<CandidateCoverage[], ApiClientError>({
+    queryKey: [...COVERAGE_KEYS.all, "candidates", cleanFilters] as const,
+    queryFn: async () => {
+      const res = await apiClient.get<CandidateCoverage[]>("/api/coverage/candidates", {
+        ...cleanFilters,
+        limit: 100,
+      });
       return res.data;
     },
     staleTime: 1000 * 60 * 2,
