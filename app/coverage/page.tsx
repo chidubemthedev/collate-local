@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/context/app-context";
 import {
   useGeographyStates,
+  useGeographyState,
   useGeographyLgas,
   useGeographyWards,
   useGeographyPollingUnits,
@@ -139,17 +140,28 @@ export default function CoveragePage() {
   } = useGeographyPollingUnits(selectedWardId);
 
   // Live coverage summary query
-  const {
-    data: summaryData,
-    isLoading: isLoadingSummary,
-    isFetching: isFetchingSummary,
-    error: summaryError,
-    refetch: refetchSummary,
-  } = useCoverageSummary({
+  const isStateDetailEnabled = currentLevel === "state" && selectedStateId !== null;
+  const stateDetailQuery = useGeographyState(isStateDetailEnabled ? selectedStateId : null);
+  const coverageSummaryQuery = useCoverageSummary({
     stateId: selectedStateId,
     lgaId: selectedLgaId,
     wardId: selectedWardId,
+  }, {
+    enabled: !isStateDetailEnabled,
   });
+  const summaryData = isStateDetailEnabled ? stateDetailQuery.data : coverageSummaryQuery.data;
+  const isLoadingSummary = isStateDetailEnabled
+    ? stateDetailQuery.isLoading
+    : coverageSummaryQuery.isLoading;
+  const isFetchingSummary = isStateDetailEnabled
+    ? stateDetailQuery.isFetching
+    : coverageSummaryQuery.isFetching;
+  const summaryError = isStateDetailEnabled
+    ? stateDetailQuery.error
+    : coverageSummaryQuery.error;
+  const refetchSummary = isStateDetailEnabled
+    ? stateDetailQuery.refetch
+    : coverageSummaryQuery.refetch;
 
   const levelName =
     currentLevel === "ward"
@@ -511,26 +523,31 @@ export default function CoveragePage() {
       </div>
 
       {/* Top Metric Cards */}
-      {isLoadingSummary && !kpiData ? (
-        <KPISummarySkeleton />
-      ) : kpiData ? (
-        <KPISummary
-          levelName={kpiData.levelName}
-          totalPUs={kpiData.totalPUs}
-          gpsPUs={kpiData.gpsPUs}
-          coveredPUs={kpiData.coveredPUs}
-          noCoveragePUs={kpiData.noCoveragePUs}
-          officialAgentPct={kpiData.officialAgentPct}
-          extraAgentsCount={kpiData.extraAgentsCount}
-          lgasCount={kpiData.lgasCount}
-          wardsCount={kpiData.wardsCount}
-          statesCount={kpiData.statesCount}
-        />
-      ) : null}
+      <div
+        aria-busy={isFetchingSummary}
+        className={isFetchingSummary && kpiData ? "opacity-60" : ""}
+      >
+        {isLoadingSummary && !kpiData ? (
+          <KPISummarySkeleton />
+        ) : kpiData ? (
+          <KPISummary
+            levelName={kpiData.levelName}
+            totalPUs={kpiData.totalPUs}
+            gpsPUs={kpiData.gpsPUs}
+            coveredPUs={kpiData.coveredPUs}
+            noCoveragePUs={kpiData.noCoveragePUs}
+            officialAgentPct={kpiData.officialAgentPct}
+            extraAgentsCount={kpiData.extraAgentsCount}
+            lgasCount={kpiData.lgasCount}
+            wardsCount={kpiData.wardsCount}
+            statesCount={kpiData.statesCount}
+          />
+        ) : null}
+      </div>
       <AtStakeCandidates
-        stateCode={selectedStateCode}
-        lgaCode={selectedLgaCode}
-        wardCode={selectedWardCode}
+        stateId={selectedStateId}
+        lgaId={selectedLgaId}
+        wardId={selectedWardId}
       />
 
       {unitMode === "administrative" ? (
