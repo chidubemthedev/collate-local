@@ -72,8 +72,16 @@ export function CoverageFilters({
     (w) => w.code === wardCode || String(w.id) === wardCode
   );
 
+  const sortLabels: Record<string, string> = {
+    "pus-desc": "PUs (high to low)",
+    "pus-asc": "PUs (low to high)",
+    "coverage-desc": "Coverage % (high to low)",
+    "coverage-asc": "Coverage % (low to high)",
+    "name-asc": "Name (A to Z)",
+  };
+
   return (
-    <div className="space-y-3 bg-card border border-border/80 rounded-xl p-3 sm:p-4 shadow-sm">
+    <div className="space-y-3 bg-card border border-border/60 rounded-xl p-3 sm:p-4 shadow-none">
       {/* Top row: Unit mode tabs & Breadcrumbs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/60">
         {/* Unit Mode Toggle */}
@@ -82,7 +90,7 @@ export function CoverageFilters({
             onClick={() => setUnitMode("administrative")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
               unitMode === "administrative"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground shadow-none"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -93,7 +101,7 @@ export function CoverageFilters({
             onClick={() => setUnitMode("political")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
               unitMode === "political"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground shadow-none"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -157,8 +165,8 @@ export function CoverageFilters({
         </div>
       </div>
 
-      {/* Main Filter Controls Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2.5 items-center">
+      {/* Main Filter Controls Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 items-end">
         {/* State Filter */}
         <div className="space-y-1">
           <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
@@ -180,8 +188,16 @@ export function CoverageFilters({
             }}
             disabled={!!activePersona.stateCode}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background">
-              <SelectValue placeholder="All States" />
+            <SelectTrigger className="w-full h-8.5 text-xs bg-background">
+              <SelectValue placeholder="All States">
+                {(val) => {
+                  if (!val || val === "all") return "All States";
+                  const found = statesList.find(
+                    (s) => s.code === val || String(s.id) === val
+                  );
+                  return found ? found.name : val;
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All States ({statesList.length})</SelectItem>
@@ -221,8 +237,16 @@ export function CoverageFilters({
             }}
             disabled={stateCode === "all" || !activePersona.canFilterByLGA}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background">
-              <SelectValue placeholder={stateCode === "all" ? "Select State first" : "All LGAs"} />
+            <SelectTrigger className="w-full h-8.5 text-xs bg-background">
+              <SelectValue placeholder={stateCode === "all" ? "Select State first" : "All LGAs"}>
+                {(val) => {
+                  if (!val || val === "all") return stateCode === "all" ? "Select State first" : "All LGAs";
+                  const found = availableLGAs.find(
+                    (l) => l.code === val || String(l.id) === val
+                  );
+                  return found ? found.name : val;
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All LGAs ({availableLGAs.length})</SelectItem>
@@ -247,8 +271,16 @@ export function CoverageFilters({
             }}
             disabled={lgaCode === "all"}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background">
-              <SelectValue placeholder={lgaCode === "all" ? "Select LGA first" : "All Wards"} />
+            <SelectTrigger className="w-full h-8.5 text-xs bg-background">
+              <SelectValue placeholder={lgaCode === "all" ? "Select LGA first" : "All Wards"}>
+                {(val) => {
+                  if (!val || val === "all") return lgaCode === "all" ? "Select LGA first" : "All Wards";
+                  const found = availableWards.find(
+                    (w) => w.code === val || String(w.id) === val
+                  );
+                  return found ? found.name : val;
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Wards ({availableWards.length})</SelectItem>
@@ -272,8 +304,10 @@ export function CoverageFilters({
               if (val) setSortBy(val);
             }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background">
-              <SelectValue placeholder="Sort by" />
+            <SelectTrigger className="w-full h-8.5 text-xs bg-background">
+              <SelectValue placeholder="Sort by">
+                {(val) => (val && sortLabels[val]) ? sortLabels[val] : "Sort by"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="pus-desc">PUs (high to low)</SelectItem>
@@ -286,7 +320,7 @@ export function CoverageFilters({
         </div>
 
         {/* Search Input */}
-        <div className="space-y-1 sm:col-span-2 md:col-span-4 lg:col-span-1">
+        <div className="space-y-1 col-span-2 md:col-span-3 lg:col-span-1">
           <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Search
           </label>
@@ -297,7 +331,7 @@ export function CoverageFilters({
               placeholder="Search code or name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-8.5 text-xs bg-background"
+              className="pl-8 h-8.5 text-xs bg-background w-full"
             />
           </div>
         </div>
@@ -310,7 +344,7 @@ export function CoverageFilters({
             onClick={() => setFilterMode("all")}
             className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
               filterMode === "all"
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-primary text-primary-foreground shadow-none"
                 : "bg-muted text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -320,7 +354,7 @@ export function CoverageFilters({
             onClick={() => setFilterMode("gaps")}
             className={`px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
               filterMode === "gaps"
-                ? "bg-amber-600 text-white shadow-sm"
+                ? "bg-amber-600 text-white shadow-none"
                 : "bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100"
             }`}
           >
