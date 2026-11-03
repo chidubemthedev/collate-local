@@ -9,11 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TableToolbar } from "@/components/ui/table-toolbar";
-import { Search, Filter, RotateCcw, ChevronRight, Lock, MapPin, Layers, Building2 } from "lucide-react";
+import { Search, Filter, RotateCcw, ChevronRight, Lock, MapPin } from "lucide-react";
 
 interface CoverageFiltersProps {
-  unitMode: "administrative" | "political";
-  setUnitMode: (mode: "administrative" | "political") => void;
   stateCode: string;
   setStateCode: (code: string) => void;
   lgaCode: string;
@@ -33,8 +31,6 @@ interface CoverageFiltersProps {
 }
 
 export function CoverageFilters({
-  unitMode,
-  setUnitMode,
   stateCode,
   setStateCode,
   lgaCode,
@@ -83,34 +79,8 @@ export function CoverageFilters({
 
   return (
     <div className="space-y-3">
-      {/* Top row: Unit mode tabs & Breadcrumbs */}
+      {/* Top row: Breadcrumbs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/60">
-        {/* Unit Mode Toggle */}
-        <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-lg w-fit">
-          <button
-            onClick={() => setUnitMode("administrative")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-              unitMode === "administrative"
-                ? "bg-background text-foreground shadow-none"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Building2 className="w-3.5 h-3.5 text-primary" />
-            Administrative units
-          </button>
-          <button
-            onClick={() => setUnitMode("political")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-              unitMode === "political"
-                ? "bg-background text-foreground shadow-none"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-            Political units
-          </button>
-        </div>
-
         {/* Dynamic Breadcrumbs */}
         <div className="flex items-center gap-1.5 text-xs overflow-x-auto py-1 text-muted-foreground scrollbar-none">
           <button

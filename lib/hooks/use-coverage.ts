@@ -1,9 +1,10 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiClientError } from "@/lib/api/client";
 import { GEOGRAPHY_KEYS } from "@/lib/hooks/use-geography";
 import type {
+  CandidateCoverage,
   CoverageSummary,
   CoverageGap,
   CoverageGapsResponse,
@@ -32,7 +33,10 @@ export const COVERAGE_KEYS = {
 /**
  * Fetch headline coverage metrics for the current scope.
  */
-export function useCoverageSummary(filters: CoverageFilters = {}) {
+export function useCoverageSummary(
+  filters: CoverageFilters = {},
+  options?: { enabled?: boolean },
+) {
   const cleanFilters: Record<string, number> = {};
   if (filters.stateId && filters.stateId > 0) cleanFilters.stateId = filters.stateId;
   if (filters.lgaId && filters.lgaId > 0) cleanFilters.lgaId = filters.lgaId;
@@ -45,6 +49,44 @@ export function useCoverageSummary(filters: CoverageFilters = {}) {
       const res = await apiClient.get<CoverageSummary>("/api/coverage/summary", cleanFilters);
       return res.data;
     },
+    staleTime: 1000 * 60 * 2,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+const CANDIDATE_COVERAGE_PAGE_SIZE = 12;
+
+export interface CandidateCoveragePage {
+  items: CandidateCoverage[];
+  nextCursor: string | null;
+  total: number;
+}
+
+/**
+ * Fetch candidates whose seats fall in the current scope, with their coverage.
+ */
+export function useCandidateCoverage(filters: CoverageFilters = {}) {
+  const cleanFilters: Record<string, number> = {};
+  if (filters.stateId && filters.stateId > 0) cleanFilters.stateId = filters.stateId;
+  if (filters.lgaId && filters.lgaId > 0) cleanFilters.lgaId = filters.lgaId;
+  if (filters.wardId && filters.wardId > 0) cleanFilters.wardId = filters.wardId;
+
+  return useInfiniteQuery<CandidateCoveragePage, ApiClientError>({
+    queryKey: [...COVERAGE_KEYS.all, "candidates", cleanFilters] as const,
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) => {
+      const res = await apiClient.get<CandidateCoverage[]>("/api/coverage/candidates", {
+        ...cleanFilters,
+        limit: CANDIDATE_COVERAGE_PAGE_SIZE,
+        cursor: pageParam as string | null,
+      });
+      return {
+        items: res.data,
+        nextCursor: res.meta?.nextCursor ?? null,
+        total: res.meta?.total ?? res.data.length,
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     staleTime: 1000 * 60 * 2,
   });
 }

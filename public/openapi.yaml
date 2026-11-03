@@ -673,6 +673,54 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalServerError"
+  /api/coverage/candidates:
+    get:
+      tags: [Coverage]
+      summary: List candidates with coverage for their seat
+      description: >-
+        Returns principal candidates whose seat contains polling units in the accessible filtered area.
+        Counts are limited to that area. A polling unit is covered when the candidate owns an official
+        assignment on it. Ordered by office hierarchy, then candidate ID. Writes an audit log row.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/stateFilter"
+        - $ref: "#/components/parameters/lgaFilter"
+        - $ref: "#/components/parameters/wardFilter"
+        - $ref: "#/components/parameters/politicalUnitFilter"
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Candidate coverage page.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/CandidateCoverage"
+        "400":
+          $ref: "#/components/responses/InvalidFilter"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /api/coverage/gaps:
     get:
       tags: [Coverage]
@@ -991,6 +1039,9 @@ components:
           type: [string, "null"]
         limit:
           type: integer
+        total:
+          type: integer
+          description: Total matching items across all pages, when the route provides it.
       additionalProperties: false
     SuccessOkResponse:
       allOf:
@@ -1431,6 +1482,44 @@ components:
         officialAgentPct:
           type: integer
       required: [totalPUs, coveredPUs, noCoveragePUs, gpsPUs, extraAgentsCount, officialAgentPct]
+    CandidateCoverage:
+      type: object
+      properties:
+        id:
+          type: integer
+        office:
+          type: string
+        hierarchyLevel:
+          type: integer
+        seat:
+          type: string
+        stateId:
+          type: [integer, "null"]
+          description: State the seat sits in; null for national seats.
+        inecStateCode:
+          type: [string, "null"]
+        name:
+          type: string
+        deputyName:
+          type: [string, "null"]
+        maskedPhone:
+          type: [string, "null"]
+          description: Masked phone number; the full number is never returned.
+        channelStatus:
+          type: string
+          enum: [connected, sms_only, not_matched]
+        isOffCycle:
+          type: boolean
+          description: True when the seat's state votes off-cycle on the latest election day for this office.
+        totalPUs:
+          type: integer
+        coveredPUs:
+          type: integer
+        coveragePct:
+          type: integer
+        extraAgentsCount:
+          type: integer
+      required: [id, office, hierarchyLevel, seat, stateId, inecStateCode, name, deputyName, maskedPhone, channelStatus, isOffCycle, totalPUs, coveredPUs, coveragePct, extraAgentsCount]
     CoverageGap:
       type: object
       properties:

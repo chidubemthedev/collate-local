@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { STATES_DATA, LGAS_DATA } from "@/lib/data/inec-data";
+import { useGeographyLgas, useGeographyStates } from "@/lib/hooks/use-geography";
 import { TableToolbar } from "@/components/ui/table-toolbar";
 import {
   Search,
@@ -68,9 +68,12 @@ export function RecipientsFilters({
   onReset,
   onExportCSV,
 }: RecipientsFiltersProps) {
-  const availableLgas = LGAS_DATA.filter(
-    (l) => selectedState === "all" || l.stateCode === selectedState,
-  );
+  const statesQuery = useGeographyStates();
+  const states = statesQuery.data ?? [];
+  const selectedStateId = states.find((state) => state.code === selectedState)?.id ?? null;
+  const lgasQuery = useGeographyLgas(selectedStateId);
+  const availableLgas = selectedStateId ? lgasQuery.data ?? [] : [];
+  const selectedStateName = states.find((state) => state.code === selectedState)?.name;
 
   return (
     <div className="space-y-4">
@@ -174,7 +177,7 @@ export function RecipientsFilters({
           ...(statusTab !== "all" ? [{ id: "status", label: `Status: ${statusTab}`, onRemove: () => onStatusTabChange("all") }] : []),
           ...(searchQuery ? [{ id: "search", label: `Search: ${searchQuery}`, onRemove: () => onSearchChange("") }] : []),
           ...(selectedGroup !== "all" ? [{ id: "group", label: `Role: ${selectedGroup}`, onRemove: () => onGroupChange("all") }] : []),
-          ...(selectedState !== "all" ? [{ id: "state", label: `State: ${STATES_DATA.find((state) => state.code === selectedState)?.name ?? selectedState}`, onRemove: () => { onStateChange("all"); onLgaChange("all"); } }] : []),
+          ...(selectedState !== "all" ? [{ id: "state", label: `State: ${selectedStateName ?? selectedState}`, onRemove: () => { onStateChange("all"); onLgaChange("all"); } }] : []),
           ...(selectedLga !== "all" ? [{ id: "lga", label: `LGA: ${availableLgas.find((lga) => lga.code === selectedLga)?.name ?? selectedLga}`, onRemove: () => onLgaChange("all") }] : []),
           ...(selectedSource !== "all" ? [{ id: "source", label: `Source: ${selectedSource}`, onRemove: () => onSourceChange("all") }] : []),
         ]}
@@ -257,32 +260,42 @@ export function RecipientsFilters({
           <div className="w-[140px]">
             <Select
               value={selectedState}
+              disabled={statesQuery.isPending || statesQuery.isError}
               onValueChange={(v) => v && onStateChange(v)}
             >
               <SelectTrigger className="h-9 text-xs bg-background">
                 <SelectValue placeholder="State">
                   {(val) => {
                     if (!val || val === "all") return "All States";
-                    const found = STATES_DATA.find((s) => s.code === val);
+                    const found = states.find((s) => s.code === val);
                     return found ? `${found.code} · ${found.name}` : val;
                   }}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All States</SelectItem>
-                {STATES_DATA.map((st) => (
+                {states.map((st) => (
                   <SelectItem key={st.code} value={st.code}>
                     {st.code} · {st.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {statesQuery.isError && (
+              <div role="alert" className="mt-1 flex items-center gap-2 text-xs text-destructive">
+                <span>Could not load states.</span>
+                <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={() => void statesQuery.refetch()}>
+                  Retry
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* LGA Dropdown */}
           <div className="w-[150px]">
             <Select
               value={selectedLga}
+              disabled={!selectedStateId || lgasQuery.isPending || lgasQuery.isError}
               onValueChange={(v) => v && onLgaChange(v)}
             >
               <SelectTrigger className="h-9 text-xs bg-background">
@@ -303,6 +316,14 @@ export function RecipientsFilters({
                 ))}
               </SelectContent>
             </Select>
+            {lgasQuery.isError && (
+              <div role="alert" className="mt-1 flex items-center gap-2 text-xs text-destructive">
+                <span>Could not load LGAs.</span>
+                <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={() => void lgasQuery.refetch()}>
+                  Retry
+                </Button>
+              </div>
+            )}
           </div>
 
         </div>
