@@ -4,6 +4,7 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { ShieldCheck, Users, AlertCircle, Phone, Info } from "lucide-react";
 
 interface AgentsKPISummaryProps {
@@ -42,10 +43,10 @@ export function AgentsKPISummary({
         <div>
           <div className="flex items-baseline justify-between">
             <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              {officialCount.toLocaleString()}
+              <AnimatedNumber value={officialCount} />
             </span>
             <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              {officialPct}% Coverage
+              <AnimatedNumber value={officialPct} />% Coverage
             </span>
           </div>
           <Progress value={officialPct} className="h-1.5 mt-2 bg-emerald-100 dark:bg-emerald-950/40" />
@@ -68,7 +69,7 @@ export function AgentsKPISummary({
         </div>
         <div>
           <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            {extraCount.toLocaleString()}
+            <AnimatedNumber value={extraCount} />
           </div>
           <div className="text-[11px] text-muted-foreground mt-1">
             Candidate-sponsored protectors & mobilisers
@@ -89,7 +90,7 @@ export function AgentsKPISummary({
         </div>
         <div>
           <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            {gapsCount.toLocaleString()}
+            <AnimatedNumber value={gapsCount} />
           </div>
           <div className="text-[11px] text-amber-700 dark:text-amber-400/90 mt-1 font-medium">
             Polling units with 0 official agents

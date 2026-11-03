@@ -4,6 +4,7 @@ import type { ErrorCode } from "./error-codes";
 export interface SuccessMeta {
   nextCursor?: string | null;
   limit?: number;
+  total?: number;
 }
 
 export function success<T>(

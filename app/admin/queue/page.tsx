@@ -11,7 +11,9 @@ import {
   Loader2,
   AlertCircle,
   Activity,
+  ExternalLink,
 } from "lucide-react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiClient, ApiClientError } from "@/lib/api/client";
@@ -20,6 +22,10 @@ import type { QueueSummaryRow, RecentJob } from "@/lib/admin/queue";
 interface QueueData {
   summary: QueueSummaryRow[];
   recent: RecentJob[];
+}
+
+interface HealthData {
+  ok: boolean;
 }
 
 const STATE_STYLES: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
@@ -50,6 +56,12 @@ function formatDate(iso: string | null): string {
 }
 
 export default function QueueDashboardPage() {
+  const healthQuery = useQuery<HealthData, ApiClientError>({
+    queryKey: ["system", "health"],
+    queryFn: async () => (await apiClient.get<HealthData>("/api/health")).data,
+    refetchInterval: 30_000,
+    retry: false,
+  });
   const {
     data,
     error,
@@ -91,6 +103,45 @@ export default function QueueDashboardPage() {
               <span className="ml-2 text-slate-400">Last updated: {formatDate(lastRefresh.toISOString())}</span>
             )}
           </p>
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+            <span
+              role="status"
+              className={`inline-flex items-center gap-1.5 ${
+                healthQuery.isError
+                  ? "text-red-700"
+                  : healthQuery.data?.ok
+                    ? "text-emerald-700"
+                    : "text-slate-500"
+              }`}
+            >
+              {healthQuery.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : healthQuery.data?.ok ? (
+                <CheckCircle className="h-3.5 w-3.5" />
+              ) : (
+                <XCircle className="h-3.5 w-3.5" />
+              )}
+              {healthQuery.isPending
+                ? "Database status checking"
+                : healthQuery.data?.ok
+                  ? "Database available"
+                  : "Database unavailable"}
+            </span>
+            {healthQuery.isError && (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-xs"
+                onClick={() => void healthQuery.refetch()}
+              >
+                Retry status
+              </Button>
+            )}
+            <Link href="/api/docs" className="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900">
+              API documentation <ExternalLink className="h-3 w-3" />
+            </Link>
+          </div>
         </div>
         <Button
           onClick={() => void refetch()}

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { STATES_DATA } from "@/lib/data/inec-data";
+import { useGeographyStates } from "@/lib/hooks/use-geography";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -56,6 +56,9 @@ export function CandidatesFilters({
   onReset,
   onExportCSV,
 }: CandidatesFiltersProps) {
+  const statesQuery = useGeographyStates();
+  const states = statesQuery.data ?? [];
+  const selectedStateName = states.find((state) => state.code === selectedState)?.name;
   const officeTabs = [
     { id: "all", label: "All Tickets", count: officeCounts.all || 0 },
     { id: "President", label: "Presidency", count: officeCounts.President || 0 },
@@ -126,7 +129,7 @@ export function CandidatesFilters({
       <TableToolbar
         onClear={onReset}
         activeFilters={[
-          ...(selectedState !== "all" ? [{ id: "state", label: `State: ${STATES_DATA.find((state) => state.code === selectedState)?.name ?? selectedState}`, onRemove: () => setSelectedState("all") }] : []),
+          ...(selectedState !== "all" ? [{ id: "state", label: `State: ${selectedStateName ?? selectedState}`, onRemove: () => setSelectedState("all") }] : []),
           ...(selectedChannel !== "all" ? [{ id: "channel", label: `Channel: ${selectedChannel}`, onRemove: () => setSelectedChannel("all") }] : []),
           ...(selectedCoverageTier !== "all" ? [{ id: "coverage", label: `Coverage: ${selectedCoverageTier}`, onRemove: () => setSelectedCoverageTier("all") }] : []),
           ...(searchQuery ? [{ id: "search", label: `Search: ${searchQuery}`, onRemove: () => setSearchQuery("") }] : []),
@@ -161,6 +164,7 @@ export function CandidatesFilters({
           </label>
           <Select
             value={selectedState}
+            disabled={statesQuery.isPending || statesQuery.isError}
             onValueChange={(val) => {
               if (val) setSelectedState(val);
             }}
@@ -169,20 +173,28 @@ export function CandidatesFilters({
               <SelectValue placeholder="All States">
                 {(val) => {
                   if (!val || val === "all") return "All States";
-                  const found = STATES_DATA.find((st) => st.code === val);
+                  const found = states.find((st) => st.code === val);
                   return found ? found.name : val;
                 }}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All States</SelectItem>
-              {STATES_DATA.map((st) => (
+              {states.map((st) => (
                 <SelectItem key={st.code} value={st.code}>
                   {st.name} ({st.code})
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {statesQuery.isError && (
+            <div role="alert" className="flex items-center gap-2 text-xs text-destructive">
+              <span>Could not load states.</span>
+              <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={() => void statesQuery.refetch()}>
+                Retry
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Channel Status Filter */}

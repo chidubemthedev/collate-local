@@ -13,6 +13,7 @@ export interface SuccessEnvelope<T> {
   meta?: {
     nextCursor?: string | null;
     limit?: number;
+    total?: number;
   };
 }
 
@@ -154,6 +155,24 @@ export interface CoverageSummary {
   gpsPUs: number;
   extraAgentsCount: number;
   officialAgentPct: number;
+}
+
+export interface CandidateCoverage {
+  id: number;
+  office: string;
+  hierarchyLevel: number;
+  seat: string;
+  stateId: number | null;
+  inecStateCode: string | null;
+  name: string;
+  deputyName: string | null;
+  maskedPhone: string | null;
+  channelStatus: "connected" | "sms_only" | "not_matched";
+  isOffCycle: boolean;
+  totalPUs: number;
+  coveredPUs: number;
+  coveragePct: number;
+  extraAgentsCount: number;
 }
 
 export interface AreaRef {

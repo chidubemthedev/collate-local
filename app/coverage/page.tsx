@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/context/app-context";
 import {
   useGeographyStates,
+  useGeographyState,
   useGeographyLgas,
   useGeographyWards,
   useGeographyPollingUnits,
@@ -19,7 +20,6 @@ import { AtStakeCandidates } from "@/components/coverage/at-stake-candidates";
 import { CoverageMap } from "@/components/coverage/coverage-map";
 import { CoverageFilters } from "@/components/coverage/coverage-filters";
 import { CoverageTable } from "@/components/coverage/coverage-table";
-import { PoliticalUnitsView } from "@/components/coverage/political-units-view";
 import {
   CoverageDashboardSkeleton,
   KPISummarySkeleton,
@@ -50,7 +50,6 @@ export default function CoveragePage() {
     resetAreaFilters,
   } = useApp();
 
-  const [unitMode, setUnitMode] = useState<"administrative" | "political">("administrative");
   const [filterMode, setFilterMode] = useState<"all" | "gaps">("all");
   const [sortBy, setSortBy] = useState<string>("pus-desc");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -139,17 +138,28 @@ export default function CoveragePage() {
   } = useGeographyPollingUnits(selectedWardId);
 
   // Live coverage summary query
-  const {
-    data: summaryData,
-    isLoading: isLoadingSummary,
-    isFetching: isFetchingSummary,
-    error: summaryError,
-    refetch: refetchSummary,
-  } = useCoverageSummary({
+  const isStateDetailEnabled = currentLevel === "state" && selectedStateId !== null;
+  const stateDetailQuery = useGeographyState(isStateDetailEnabled ? selectedStateId : null);
+  const coverageSummaryQuery = useCoverageSummary({
     stateId: selectedStateId,
     lgaId: selectedLgaId,
     wardId: selectedWardId,
+  }, {
+    enabled: !isStateDetailEnabled,
   });
+  const summaryData = isStateDetailEnabled ? stateDetailQuery.data : coverageSummaryQuery.data;
+  const isLoadingSummary = isStateDetailEnabled
+    ? stateDetailQuery.isLoading
+    : coverageSummaryQuery.isLoading;
+  const isFetchingSummary = isStateDetailEnabled
+    ? stateDetailQuery.isFetching
+    : coverageSummaryQuery.isFetching;
+  const summaryError = isStateDetailEnabled
+    ? stateDetailQuery.error
+    : coverageSummaryQuery.error;
+  const refetchSummary = isStateDetailEnabled
+    ? stateDetailQuery.refetch
+    : coverageSummaryQuery.refetch;
 
   const levelName =
     currentLevel === "ward"
@@ -464,8 +474,6 @@ export default function CoveragePage() {
 
   const coverageFilters = (
     <CoverageFilters
-      unitMode={unitMode}
-      setUnitMode={setUnitMode}
       stateCode={selectedStateCode}
       setStateCode={setSelectedStateCode}
       lgaCode={selectedLgaCode}
@@ -511,88 +519,86 @@ export default function CoveragePage() {
       </div>
 
       {/* Top Metric Cards */}
-      {isLoadingSummary && !kpiData ? (
-        <KPISummarySkeleton />
-      ) : kpiData ? (
-        <KPISummary
-          levelName={kpiData.levelName}
-          totalPUs={kpiData.totalPUs}
-          gpsPUs={kpiData.gpsPUs}
-          coveredPUs={kpiData.coveredPUs}
-          noCoveragePUs={kpiData.noCoveragePUs}
-          officialAgentPct={kpiData.officialAgentPct}
-          extraAgentsCount={kpiData.extraAgentsCount}
-          lgasCount={kpiData.lgasCount}
-          wardsCount={kpiData.wardsCount}
-          statesCount={kpiData.statesCount}
-        />
-      ) : null}
+      <div
+        aria-busy={isFetchingSummary}
+        className={isFetchingSummary && kpiData ? "opacity-60" : ""}
+      >
+        {isLoadingSummary && !kpiData ? (
+          <KPISummarySkeleton />
+        ) : kpiData ? (
+          <KPISummary
+            levelName={kpiData.levelName}
+            totalPUs={kpiData.totalPUs}
+            gpsPUs={kpiData.gpsPUs}
+            coveredPUs={kpiData.coveredPUs}
+            noCoveragePUs={kpiData.noCoveragePUs}
+            officialAgentPct={kpiData.officialAgentPct}
+            extraAgentsCount={kpiData.extraAgentsCount}
+            lgasCount={kpiData.lgasCount}
+            wardsCount={kpiData.wardsCount}
+            statesCount={kpiData.statesCount}
+          />
+        ) : null}
+      </div>
+      <section className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
+        {coverageFilters}
+      </section>
       <AtStakeCandidates
+        stateId={selectedStateId}
+        lgaId={selectedLgaId}
+        wardId={selectedWardId}
+      />
+
+      <CoverageMap
         stateCode={selectedStateCode}
         lgaCode={selectedLgaCode}
         wardCode={selectedWardCode}
+        stateName={selectedState?.name}
+        lgaName={selectedLga?.name}
+        wardName={selectedWard?.name}
+        states={statesList}
+        lgas={lgasList}
+        wards={wardsList}
+        pollingUnits={pollingUnitsList}
+        onSelectState={(code) => {
+          setSelectedStateCode(code);
+          setSelectedLgaCode("all");
+          setSelectedWardCode("all");
+        }}
+        onSelectLga={(code) => {
+          setSelectedLgaCode(code);
+          setSelectedWardCode("all");
+        }}
+        onSelectWard={(code) => setSelectedWardCode(code)}
       />
-
-      {unitMode === "administrative" ? (
-        <>
-          <CoverageMap
-            stateCode={selectedStateCode}
-            lgaCode={selectedLgaCode}
-            wardCode={selectedWardCode}
-            stateName={selectedState?.name}
-            lgaName={selectedLga?.name}
-            wardName={selectedWard?.name}
-            states={statesList}
-            lgas={lgasList}
-            wards={wardsList}
-            pollingUnits={pollingUnitsList}
-            onSelectState={(code) => {
-              setSelectedStateCode(code);
-              setSelectedLgaCode("all");
-              setSelectedWardCode("all");
-            }}
-            onSelectLga={(code) => {
-              setSelectedLgaCode(code);
-              setSelectedWardCode("all");
-            }}
-            onSelectWard={(code) => setSelectedWardCode(code)}
-          />
-          <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
-            {coverageFilters}
-          <div
-            aria-busy={isCoverageTableFetching}
-            className={isCoverageTableFetching && !isCoverageTableLoading ? "opacity-60" : ""}
-          >
-            {isCoverageTableLoading ? (
-              <CoverageTableSkeleton />
-            ) : (
-              <CoverageTable
-                level={currentLevel}
-                states={filteredStates}
-                lgas={filteredLGAs}
-                wards={filteredWards}
-                pollingUnits={filteredPollingUnits}
-                onOpenState={(code) => {
-                  setSelectedStateCode(code);
-                  setSelectedLgaCode("all");
-                  setSelectedWardCode("all");
-                }}
-                onOpenLga={(code) => {
-                  setSelectedLgaCode(code);
-                  setSelectedWardCode("all");
-                }}
-                onOpenWard={(code) => setSelectedWardCode(code)}
-              />
-            )}
-          </div>
-          </section>
-        </>
-      ) : (
-        <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
-          {coverageFilters}
-          <PoliticalUnitsView />
-        </section>
-      )}
+      <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
+        <div
+          aria-busy={isCoverageTableFetching}
+          className={isCoverageTableFetching && !isCoverageTableLoading ? "opacity-60" : ""}
+        >
+          {isCoverageTableLoading ? (
+            <CoverageTableSkeleton />
+          ) : (
+            <CoverageTable
+              level={currentLevel}
+              states={filteredStates}
+              lgas={filteredLGAs}
+              wards={filteredWards}
+              pollingUnits={filteredPollingUnits}
+              onOpenState={(code) => {
+                setSelectedStateCode(code);
+                setSelectedLgaCode("all");
+                setSelectedWardCode("all");
+              }}
+              onOpenLga={(code) => {
+                setSelectedLgaCode(code);
+                setSelectedWardCode("all");
+              }}
+              onOpenWard={(code) => setSelectedWardCode(code)}
+            />
+          )}
+        </div>
+      </section>
     </div>
   );
 }
