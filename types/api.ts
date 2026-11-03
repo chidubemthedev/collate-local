@@ -94,7 +94,8 @@ export interface StateCoverage {
 
 export interface LgaCoverage {
   id: number;
-  stateCode: string;
+  stateId: number;
+  inecStateCode: string;
   code: string;
   name: string;
   totalPUs: number;
@@ -179,15 +180,18 @@ export interface CoverageGapsResponse {
   items: CoverageGap[];
 }
 
-export interface CreateAssignmentPayload {
+interface CreateAssignmentBase {
   personId: string;
   pollingUnitId: number;
-  ownerGroupId?: number | null;
-  ownerCandidateId?: number | null;
   agentKind: "official" | "extra";
   slotNumber: number;
   role?: "official" | "extra";
 }
+
+export type CreateAssignmentPayload = CreateAssignmentBase & (
+  | { ownerGroupId: number; ownerCandidateId?: null }
+  | { ownerGroupId?: null; ownerCandidateId: number }
+);
 
 export interface CreateAssignmentResponse {
   ok: boolean;
@@ -253,6 +257,58 @@ export interface AudienceFilter {
 export interface AudiencePreview {
   officialCount: number;
   extraCount: number;
+}
+
+export type BroadcastStatus =
+  | "draft"
+  | "scheduled"
+  | "sending"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export interface BroadcastDeliveryCounts {
+  pending: number;
+  sent: number;
+  delivered: number;
+  deliveredBySms: number;
+  failed: number;
+  tappedOk: number;
+}
+
+export interface BroadcastSender {
+  id: string;
+  displayName: string;
+}
+
+export interface BroadcastListItem {
+  id: string;
+  status: BroadcastStatus;
+  title: string;
+  messageText: string;
+  sender: BroadcastSender;
+  audienceSummary: string[];
+  deliveryCounts: BroadcastDeliveryCounts;
+  scheduledSendAt: string | null;
+  createdAt: string;
+}
+
+export interface BroadcastDetail extends BroadcastListItem {
+  messageText: string;
+}
+
+export interface BroadcastDelivery {
+  id: string;
+  personId: string;
+  fullName: string;
+  maskedPhone: string | null;
+  channel: "telegram" | "sms";
+  status: "pending" | "sent" | "delivered" | "delivered_by_sms" | "failed" | "tapped_ok";
+  sentAt: string | null;
+  deliveredAt: string | null;
+  tappedOkAt: string | null;
+  failedAt: string | null;
+  createdAt: string;
 }
 
 export interface CreateBroadcastInput {
