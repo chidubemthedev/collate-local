@@ -10,6 +10,7 @@ import { AgentsKPISummary } from "@/components/agents/agents-kpi-summary";
 import { AgentsFilters } from "@/components/agents/agents-filters";
 import { AgentsTable } from "@/components/agents/agents-table";
 import { UnifiedAgentRecord } from "@/components/agents/agent-detail-modal";
+import { AgentsDirectorySkeleton } from "@/components/agents/agents-skeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -341,13 +342,14 @@ export default function AgentsPage() {
     );
   }
 
-  if (isLoadingStates) {
-    return (
-      <div className="flex items-center justify-center gap-2 py-24 text-xs text-muted-foreground">
-        <Loader2 className="w-4 h-4 animate-spin" />
-        Loading agents…
-      </div>
-    );
+  const isInitialLoading =
+    isLoadingStates ||
+    ((isLoadingAgents || isLoadingGaps || isLoadingSummary) &&
+      allAgentRecords.length === 0 &&
+      !summary);
+
+  if (isInitialLoading) {
+    return <AgentsDirectorySkeleton />;
   }
 
   if (apiStates.length === 0) {
@@ -395,7 +397,7 @@ export default function AgentsPage() {
         <div className="flex items-center gap-2">
           <Link
             href="/broadcasts/new?group=agents"
-            className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-8 px-3.5 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
+            className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-8 px-3.5 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Broadcast to Agents</span>

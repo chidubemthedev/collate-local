@@ -94,7 +94,7 @@ export function AgentsFilters({
   ];
 
   return (
-    <div className="bg-card border border-border/80 rounded-xl p-3 sm:p-4 shadow-sm space-y-3">
+    <div className="bg-card border border-border/70 rounded-xl p-3 sm:p-4 space-y-3">
       {/* Top Bar: Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/60">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
@@ -107,7 +107,7 @@ export function AgentsFilters({
                 onClick={() => setSelectedTypeTab(tab.id as any)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   isSelected
-                    ? "bg-primary text-primary-foreground shadow-sm"
+                    ? "bg-primary text-primary-foreground"
                     : "bg-muted/70 text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -128,11 +128,11 @@ export function AgentsFilters({
         </div>
       </div>
 
-      {/* Main Filter Controls Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+      {/* Main Filter Controls Grid: 2 columns on mobile, 3 on tablet, 6 on desktop */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
         {/* State Filter */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="space-y-1 min-w-0 w-full">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
             State
           </label>
           <Select
@@ -145,8 +145,14 @@ export function AgentsFilters({
               }
             }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background">
-              <SelectValue placeholder="All States" />
+            <SelectTrigger className="h-8.5 text-xs bg-background w-full">
+              <SelectValue placeholder="All States">
+                {(val) => {
+                  if (!val || val === "all") return "All States";
+                  const found = statesList.find((s) => s.code === val || String(s.id) === val);
+                  return found ? found.name : val;
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All States</SelectItem>
@@ -160,8 +166,8 @@ export function AgentsFilters({
         </div>
 
         {/* LGA Filter */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="space-y-1 min-w-0 w-full">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
             LGA
           </label>
           <Select
@@ -174,8 +180,14 @@ export function AgentsFilters({
             }}
             disabled={selectedState === "all"}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background">
-              <SelectValue placeholder={selectedState === "all" ? "Select state" : "All LGAs"} />
+            <SelectTrigger className="h-8.5 text-xs bg-background w-full">
+              <SelectValue placeholder={selectedState === "all" ? "Select state" : "All LGAs"}>
+                {(val) => {
+                  if (!val || val === "all") return selectedState === "all" ? "Select state" : "All LGAs";
+                  const found = availableLGAs.find((l) => l.code === val || String(l.id) === val);
+                  return found ? found.name : val;
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All LGAs ({availableLGAs.length})</SelectItem>
@@ -189,8 +201,8 @@ export function AgentsFilters({
         </div>
 
         {/* Ward Filter */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="space-y-1 min-w-0 w-full">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
             Ward
           </label>
           <Select
@@ -200,8 +212,14 @@ export function AgentsFilters({
             }}
             disabled={selectedLga === "all"}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background">
-              <SelectValue placeholder={selectedLga === "all" ? "Select LGA" : "All Wards"} />
+            <SelectTrigger className="h-8.5 text-xs bg-background w-full">
+              <SelectValue placeholder={selectedLga === "all" ? "Select LGA" : "All Wards"}>
+                {(val) => {
+                  if (!val || val === "all") return selectedLga === "all" ? "Select LGA" : "All Wards";
+                  const found = availableWards.find((w) => w.code === val || String(w.id) === val);
+                  return found ? found.name : val;
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Wards ({availableWards.length})</SelectItem>
@@ -215,8 +233,8 @@ export function AgentsFilters({
         </div>
 
         {/* Sponsor Filter */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="space-y-1 min-w-0 w-full">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
             Sponsor
           </label>
           <Select
@@ -225,7 +243,7 @@ export function AgentsFilters({
               if (val) setSelectedSponsor(val);
             }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background">
+            <SelectTrigger className="h-8.5 text-xs bg-background w-full">
               <SelectValue placeholder="All Sponsors" />
             </SelectTrigger>
             <SelectContent>
@@ -240,8 +258,8 @@ export function AgentsFilters({
         </div>
 
         {/* Role Filter */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="space-y-1 min-w-0 w-full">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
             Role
           </label>
           <Select
@@ -250,7 +268,7 @@ export function AgentsFilters({
               if (val) setSelectedRole(val);
             }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background">
+            <SelectTrigger className="h-8.5 text-xs bg-background w-full">
               <SelectValue placeholder="All Roles" />
             </SelectTrigger>
             <SelectContent>
@@ -264,18 +282,18 @@ export function AgentsFilters({
         </div>
 
         {/* Search */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="space-y-1 min-w-0 w-full">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
             Search
           </label>
-          <div className="relative">
+          <div className="relative w-full">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Name or PU code..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-8.5 text-xs bg-background"
+              className="pl-8 h-8.5 text-xs bg-background w-full"
             />
           </div>
         </div>
@@ -319,7 +337,7 @@ export function AgentsFilters({
 
           <Link
             href="/broadcasts/new?group=agents"
-            className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-7.5 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
+            className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-7.5 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Broadcast to Agents</span>
