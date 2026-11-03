@@ -4,24 +4,24 @@ import { CardListSkeleton, Skeleton, TableSkeleton } from "@/components/ui/skele
 
 export function CandidatesDirectorySkeleton({ viewMode = "table" }: { viewMode?: "table" | "cards" }) {
   return (
-    <div aria-busy="true" className="mx-auto max-w-7xl space-y-6">
-      <header className="flex items-center justify-between gap-4">
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-72" />
+    <div aria-busy="true" className="mx-auto min-w-0 max-w-7xl space-y-6">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="min-w-0 space-y-2">
+          <Skeleton className="h-7 w-72 max-w-full" />
           <Skeleton className="h-4 w-96 max-w-full" />
         </div>
-        <Skeleton className="h-8 w-44 shrink-0 rounded-lg" />
+        <Skeleton className="h-8 w-44 max-w-full shrink-0 rounded-lg" />
       </header>
 
-      <section className="space-y-3 overflow-hidden rounded-xl border bg-card p-3 sm:p-4">
+      <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border bg-card p-3 sm:p-4">
         <div className="flex gap-2 overflow-hidden border-b pb-3">
           {Array.from({ length: 6 }).map((_, index) => (
             <Skeleton key={index} className="h-7 w-24 shrink-0 rounded-lg" />
           ))}
         </div>
         <div className="flex items-center justify-between gap-3">
-          <Skeleton className="h-9 w-2/3" />
-          <Skeleton className="h-8 w-36" />
+          <Skeleton className="h-9 min-w-0 flex-1 sm:w-2/3 sm:flex-none" />
+          <Skeleton className="h-8 w-24 shrink-0 sm:w-36" />
         </div>
         {viewMode === "table" ? (
           <TableSkeleton
