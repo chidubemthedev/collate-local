@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CardListSkeleton, Skeleton, StatCardSkeleton, TableSkeleton } from "@/components/ui/skeleton";
+import { TableToolbar } from "@/components/ui/table-toolbar";
 
 type DeliveryStatusFilter = "all" | BroadcastDelivery["status"];
 
@@ -25,6 +27,10 @@ function formatDate(value: string | null): string {
 
 function csvCell(value: string): string {
   return `"${value.replaceAll('"', '""')}"`;
+}
+
+function SkeletonHeading({ className = "h-7 w-72" }: { className?: string }) {
+  return <Skeleton className={className} />;
 }
 
 function BroadcastReport({ id }: { id: string }) {
@@ -81,7 +87,23 @@ function BroadcastReport({ id }: { id: string }) {
   };
 
   if (detailQuery.isPending) {
-    return <p className="py-12 text-center text-sm text-muted-foreground">Loading broadcast report…</p>;
+    return (
+      <div aria-busy="true" className="mx-auto max-w-7xl space-y-6">
+        <div className="space-y-2">
+          <SkeletonHeading />
+          <SkeletonHeading className="h-4 w-56" />
+        </div>
+        <StatCardSkeleton count={6} className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" />
+        <CardListSkeleton count={1} />
+        <div className="space-y-3 rounded-xl border bg-card p-3 sm:p-4">
+          <div className="flex items-center justify-between gap-3">
+            <SkeletonHeading className="h-9 w-2/3" />
+            <SkeletonHeading className="h-8 w-32" />
+          </div>
+          <TableSkeleton columns={["Recipient", "Masked phone", "Channel", "Status", "Created", "Delivered", "Tapped OK", "Failed"]} />
+        </div>
+      </div>
+    );
   }
   if (detailQuery.isError) {
     const notFound = detailQuery.error instanceof ApiClientError &&
@@ -160,32 +182,45 @@ function BroadcastReport({ id }: { id: string }) {
         {broadcast.messageText}
       </CardContent></Card>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search recipient or masked phone"
-          className="min-w-56 flex-1"
-        />
-        <select
-          aria-label="Filter deliveries by status"
-          value={status}
-          onChange={(event) => setStatus(event.target.value as DeliveryStatusFilter)}
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-        >
-          {statusOptions.map((option) => (
-            <option key={option} value={option}>
-              {option === "all" ? "All statuses" : formatStatus(option)}
-            </option>
-          ))}
-        </select>
-        <Button variant="outline" onClick={exportCsv} disabled={filteredDeliveries.length === 0}>
-          <Download className="mr-2 h-4 w-4" />Export loaded rows
-        </Button>
-      </div>
-
+      <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
+      <TableToolbar
+        onClear={() => {
+          setSearch("");
+          setStatus("all");
+        }}
+        activeFilters={[
+          ...(search ? [{ id: "search", label: `Search: ${search}`, onRemove: () => setSearch("") }] : []),
+          ...(status !== "all" ? [{ id: "status", label: `Status: ${formatStatus(status)}`, onRemove: () => setStatus("all") }] : []),
+        ]}
+        actions={
+          <Button variant="outline" onClick={exportCsv} disabled={filteredDeliveries.length === 0}>
+            <Download className="mr-2 h-4 w-4" />Export loaded rows
+          </Button>
+        }
+      >
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-[minmax(12rem,1fr)_12rem]">
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search recipient or masked phone"
+            className="min-w-0"
+          />
+          <select
+            aria-label="Filter deliveries by status"
+            value={status}
+            onChange={(event) => setStatus(event.target.value as DeliveryStatusFilter)}
+            className="h-10 min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            {statusOptions.map((option) => (
+              <option key={option} value={option}>
+                {option === "all" ? "All statuses" : formatStatus(option)}
+              </option>
+            ))}
+          </select>
+        </div>
+      </TableToolbar>
       {deliveriesQuery.isPending ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">Loading delivery records…</p>
+        <TableSkeleton columns={["Recipient", "Masked phone", "Channel", "Status", "Created", "Delivered", "Tapped OK", "Failed"]} />
       ) : deliveriesQuery.isError ? (
         <div className="space-y-3 rounded-lg border border-destructive/30 p-8 text-center">
           <p className="text-sm text-destructive">{deliveriesQuery.error.message}</p>
@@ -198,9 +233,9 @@ function BroadcastReport({ id }: { id: string }) {
           No delivery records match these filters.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
+        <div aria-busy={deliveriesQuery.isFetching} className={`overflow-x-auto rounded-lg border ${deliveriesQuery.isFetching ? "opacity-60" : ""}`}>
           <table className="w-full text-left text-sm">
-            <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
+            <thead className="sticky top-0 z-10 border-b bg-muted/40 text-xs text-muted-foreground">
               <tr>
                 <th className="p-3">Recipient</th>
                 <th className="p-3">Masked phone</th>
@@ -244,6 +279,7 @@ function BroadcastReport({ id }: { id: string }) {
           </Button>
         </div>
       )}
+      </section>
     </div>
   );
 }
@@ -255,7 +291,7 @@ function ReportPageContent({ params }: { params: Promise<{ id: string }> }) {
 
 export default function LiveBroadcastReport({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<p className="py-12 text-center text-sm text-muted-foreground">Loading report…</p>}>
+    <Suspense fallback={<div aria-busy="true" className="mx-auto max-w-7xl space-y-6 p-4"><SkeletonHeading /><StatCardSkeleton count={6} /><TableSkeleton columns={["Recipient", "Masked phone", "Channel", "Status", "Created", "Delivered", "Tapped OK", "Failed"]} /></div>}>
       <ReportPageContent params={params} />
     </Suspense>
   );

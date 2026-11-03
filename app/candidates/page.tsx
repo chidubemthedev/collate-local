@@ -8,10 +8,8 @@ import { CandidatesFilters } from "@/components/candidates/candidates-filters";
 import { CandidatesTable } from "@/components/candidates/candidates-table";
 import { CandidatesCards } from "@/components/candidates/candidates-cards";
 import { CandidatesDirectorySkeleton } from "@/components/candidates/candidates-skeletons";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Users,
   ShieldCheck,
   Send,
   Download,
@@ -118,7 +116,7 @@ export default function CandidatesPage() {
   };
 
   if (isLoading) {
-    return <CandidatesDirectorySkeleton />;
+    return <CandidatesDirectorySkeleton viewMode={viewMode} />;
   }
 
   if (error) {
@@ -142,15 +140,9 @@ export default function CandidatesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              NDC Candidates Directory
-            </h1>
-            <Badge variant="outline" className="text-xs px-2 py-0.5 gap-1 bg-purple-50 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 border-purple-300">
-              <Users className="w-3 h-3" />
-              2027 Validated
-            </Badge>
-          </div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+            NDC Candidates Directory
+          </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Official party registry of presidential, gubernatorial, senatorial, reps, and assembly tickets.
           </p>
@@ -167,32 +159,31 @@ export default function CandidatesPage() {
         </div>
       </div>
 
-      {/* Filters Bar */}
-      <CandidatesFilters
-        selectedOffice={selectedOffice}
-        setSelectedOffice={setSelectedOffice}
-        selectedState={selectedState}
-        setSelectedState={setSelectedState}
-        selectedChannel={selectedChannel}
-        setSelectedChannel={setSelectedChannel}
-        selectedCoverageTier={selectedCoverageTier}
-        setSelectedCoverageTier={setSelectedCoverageTier}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        officeCounts={officeCounts}
-        totalCount={filteredCandidates.length}
-        onReset={handleResetFilters}
-        onExportCSV={handleExportCSV}
-      />
-
-      {/* Main Display: Table vs Cards */}
-      {viewMode === "table" ? (
-        <CandidatesTable candidates={filteredCandidates} />
-      ) : (
-        <CandidatesCards candidates={filteredCandidates} />
-      )}
+      <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
+        <CandidatesFilters
+          selectedOffice={selectedOffice}
+          setSelectedOffice={setSelectedOffice}
+          selectedState={selectedState}
+          setSelectedState={setSelectedState}
+          selectedChannel={selectedChannel}
+          setSelectedChannel={setSelectedChannel}
+          selectedCoverageTier={selectedCoverageTier}
+          setSelectedCoverageTier={setSelectedCoverageTier}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          officeCounts={officeCounts}
+          totalCount={filteredCandidates.length}
+          onReset={handleResetFilters}
+          onExportCSV={handleExportCSV}
+        />
+        {viewMode === "table" ? (
+          <CandidatesTable candidates={filteredCandidates} />
+        ) : (
+          <CandidatesCards candidates={filteredCandidates} />
+        )}
+      </section>
     </div>
   );
 }
