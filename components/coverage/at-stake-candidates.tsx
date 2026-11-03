@@ -4,11 +4,10 @@ import React from "react";
 import { CandidateData } from "@/lib/types";
 import { CANDIDATES_DATA } from "@/lib/data/candidates-data";
 import { useApp } from "@/lib/context/app-context";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Eye, Shield, UserCheck, AlertTriangle, ChevronRight, User } from "lucide-react";
+import { Eye, Shield, UserCheck, AlertTriangle } from "lucide-react";
 
 interface AtStakeCandidatesProps {
   stateCode: string;
@@ -92,6 +91,110 @@ export function AtStakeCandidates({ stateCode, lgaCode, wardCode }: AtStakeCandi
     return null;
   };
 
+  if (relevantCandidates.length === 1) {
+    const cand = relevantCandidates[0];
+    const personaTarget = getPersonaIdForCandidate(cand);
+    const isCurrentActivePersona = personaTarget && activePersona.id === personaTarget;
+
+    return (
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-1.5">
+              <UserCheck className="w-4 h-4 text-primary" />
+              At Stake Here
+            </h3>
+            <Badge variant="secondary" className="text-xs px-2 py-0.5 font-normal">
+              1 race at this level
+            </Badge>
+          </div>
+          <span className="text-[11px] text-muted-foreground hidden sm:inline">
+            Official coverage rule: 1 official agent = covered
+          </span>
+        </div>
+
+        <div
+          className={`border border-border/60 bg-card rounded-xl p-4 sm:p-5 shadow-none transition-all ${
+            isCurrentActivePersona ? "ring-2 ring-primary bg-primary/5" : ""
+          }`}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+            {/* Candidate Identity */}
+            <div className="md:col-span-5 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className={`text-xs font-medium ${getOfficeBadgeColor(cand.office)}`}>
+                  {cand.office}
+                </Badge>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {cand.seat}
+                </span>
+              </div>
+              <div>
+                <h4 className="text-base sm:text-lg font-bold text-foreground leading-tight">
+                  {cand.name}
+                </h4>
+                {cand.deputyName && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Running mate: <span className="text-foreground/90 font-medium">{cand.deputyName}</span>
+                  </p>
+                )}
+              </div>
+              {personaTarget && (
+                <div className="pt-1">
+                  <Button
+                    variant={isCurrentActivePersona ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs h-7.5 gap-1.5 px-3"
+                    onClick={() => setPersonaId(personaTarget)}
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    {isCurrentActivePersona ? "Active Scoped View" : "View as candidate"}
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Candidate Coverage & Live Progress */}
+            <div className="md:col-span-7 md:border-l md:border-border/60 md:pl-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  Official Agent Coverage
+                </span>
+                <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
+                  {cand.coveragePct}%
+                </span>
+              </div>
+
+              <Progress value={cand.coveragePct} className="h-2 bg-emerald-100 dark:bg-emerald-950/40" />
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-xs">
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Polling Units Covered</div>
+                  <div className="font-semibold text-foreground mt-0.5">
+                    {cand.coveredPUs.toLocaleString()} / {cand.totalPUs.toLocaleString()}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Extra Protectors</div>
+                  <div className="font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">
+                    +{cand.extraAgentsCount.toLocaleString()} tagged
+                  </div>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <div className="text-[11px] text-muted-foreground">National Target</div>
+                  <div className="font-semibold text-foreground mt-0.5">
+                    100% (37 States + FCT)
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2.5">
       <div className="flex items-center justify-between">
@@ -116,94 +219,90 @@ export function AtStakeCandidates({ stateCode, lgaCode, wardCode }: AtStakeCandi
 
           if (cand.isOffCycle) {
             return (
-              <Card
+              <div
                 key={cand.id}
-                className="border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 shadow-sm flex flex-col justify-between"
+                className="border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 rounded-xl p-3.5 space-y-2.5 shadow-none flex flex-col justify-between"
               >
-                <CardContent className="p-3.5 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline" className={getOfficeBadgeColor(cand.office)}>
-                      {cand.office}
-                    </Badge>
-                    <Badge variant="secondary" className="text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700">
-                      Off-Cycle State
-                    </Badge>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">Seat: <span className="font-semibold text-foreground">{cand.seat} State</span></div>
-                    <div className="font-semibold text-sm text-foreground mt-0.5">{cand.name}</div>
-                  </div>
-                  <div className="text-[11px] text-amber-800 dark:text-amber-300/90 leading-tight bg-amber-100/60 dark:bg-amber-950/50 p-2 rounded border border-amber-200 dark:border-amber-900/50 flex items-start gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                    <span>{cand.offCycleNote || "No governorship election in this state in 2027."}</span>
-                  </div>
-                </CardContent>
-              </Card>
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline" className={getOfficeBadgeColor(cand.office)}>
+                    {cand.office}
+                  </Badge>
+                  <Badge variant="secondary" className="text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+                    Off-Cycle State
+                  </Badge>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Seat: <span className="font-semibold text-foreground">{cand.seat} State</span></div>
+                  <div className="font-semibold text-sm text-foreground mt-0.5">{cand.name}</div>
+                </div>
+                <div className="text-[11px] text-amber-800 dark:text-amber-300/90 leading-tight bg-amber-100/60 dark:bg-amber-950/50 p-2 rounded border border-amber-200 dark:border-amber-900/50 flex items-start gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <span>{cand.offCycleNote || "No governorship election in this state in 2027."}</span>
+                </div>
+              </div>
             );
           }
 
           return (
-            <Card
+            <div
               key={cand.id}
-              className={`border-border/80 bg-card shadow-sm hover:border-primary/40 hover:shadow-md transition-all flex flex-col justify-between ${
+              className={`border border-border/60 bg-card rounded-xl p-3.5 shadow-none hover:border-primary/40 transition-colors flex flex-col justify-between space-y-2.5 ${
                 isCurrentActivePersona ? "ring-2 ring-primary bg-primary/5" : ""
               }`}
             >
-              <CardContent className="p-3.5 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className={`text-[11px] font-medium ${getOfficeBadgeColor(cand.office)}`}>
-                    {cand.office}
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground font-mono">
-                    {cand.seat}
-                  </span>
-                </div>
+              <div className="flex items-center justify-between">
+                <Badge variant="outline" className={`text-[11px] font-medium ${getOfficeBadgeColor(cand.office)}`}>
+                  {cand.office}
+                </Badge>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  {cand.seat}
+                </span>
+              </div>
 
-                <div>
-                  <div className="font-semibold text-sm text-foreground leading-tight">
-                    {cand.name}
-                  </div>
-                  {cand.deputyName && (
-                    <div className="text-[11px] text-muted-foreground mt-0.5">
-                      Running mate: <span className="text-foreground/90 font-medium">{cand.deputyName}</span>
-                    </div>
-                  )}
+              <div>
+                <div className="font-semibold text-sm text-foreground leading-tight">
+                  {cand.name}
                 </div>
-
-                <div className="space-y-1.5 pt-1 border-t border-border/50">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <Shield className="w-3 h-3 text-emerald-600" />
-                      Official coverage
-                    </span>
-                    <span className="font-bold text-emerald-700 dark:text-emerald-400">
-                      {cand.coveragePct}%
-                    </span>
-                  </div>
-                  <Progress value={cand.coveragePct} className="h-1.5 bg-emerald-100 dark:bg-emerald-950/40" />
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                    <span>{cand.coveredPUs.toLocaleString()} / {cand.totalPUs.toLocaleString()} PUs</span>
-                    <span className="text-indigo-600 dark:text-indigo-400 font-medium">
-                      +{cand.extraAgentsCount.toLocaleString()} extra agents
-                    </span>
-                  </div>
-                </div>
-
-                {personaTarget && (
-                  <div className="pt-2">
-                    <Button
-                      variant={isCurrentActivePersona ? "default" : "outline"}
-                      size="sm"
-                      className="w-full text-xs h-7 gap-1"
-                      onClick={() => setPersonaId(personaTarget)}
-                    >
-                      <Eye className="w-3 h-3" />
-                      {isCurrentActivePersona ? "Active Scoped View" : "View as candidate"}
-                    </Button>
+                {cand.deputyName && (
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    Running mate: <span className="text-foreground/90 font-medium">{cand.deputyName}</span>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+
+              <div className="space-y-1.5 pt-1 border-t border-border/50">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Shield className="w-3 h-3 text-emerald-600" />
+                    Official coverage
+                  </span>
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                    {cand.coveragePct}%
+                  </span>
+                </div>
+                <Progress value={cand.coveragePct} className="h-1.5 bg-emerald-100 dark:bg-emerald-950/40" />
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>{cand.coveredPUs.toLocaleString()} / {cand.totalPUs.toLocaleString()} PUs</span>
+                  <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                    +{cand.extraAgentsCount.toLocaleString()} extra agents
+                  </span>
+                </div>
+              </div>
+
+              {personaTarget && (
+                <div className="pt-1">
+                  <Button
+                    variant={isCurrentActivePersona ? "default" : "outline"}
+                    size="sm"
+                    className="w-full text-xs h-7 gap-1"
+                    onClick={() => setPersonaId(personaTarget)}
+                  >
+                    <Eye className="w-3 h-3" />
+                    {isCurrentActivePersona ? "Active Scoped View" : "View as candidate"}
+                  </Button>
+                </div>
+              )}
+            </div>
           );
         })}
       </div>

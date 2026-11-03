@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { PUDetailDrawer } from "./pu-detail-drawer";
 import {
   ChevronRight,
+  ChevronLeft,
   ShieldCheck,
   AlertCircle,
   MapPin,
@@ -52,6 +53,33 @@ export function CoverageTable({
 }: CoverageTableProps) {
   const [selectedPU, setSelectedPU] = useState<PollingUnitData | null>(null);
   const [isPUModalOpen, setIsPUModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  // Auto-reset page when level or data source changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [level, states.length, lgas.length, wards.length, pollingUnits.length]);
+
+  const totalItems =
+    level === "national"
+      ? states.length
+      : level === "state"
+      ? lgas.length
+      : level === "lga"
+      ? wards.length
+      : pollingUnits.length;
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
+  const endIndex = Math.min(startIndex + PAGE_SIZE, totalItems);
+
+  const paginatedStates = states.slice(startIndex, endIndex);
+  const paginatedLgas = lgas.slice(startIndex, endIndex);
+  const paginatedWards = wards.slice(startIndex, endIndex);
+  const paginatedPollingUnits = pollingUnits.slice(startIndex, endIndex);
 
   const handleOpenPU = (pu: PollingUnitData) => {
     setSelectedPU(pu);
@@ -120,7 +148,7 @@ export function CoverageTable({
       </div>
 
       {/* TABLE CONTAINER */}
-      <div className="border border-border/80 rounded-xl overflow-hidden bg-card shadow-sm">
+      <div className="border border-border/60 rounded-xl overflow-hidden bg-card shadow-none">
         {/* NATIONAL LEVEL TABLE (STATES) */}
         {level === "national" && (
           <div className="overflow-x-auto">
@@ -144,7 +172,7 @@ export function CoverageTable({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  states.map((st) => (
+                  paginatedStates.map((st) => (
                     <TableRow
                       key={st.code}
                       className="hover:bg-muted/30 transition-colors cursor-pointer group"
@@ -229,7 +257,7 @@ export function CoverageTable({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  lgas.map((lga) => (
+                  paginatedLgas.map((lga) => (
                     <TableRow
                       key={lga.code}
                       className="hover:bg-muted/30 transition-colors cursor-pointer group"
@@ -313,7 +341,7 @@ export function CoverageTable({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  wards.map((w) => (
+                  paginatedWards.map((w) => (
                     <TableRow
                       key={w.code}
                       className="hover:bg-muted/30 transition-colors cursor-pointer group"
@@ -395,7 +423,7 @@ export function CoverageTable({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  pollingUnits.map((pu) => {
+                  paginatedPollingUnits.map((pu) => {
                     const isCovered = pu.hasOfficialAgent;
                     const hasValidCoords = typeof pu.latitude === "number" && typeof pu.longitude === "number" && (pu.latitude !== 0 || pu.longitude !== 0);
                     const mapUrl = hasValidCoords
@@ -507,6 +535,55 @@ export function CoverageTable({
                 )}
               </TableBody>
             </Table>
+          </div>
+        )}
+
+        {/* Pagination Footer */}
+        {totalItems > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 px-3.5 py-2.5 border-t border-border/60 bg-muted/20 text-xs">
+            <div className="text-muted-foreground text-center sm:text-left">
+              Showing <span className="font-semibold text-foreground">{startIndex + 1}</span>–
+              <span className="font-semibold text-foreground">{endIndex}</span> of{" "}
+              <span className="font-semibold text-foreground">{totalItems.toLocaleString()}</span>{" "}
+              {level === "national"
+                ? "states"
+                : level === "state"
+                ? "LGAs"
+                : level === "lga"
+                ? "wards"
+                : "polling units"}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage <= 1}
+                  className="h-7 text-xs px-2.5 gap-1"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  Previous
+                </Button>
+
+                <span className="text-xs px-2 text-muted-foreground font-medium">
+                  Page <span className="text-foreground font-semibold">{safeCurrentPage}</span> of{" "}
+                  <span className="text-foreground font-semibold">{totalPages}</span>
+                </span>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage >= totalPages}
+                  className="h-7 text-xs px-2.5 gap-1"
+                >
+                  Next
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
