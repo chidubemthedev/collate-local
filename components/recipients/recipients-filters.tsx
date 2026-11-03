@@ -69,7 +69,7 @@ export function RecipientsFilters({
   onExportCSV,
 }: RecipientsFiltersProps) {
   const availableLgas = LGAS_DATA.filter(
-    (l) => selectedState === "all" || l.stateCode === selectedState
+    (l) => selectedState === "all" || l.stateCode === selectedState,
   );
 
   return (
@@ -172,11 +172,11 @@ export function RecipientsFilters({
             variant="outline"
             size="sm"
             disabled
-            title="Not available yet"
+            title="Not unavailable yet"
             className="h-9 text-xs font-medium gap-1.5 border-border"
           >
             <Upload className="w-3.5 h-3.5" />
-            <span>Import CSV: Not available yet</span>
+            <span>Import CSV: Unavailable</span>
           </Button>
 
           <Button
@@ -186,7 +186,7 @@ export function RecipientsFilters({
             className="h-9 text-xs font-semibold gap-1.5"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Recipient: Not available yet</span>
+            <span>Add Recipient: Unavailable</span>
           </Button>
         </div>
       </div>
@@ -208,7 +208,10 @@ export function RecipientsFilters({
 
           {/* Group / Role Dropdown */}
           <div className="w-[160px]">
-            <Select value={selectedGroup} onValueChange={(v) => v && onGroupChange(v)}>
+            <Select
+              value={selectedGroup}
+              onValueChange={(v) => v && onGroupChange(v)}
+            >
               <SelectTrigger className="h-9 text-xs bg-background">
                 <SelectValue placeholder="Filter Role">
                   {(val) => {
@@ -233,7 +236,10 @@ export function RecipientsFilters({
 
           {/* State Dropdown */}
           <div className="w-[140px]">
-            <Select value={selectedState} onValueChange={(v) => v && onStateChange(v)}>
+            <Select
+              value={selectedState}
+              onValueChange={(v) => v && onStateChange(v)}
+            >
               <SelectTrigger className="h-9 text-xs bg-background">
                 <SelectValue placeholder="State">
                   {(val) => {
@@ -256,7 +262,10 @@ export function RecipientsFilters({
 
           {/* LGA Dropdown */}
           <div className="w-[150px]">
-            <Select value={selectedLga} onValueChange={(v) => v && onLgaChange(v)}>
+            <Select
+              value={selectedLga}
+              onValueChange={(v) => v && onLgaChange(v)}
+            >
               <SelectTrigger className="h-9 text-xs bg-background">
                 <SelectValue placeholder="LGA">
                   {(val) => {
