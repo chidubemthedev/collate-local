@@ -1,10 +1,11 @@
 "use client";
 
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { apiClient, ApiClientError } from "@/lib/api/client";
 import { GEOGRAPHY_KEYS } from "@/lib/hooks/use-geography";
 import type {
   CandidateCoverage,
+  CandidateOfficeOption,
   CoverageSummary,
   CoverageGap,
   CoverageGapsResponse,
@@ -60,16 +61,18 @@ export interface CandidateCoveragePage {
   items: CandidateCoverage[];
   nextCursor: string | null;
   total: number;
+  offices: CandidateOfficeOption[] | null;
 }
 
 /**
  * Fetch candidates whose seats fall in the current scope, with their coverage.
  */
-export function useCandidateCoverage(filters: CoverageFilters = {}) {
+export function useCandidateCoverage(filters: CoverageFilters & { officeId?: number | null } = {}) {
   const cleanFilters: Record<string, number> = {};
   if (filters.stateId && filters.stateId > 0) cleanFilters.stateId = filters.stateId;
   if (filters.lgaId && filters.lgaId > 0) cleanFilters.lgaId = filters.lgaId;
   if (filters.wardId && filters.wardId > 0) cleanFilters.wardId = filters.wardId;
+  if (filters.officeId && filters.officeId > 0) cleanFilters.officeId = filters.officeId;
 
   return useInfiniteQuery<CandidateCoveragePage, ApiClientError>({
     queryKey: [...COVERAGE_KEYS.all, "candidates", cleanFilters] as const,
@@ -84,9 +87,11 @@ export function useCandidateCoverage(filters: CoverageFilters = {}) {
         items: res.data,
         nextCursor: res.meta?.nextCursor ?? null,
         total: res.meta?.total ?? res.data.length,
+        offices: res.meta?.offices ?? null,
       };
     },
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 2,
   });
 }

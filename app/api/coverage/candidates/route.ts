@@ -30,6 +30,12 @@ export async function GET(request: NextRequest) {
       return failure("validation_failed", "Invalid request parameters", { cursor: "invalid_value" });
     }
 
+    const rawOffice = params.get("officeId");
+    const officeId = rawOffice === null ? null : Number(rawOffice);
+    if (officeId !== null && (!Number.isInteger(officeId) || officeId < 1 || officeId > 2147483647)) {
+      return failure("validation_failed", "Invalid request parameters", { officeId: "invalid_value" });
+    }
+
     const scope = getCoverageScopeFilter(auth.context, {
       state: "s",
       lga: "l",
@@ -48,9 +54,15 @@ export async function GET(request: NextRequest) {
       firstFreeParameter: scope.parameters.length + filters.parameters.length + 1,
       limit,
       cursor,
+      officeId,
     });
 
-    return success(page.items, { nextCursor: page.nextCursor, limit, total: page.total });
+    return success(page.items, {
+      nextCursor: page.nextCursor,
+      limit,
+      total: page.total,
+      ...(page.offices ? { offices: page.offices } : {}),
+    });
   } catch (error) {
     console.error("[/api/coverage/candidates] failed", error);
     return internalError();

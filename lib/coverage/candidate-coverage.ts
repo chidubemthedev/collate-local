@@ -23,10 +23,18 @@ export interface CandidateCoverageItem {
   extraAgentsCount: number;
 }
 
+export interface CandidateOfficeOption {
+  id: number;
+  name: string;
+  hierarchyLevel: number;
+  count: number;
+}
+
 export interface CandidateCoveragePage {
   items: CandidateCoverageItem[];
   nextCursor: string | null;
   total: number;
+  offices: CandidateOfficeOption[] | null;
 }
 
 export interface CandidateCoverageQuery {
@@ -38,6 +46,7 @@ export interface CandidateCoverageQuery {
   firstFreeParameter: number;
   limit: number;
   cursor: string | null;
+  officeId: number | null;
 }
 
 interface Row {
@@ -70,6 +79,7 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
   const levelParam = `$${query.firstFreeParameter}`;
   const idParam = `$${query.firstFreeParameter + 1}`;
   const limitParam = `$${query.firstFreeParameter + 2}`;
+  const officeParam = `$${query.firstFreeParameter + 3}`;
   const geo = query.geoSql;
 
   const sql = `
@@ -99,6 +109,7 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
         LIMIT 1
       ) seat_state ON TRUE
       WHERE (${levelParam}::int IS NULL OR (o.hierarchy_level, c.id) > (${levelParam}::int, ${idParam}::int))
+        AND (${officeParam}::int IS NULL OR o.id = ${officeParam}::int)
         AND EXISTS (
           SELECT 1
           FROM pu_political_unit ppu
@@ -191,6 +202,7 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
       decoded?.level ?? null,
       decoded?.id ?? null,
       query.limit + 1,
+      query.officeId,
     ]);
 
     const pageRows = rows.slice(0, query.limit);
@@ -209,12 +221,15 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
       ],
     );
 
+    const geoParamCount = query.geoParameters.length;
+    const totalOfficeParam = `$${geoParamCount + 1}`;
     const totalRows = await manager.query<Array<{ total: string }>>(
       `
         SELECT COUNT(*) AS total
         FROM candidate c
         JOIN seat st ON st.id = c.seat_id
-        WHERE EXISTS (
+        WHERE (${totalOfficeParam}::int IS NULL OR st.office_id = ${totalOfficeParam}::int)
+          AND EXISTS (
           SELECT 1
           FROM pu_political_unit ppu
           JOIN polling_unit pu ON pu.id = ppu.polling_unit_id
@@ -224,8 +239,41 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
           WHERE ppu.political_unit_id = st.political_unit_id AND ${geo}
         );
       `,
-      query.geoParameters,
+      [...query.geoParameters, query.officeId],
     );
+
+    // Office options ignore the office filter so the dropdown keeps every choice available.
+    let offices: CandidateOfficeOption[] | null = null;
+    if (!decoded) {
+      const officeRows = await manager.query<
+        Array<{ id: number; office_name: string; hierarchy_level: number; races: string }>
+      >(
+        `
+          SELECT o.id, o.office_name, o.hierarchy_level, COUNT(*) AS races
+          FROM candidate c
+          JOIN seat st ON st.id = c.seat_id
+          JOIN office o ON o.id = st.office_id
+          WHERE EXISTS (
+            SELECT 1
+            FROM pu_political_unit ppu
+            JOIN polling_unit pu ON pu.id = ppu.polling_unit_id
+            JOIN ward w ON w.id = pu.ward_id
+            JOIN lga l ON l.id = w.lga_id
+            JOIN state s ON s.id = l.state_id
+            WHERE ppu.political_unit_id = st.political_unit_id AND ${geo}
+          )
+          GROUP BY o.id, o.office_name, o.hierarchy_level
+          ORDER BY o.hierarchy_level, o.id;
+        `,
+        query.geoParameters,
+      );
+      offices = officeRows.map((row) => ({
+        id: row.id,
+        name: row.office_name,
+        hierarchyLevel: row.hierarchy_level,
+        count: Number(row.races),
+      }));
+    }
 
     const items = pageRows.map((row): CandidateCoverageItem => {
       const totalPUs = Number(row.total_pus);
@@ -253,6 +301,7 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
       items,
       nextCursor: hasMore && last ? `${last.hierarchy_level}.${last.id}` : null,
       total: Number(totalRows[0]?.total ?? 0),
+      offices,
     };
   });
 }

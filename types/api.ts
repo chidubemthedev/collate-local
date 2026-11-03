@@ -7,6 +7,13 @@
 // Response Envelopes
 // ==========================================
 
+export interface CandidateOfficeOption {
+  id: number;
+  name: string;
+  hierarchyLevel: number;
+  count: number;
+}
+
 export interface SuccessEnvelope<T> {
   status: "success";
   data: T;
@@ -14,6 +21,7 @@ export interface SuccessEnvelope<T> {
     nextCursor?: string | null;
     limit?: number;
     total?: number;
+    offices?: CandidateOfficeOption[];
   };
 }
 

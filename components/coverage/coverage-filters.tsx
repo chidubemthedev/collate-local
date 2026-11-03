@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TableToolbar } from "@/components/ui/table-toolbar";
 import { Search, Filter, RotateCcw, ChevronRight, Lock, MapPin } from "lucide-react";
+import type { CandidateOfficeOption } from "@/types/api";
 
 interface CoverageFiltersProps {
   stateCode: string;
@@ -28,6 +29,9 @@ interface CoverageFiltersProps {
   totalPUsCount: number;
   gapsCount: number;
   onReset: () => void;
+  offices: CandidateOfficeOption[];
+  officeId: number | null;
+  setOfficeId: (id: number | null) => void;
 }
 
 export function CoverageFilters({
@@ -47,6 +51,9 @@ export function CoverageFilters({
   totalPUsCount,
   gapsCount,
   onReset,
+  offices,
+  officeId,
+  setOfficeId,
 }: CoverageFiltersProps) {
   // Fetch live geography data
   const { data: apiStates = [] } = useGeographyStates();
@@ -76,6 +83,9 @@ export function CoverageFilters({
     "coverage-asc": "Coverage % (low to high)",
     "name-asc": "Name (A to Z)",
   };
+
+  const selectedOffice = offices.find((office) => office.id === officeId);
+  const totalRaces = offices.reduce((sum, office) => sum + office.count, 0);
 
   return (
     <div className="space-y-3">
@@ -143,11 +153,12 @@ export function CoverageFilters({
           ...(stateCode !== "all" ? [{ id: "state", label: `State: ${selectedState?.name ?? stateCode}`, onRemove: () => { setStateCode(activePersona.stateCode || "all"); setLgaCode("all"); setWardCode("all"); } }] : []),
           ...(lgaCode !== "all" ? [{ id: "lga", label: `LGA: ${selectedLga?.name ?? lgaCode}`, onRemove: () => { setLgaCode("all"); setWardCode("all"); } }] : []),
           ...(wardCode !== "all" ? [{ id: "ward", label: `Ward: ${selectedWard?.name ?? wardCode}`, onRemove: () => setWardCode("all") }] : []),
+          ...(officeId !== null ? [{ id: "office", label: `Office: ${selectedOffice?.name ?? "Selected"}`, onRemove: () => setOfficeId(null) }] : []),
           ...(searchQuery ? [{ id: "search", label: `Search: ${searchQuery}`, onRemove: () => setSearchQuery("") }] : []),
           ...(filterMode === "gaps" ? [{ id: "coverage", label: "Coverage: gaps only", onRemove: () => setFilterMode("all") }] : []),
         ]}
       >
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 items-end">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 items-end">
         {/* State Filter */}
         <div className="space-y-1">
           <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
@@ -268,6 +279,32 @@ export function CoverageFilters({
               {availableWards.map((w) => (
                 <SelectItem key={w.code} value={w.code}>
                   {w.name} ({w.code})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Office Filter */}
+        <div className="space-y-1">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Office
+          </label>
+          <Select
+            value={officeId === null ? "all" : String(officeId)}
+            onValueChange={(val) => setOfficeId(val && val !== "all" ? Number(val) : null)}
+            disabled={offices.length === 0}
+          >
+            <SelectTrigger className="w-full h-8.5 text-xs bg-background">
+              <SelectValue placeholder="All offices">
+                {() => (selectedOffice ? selectedOffice.name : "All offices")}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All offices ({totalRaces.toLocaleString()})</SelectItem>
+              {offices.map((office) => (
+                <SelectItem key={office.id} value={String(office.id)}>
+                  {office.name} ({office.count.toLocaleString()})
                 </SelectItem>
               ))}
             </SelectContent>
