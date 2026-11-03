@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -12,229 +13,132 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { STATES_DATA, LGAS_DATA, WARDS_DATA } from "@/lib/data/inec-data";
 import {
-  Users,
   MapPin,
+  Radio,
   ShieldCheck,
   UserCheck,
-  Building2,
-  Sparkles,
-  Info,
-  Radio,
-  Lock,
+  Users,
 } from "lucide-react";
-import { Persona } from "@/lib/types";
+import {
+  useGeographyStates,
+  useGeographyLgas,
+  useGeographyWards,
+} from "@/lib/hooks/use-geography";
+import type { AudiencePreview } from "@/types/api";
 
 export interface AudienceConfig {
-  includeCandidates: boolean;
-  includeOfficialAgents: boolean;
-  includeExtraAgents: boolean;
-  includeCoordinators: boolean;
-  scopeType: "national" | "state" | "lga" | "ward";
-  stateCode: string;
-  lgaCode: string;
-  wardCode: string;
+  stateId: number | null;
+  lgaId: number | null;
+  wardId: number | null;
+  agentKind: "all" | "official" | "extra";
 }
 
 interface StepAudienceProps {
   audience: AudienceConfig;
   onChange: (updated: AudienceConfig) => void;
-  activePersona: Persona;
-  computedCounts: {
-    candidates: number;
-    officialAgents: number;
-    extraAgents: number;
-    total: number;
-  };
+  preview: AudiencePreview | null;
+  previewLoading: boolean;
+  previewError: string | null;
+  onRetryPreview: () => void;
 }
 
 export function StepAudience({
   audience,
   onChange,
-  activePersona,
-  computedCounts,
+  preview,
+  previewLoading,
+  previewError,
+  onRetryPreview,
 }: StepAudienceProps) {
-  const isCandidatePersona = activePersona.role.startsWith("Candidate");
+  const statesQuery = useGeographyStates();
+  const lgasQuery = useGeographyLgas(audience.stateId);
+  const wardsQuery = useGeographyWards(audience.lgaId);
 
-  // LGA options for selected state
-  const availableLgas = LGAS_DATA.filter(
-    (l) => audience.stateCode === "all" || l.stateCode === audience.stateCode
-  );
-
-  // Ward options for selected LGA
-  const availableWards = WARDS_DATA.filter(
-    (w) => audience.lgaCode === "all" || w.lgaCode === audience.lgaCode
-  );
+  const totalRecipients = preview
+    ? audience.agentKind === "official"
+      ? preview.officialCount
+      : audience.agentKind === "extra"
+        ? preview.extraCount
+        : preview.officialCount + preview.extraCount
+    : null;
 
   return (
     <div className="space-y-6">
-      {/* 1. Recipient Role Types */}
-      <Card className="border-border/80 shadow-xs bg-card">
-        <CardContent className="p-4 sm:p-5 space-y-4">
+      <Card className="border-border/80 bg-card shadow-xs">
+        <CardContent className="space-y-4 p-4 sm:p-5">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <Users className="w-4 h-4 text-primary" />
+              <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                <Users className="h-4 w-4 text-primary" />
                 <span>Recipient Target Roles</span>
               </h3>
               <p className="text-xs text-muted-foreground">
-                Select which roster roles should receive this broadcast alert.
+                Choose which supported agent roles receive this broadcast.
               </p>
             </div>
-            <Badge variant="outline" className="text-xs font-mono">
+            <Badge variant="outline" className="font-mono text-xs">
               Step 1 of 3
             </Badge>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            {/* Candidates */}
-            <div
-              onClick={() =>
-                onChange({
-                  ...audience,
-                  includeCandidates: !audience.includeCandidates,
-                })
-              }
-              className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
-                audience.includeCandidates
-                  ? "bg-primary/5 border-primary/40 shadow-xs"
-                  : "bg-muted/20 border-border hover:bg-muted/40"
-              }`}
-            >
-              <Checkbox
-                checked={audience.includeCandidates}
-                onCheckedChange={(checked) =>
-                  onChange({
-                    ...audience,
-                    includeCandidates: !!checked,
-                  })
-                }
-                className="mt-0.5"
-              />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/20 p-3.5">
+              <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+              <div className="flex-1 space-y-0.5">
+                <Label htmlFor="agent-kind" className="text-xs font-bold">
+                  Agent type
+                </Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Filter by official or extra assignment, or include both.
+                </p>
+              </div>
+              <Select
+                value={audience.agentKind}
+                onValueChange={(value) => {
+                  if (value === "all" || value === "official" || value === "extra") {
+                    onChange({ ...audience, agentKind: value });
+                  }
+                }}
+              >
+                <SelectTrigger id="agent-kind" className="h-9 w-36 bg-background text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All agents</SelectItem>
+                  <SelectItem value="official">Official</SelectItem>
+                  <SelectItem value="extra">Extra</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-3.5 opacity-70">
+              <Checkbox checked={false} disabled aria-label="Candidates not available yet" />
               <div className="space-y-0.5">
-                <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <span>NDC Candidates</span>
-                  <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-background">
-                    {computedCounts.candidates} matching
+                <div className="flex items-center gap-1.5 text-xs font-bold">
+                  <span>Candidates</span>
+                  <Badge variant="outline" className="bg-background px-1 py-0 text-[10px]">
+                    Not available yet
                   </Badge>
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  Presidency, Governors, Senators, House of Reps, and State Assembly candidates.
+                <p className="text-[11px] text-muted-foreground">
+                  Candidate recipients are not supported by the broadcast API.
                 </p>
               </div>
             </div>
 
-            {/* Official Party Agents */}
-            <div
-              onClick={() =>
-                onChange({
-                  ...audience,
-                  includeOfficialAgents: !audience.includeOfficialAgents,
-                })
-              }
-              className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
-                audience.includeOfficialAgents
-                  ? "bg-emerald-500/10 border-emerald-500/40 shadow-xs dark:bg-emerald-950/20"
-                  : "bg-muted/20 border-border hover:bg-muted/40"
-              }`}
-            >
-              <Checkbox
-                checked={audience.includeOfficialAgents}
-                onCheckedChange={(checked) =>
-                  onChange({
-                    ...audience,
-                    includeOfficialAgents: !!checked,
-                  })
-                }
-                className="mt-0.5"
-              />
+            <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-3.5 opacity-70">
+              <Checkbox checked={false} disabled aria-label="Coordinators not available yet" />
               <div className="space-y-0.5">
-                <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Official Party Agents</span>
-                  <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-background">
-                    {computedCounts.officialAgents} PUs
+                <div className="flex items-center gap-1.5 text-xs font-bold">
+                  <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Coordinators</span>
+                  <Badge variant="outline" className="bg-background px-1 py-0 text-[10px]">
+                    Not available yet
                   </Badge>
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  Primary certified agents holding official INEC badges (1 per Polling Unit).
-                </p>
-              </div>
-            </div>
-
-            {/* Extra Candidate-sponsored Agents */}
-            <div
-              onClick={() =>
-                onChange({
-                  ...audience,
-                  includeExtraAgents: !audience.includeExtraAgents,
-                })
-              }
-              className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
-                audience.includeExtraAgents
-                  ? "bg-indigo-500/10 border-indigo-500/40 shadow-xs dark:bg-indigo-950/20"
-                  : "bg-muted/20 border-border hover:bg-muted/40"
-              }`}
-            >
-              <Checkbox
-                checked={audience.includeExtraAgents}
-                onCheckedChange={(checked) =>
-                  onChange({
-                    ...audience,
-                    includeExtraAgents: !!checked,
-                  })
-                }
-                className="mt-0.5"
-              />
-              <div className="space-y-0.5">
-                <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                  <span>Candidate Extra Agents</span>
-                  <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-background">
-                    {computedCounts.extraAgents} agents
-                  </Badge>
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  Extra Protectors, Mobilisers, and Snappers sponsored by candidate tickets.
-                </p>
-              </div>
-            </div>
-
-            {/* Ward & LGA Coordinators */}
-            <div
-              onClick={() =>
-                onChange({
-                  ...audience,
-                  includeCoordinators: !audience.includeCoordinators,
-                })
-              }
-              className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
-                audience.includeCoordinators
-                  ? "bg-amber-500/10 border-amber-500/40 shadow-xs dark:bg-amber-950/20"
-                  : "bg-muted/20 border-border hover:bg-muted/40"
-              }`}
-            >
-              <Checkbox
-                checked={audience.includeCoordinators}
-                onCheckedChange={(checked) =>
-                  onChange({
-                    ...audience,
-                    includeCoordinators: !!checked,
-                  })
-                }
-                className="mt-0.5"
-              />
-              <div className="space-y-0.5">
-                <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                  <span>Ward & LGA Coordinators</span>
-                  <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-background">
-                    Field Command
-                  </Badge>
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  Field supervisors responsible for local polling unit logistics and escalations.
+                <p className="text-[11px] text-muted-foreground">
+                  Coordinator recipients are not supported by the broadcast API.
                 </p>
               </div>
             </div>
@@ -242,244 +146,193 @@ export function StepAudience({
         </CardContent>
       </Card>
 
-      {/* 2. Geographic Target Scope */}
-      <Card className="border-border/80 shadow-xs bg-card">
-        <CardContent className="p-4 sm:p-5 space-y-4">
+      <Card className="border-border/80 bg-card shadow-xs">
+        <CardContent className="space-y-4 p-4 sm:p-5">
           <div className="space-y-0.5">
-            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-primary" />
+            <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <MapPin className="h-4 w-4 text-primary" />
               <span>Target Geographic Scope</span>
             </h3>
             <p className="text-xs text-muted-foreground">
-              Define the boundary level for this broadcast dispatch.
+              Select an area to filter recipients. Leave selectors at “All” for a wider scope.
             </p>
           </div>
 
-          {/* Persona constraint alert if candidate */}
-          {isCandidatePersona && (
-            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2">
-              <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-              <span>
-                Your candidate persona is scoped to <strong>{activePersona.label}</strong>. Broadcasts
-                will automatically filter within your constituency tree.
-              </span>
-            </div>
-          )}
-
-          {/* Scope Type Tabs */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {!isCandidatePersona && (
-              <button
-                type="button"
-                onClick={() =>
-                  onChange({
-                    ...audience,
-                    scopeType: "national",
-                    stateCode: "all",
-                    lgaCode: "all",
-                    wardCode: "all",
-                  })
-                }
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  audience.scopeType === "national"
-                    ? "bg-primary text-primary-foreground font-bold shadow-xs"
-                    : "bg-muted text-muted-foreground hover:text-foreground"
-                }`}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="broadcast-state" className="text-xs font-semibold">
+                State
+              </Label>
+              <Select
+                value={audience.stateId === null ? "all" : String(audience.stateId)}
+                onValueChange={(value) => {
+                  if (value === "all") {
+                    onChange({ ...audience, stateId: null, lgaId: null, wardId: null });
+                  } else if (value) {
+                    onChange({
+                      ...audience,
+                      stateId: Number(value),
+                      lgaId: null,
+                      wardId: null,
+                    });
+                  }
+                }}
+                disabled={statesQuery.isLoading || statesQuery.isError}
               >
-                Nationwide (All 37 States)
-              </button>
-            )}
+                <SelectTrigger id="broadcast-state" className="h-9 bg-background text-xs">
+                  <SelectValue placeholder="All states" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All states</SelectItem>
+                  {statesQuery.data?.map((state) => (
+                    <SelectItem key={state.id} value={String(state.id)}>
+                      {state.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {statesQuery.isError && (
+                <div role="alert" className="text-[11px] text-destructive">
+                  {statesQuery.error.message}
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 pl-1 text-[11px]"
+                    onClick={() => void statesQuery.refetch()}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              )}
+              {statesQuery.data?.length === 0 && !statesQuery.isLoading && (
+                <p className="text-[11px] text-muted-foreground">No available states.</p>
+              )}
+            </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                onChange({
-                  ...audience,
-                  scopeType: "state",
-                  stateCode: audience.stateCode === "all" ? "04" : audience.stateCode,
-                  lgaCode: "all",
-                  wardCode: "all",
-                })
-              }
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                audience.scopeType === "state"
-                  ? "bg-primary text-primary-foreground font-bold shadow-xs"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Statewide Level
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                onChange({
-                  ...audience,
-                  scopeType: "lga",
-                  stateCode: audience.stateCode === "all" ? "04" : audience.stateCode,
-                  lgaCode: audience.lgaCode === "all" ? "04-17" : audience.lgaCode,
-                  wardCode: "all",
-                })
-              }
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                audience.scopeType === "lga"
-                  ? "bg-primary text-primary-foreground font-bold shadow-xs"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              LGA / Constituency Level
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                onChange({
-                  ...audience,
-                  scopeType: "ward",
-                  stateCode: audience.stateCode === "all" ? "04" : audience.stateCode,
-                  lgaCode: audience.lgaCode === "all" ? "04-17" : audience.lgaCode,
-                  wardCode: audience.wardCode === "all" ? "04-17-03" : audience.wardCode,
-                })
-              }
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                audience.scopeType === "ward"
-                  ? "bg-primary text-primary-foreground font-bold shadow-xs"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Ward / Polling Unit Level
-            </button>
-          </div>
-
-          {/* Cascading Selectors */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-            {/* State Selector */}
-            {audience.scopeType !== "national" && (
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">State</Label>
-                <Select
-                  value={audience.stateCode}
-                  onValueChange={(val) =>
-                    val &&
-                    onChange({
-                      ...audience,
-                      stateCode: val,
-                      lgaCode: "all",
-                      wardCode: "all",
-                    })
+            <div className="space-y-1.5">
+              <Label htmlFor="broadcast-lga" className="text-xs font-semibold">
+                Local Government Area
+              </Label>
+              <Select
+                value={audience.lgaId === null ? "all" : String(audience.lgaId)}
+                onValueChange={(value) => {
+                  if (value === "all") {
+                    onChange({ ...audience, lgaId: null, wardId: null });
+                  } else if (value) {
+                    onChange({ ...audience, lgaId: Number(value), wardId: null });
                   }
-                >
-                  <SelectTrigger className="h-9 text-xs bg-background">
-                    <SelectValue placeholder="Select State" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All States</SelectItem>
-                    {STATES_DATA.map((st) => (
-                      <SelectItem key={st.code} value={st.code}>
-                        {st.code} · {st.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                }}
+                disabled={!audience.stateId || lgasQuery.isLoading || lgasQuery.isError}
+              >
+                <SelectTrigger id="broadcast-lga" className="h-9 bg-background text-xs">
+                  <SelectValue placeholder="All LGAs" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All LGAs</SelectItem>
+                  {lgasQuery.data?.map((lga) => (
+                    <SelectItem key={lga.id} value={String(lga.id)}>
+                      {lga.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {lgasQuery.isError && (
+                <div role="alert" className="text-[11px] text-destructive">
+                  {lgasQuery.error.message}
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 pl-1 text-[11px]"
+                    onClick={() => void lgasQuery.refetch()}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              )}
+            </div>
 
-            {/* LGA Selector */}
-            {(audience.scopeType === "lga" || audience.scopeType === "ward") && (
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Local Government Area (LGA)</Label>
-                <Select
-                  value={audience.lgaCode}
-                  onValueChange={(val) =>
-                    val &&
-                    onChange({
-                      ...audience,
-                      lgaCode: val,
-                      wardCode: "all",
-                    })
+            <div className="space-y-1.5">
+              <Label htmlFor="broadcast-ward" className="text-xs font-semibold">
+                Ward
+              </Label>
+              <Select
+                value={audience.wardId === null ? "all" : String(audience.wardId)}
+                onValueChange={(value) => {
+                  if (value === "all") {
+                    onChange({ ...audience, wardId: null });
+                  } else if (value) {
+                    onChange({ ...audience, wardId: Number(value) });
                   }
-                >
-                  <SelectTrigger className="h-9 text-xs bg-background">
-                    <SelectValue placeholder="Select LGA" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All LGAs</SelectItem>
-                    {availableLgas.map((lga) => (
-                      <SelectItem key={lga.code} value={lga.code}>
-                        {lga.code} · {lga.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Ward Selector */}
-            {audience.scopeType === "ward" && (
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Ward</Label>
-                <Select
-                  value={audience.wardCode}
-                  onValueChange={(val) =>
-                    val &&
-                    onChange({
-                      ...audience,
-                      wardCode: val,
-                    })
-                  }
-                >
-                  <SelectTrigger className="h-9 text-xs bg-background">
-                    <SelectValue placeholder="Select Ward" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Wards</SelectItem>
-                    {availableWards.map((w) => (
-                      <SelectItem key={w.code} value={w.code}>
-                        {w.code} · {w.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                }}
+                disabled={!audience.lgaId || wardsQuery.isLoading || wardsQuery.isError}
+              >
+                <SelectTrigger id="broadcast-ward" className="h-9 bg-background text-xs">
+                  <SelectValue placeholder="All wards" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All wards</SelectItem>
+                  {wardsQuery.data?.map((ward) => (
+                    <SelectItem key={ward.id} value={String(ward.id)}>
+                      {ward.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {wardsQuery.isError && (
+                <div role="alert" className="text-[11px] text-destructive">
+                  {wardsQuery.error.message}
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 pl-1 text-[11px]"
+                    onClick={() => void wardsQuery.refetch()}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 3. Live Target Audience Reach Card */}
-      <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-            <Radio className="w-3.5 h-3.5 text-primary animate-pulse" />
-            Computed Audience Reach
+      <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+            <Radio className="h-3.5 w-3.5 text-primary" />
+            Audience preview
           </span>
           <span className="text-lg font-mono font-extrabold text-primary">
-            {computedCounts.total.toLocaleString()} Recipients
+            {previewLoading ? "Loading…" : totalRecipients?.toLocaleString() ?? "—"} recipients
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-          <div className="p-2.5 rounded-lg bg-background border border-border">
-            <div className="text-[11px] text-muted-foreground">Candidates</div>
-            <div className="text-sm font-bold font-mono text-foreground mt-0.5">
-              {computedCounts.candidates.toLocaleString()}
+        {previewError ? (
+          <div role="alert" className="flex items-center justify-between gap-2 text-xs text-destructive">
+            <span>{previewError}</span>
+            <Button type="button" variant="outline" size="sm" onClick={onRetryPreview}>
+              Retry
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="rounded-lg border border-border bg-background p-2.5">
+              <div className="text-[11px] text-muted-foreground">Official agents</div>
+              <div className="mt-0.5 font-mono text-sm font-bold text-emerald-600">
+                {previewLoading ? "…" : preview?.officialCount.toLocaleString() ?? "—"}
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-background p-2.5">
+              <div className="text-[11px] text-muted-foreground">Extra agents</div>
+              <div className="mt-0.5 font-mono text-sm font-bold text-indigo-600">
+                {previewLoading ? "…" : preview?.extraCount.toLocaleString() ?? "—"}
+              </div>
             </div>
           </div>
-
-          <div className="p-2.5 rounded-lg bg-background border border-border">
-            <div className="text-[11px] text-muted-foreground">Official Agents</div>
-            <div className="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
-              {computedCounts.officialAgents.toLocaleString()}
-            </div>
-          </div>
-
-          <div className="p-2.5 rounded-lg bg-background border border-border">
-            <div className="text-[11px] text-muted-foreground">Extra Agents</div>
-            <div className="text-sm font-bold font-mono text-indigo-600 dark:text-indigo-400 mt-0.5">
-              {computedCounts.extraAgents.toLocaleString()}
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
