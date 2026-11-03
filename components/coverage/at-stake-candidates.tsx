@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { useCandidateCoverage } from "@/lib/hooks/use-coverage";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -12,6 +11,7 @@ interface AtStakeCandidatesProps {
   stateId: number | null;
   lgaId: number | null;
   wardId: number | null;
+  officeId?: number | null;
   areaName?: string;
 }
 
@@ -39,6 +39,7 @@ export function AtStakeCandidates({
   stateId,
   lgaId,
   wardId,
+  officeId = null,
   areaName,
 }: AtStakeCandidatesProps) {
   const {
@@ -54,10 +55,12 @@ export function AtStakeCandidates({
     stateId,
     lgaId,
     wardId,
+    officeId,
   });
 
   const candidates = data?.pages.flatMap((page) => page.items) ?? [];
   const totalRaces = data?.pages[0]?.total ?? candidates.length;
+  const selectedOffice = data?.pages[0]?.offices?.find((office) => office.id === officeId);
 
   return (
     <div className="space-y-2.5">
@@ -81,8 +84,8 @@ export function AtStakeCandidates({
               variant="secondary"
               className="text-xs px-2 py-0.5 font-normal"
             >
-              {totalRaces.toLocaleString()} race{totalRaces === 1 ? "" : "s"} at
-              this level
+              {totalRaces.toLocaleString()} race{totalRaces === 1 ? "" : "s"}
+              {selectedOffice ? ` for ${selectedOffice.name}` : " at this level"}
             </Badge>
           ) : null}
         </div>

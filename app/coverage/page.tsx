@@ -13,6 +13,7 @@ import {
 import {
   useCoverageSummary,
   useCoverageGaps,
+  useCandidateCoverage,
 } from "@/lib/hooks/use-coverage";
 import { StateData, LGAData, WardData, PollingUnitData } from "@/lib/types";
 import { KPISummary } from "@/components/coverage/kpi-summary";
@@ -128,6 +129,22 @@ export default function CoveragePage() {
   const selectedWardId = useMemo(() => {
     return selectedWard ? selectedWard.id : null;
   }, [selectedWard]);
+
+  // An office choice only applies to the area it was made in.
+  const areaKey = `${selectedStateId ?? ""}-${selectedLgaId ?? ""}-${selectedWardId ?? ""}`;
+  const [officeChoice, setOfficeChoice] = useState<{ areaKey: string; officeId: number | null }>({
+    areaKey,
+    officeId: null,
+  });
+  const selectedOfficeId = officeChoice.areaKey === areaKey ? officeChoice.officeId : null;
+  const setSelectedOfficeId = (officeId: number | null) => setOfficeChoice({ areaKey, officeId });
+  const candidateOffices =
+    useCandidateCoverage({
+      stateId: selectedStateId,
+      lgaId: selectedLgaId,
+      wardId: selectedWardId,
+      officeId: selectedOfficeId,
+    }).data?.pages[0]?.offices ?? [];
 
   const {
     data: apiPollingUnits = [],
@@ -489,7 +506,13 @@ export default function CoveragePage() {
       activePersona={activePersona}
       totalPUsCount={kpiData?.totalPUs ?? 0}
       gapsCount={kpiData?.noCoveragePUs ?? 0}
-      onReset={resetAreaFilters}
+      onReset={() => {
+        resetAreaFilters();
+        setSelectedOfficeId(null);
+      }}
+      offices={candidateOffices}
+      officeId={selectedOfficeId}
+      setOfficeId={setSelectedOfficeId}
     />
   );
 
@@ -548,6 +571,7 @@ export default function CoveragePage() {
         stateId={selectedStateId}
         lgaId={selectedLgaId}
         wardId={selectedWardId}
+        officeId={selectedOfficeId}
         areaName={levelName}
       />
 

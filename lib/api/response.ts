@@ -5,6 +5,7 @@ export interface SuccessMeta {
   nextCursor?: string | null;
   limit?: number;
   total?: number;
+  offices?: Array<{ id: number; name: string; hierarchyLevel: number; count: number }>;
 }
 
 export function success<T>(

@@ -688,6 +688,12 @@ paths:
         - $ref: "#/components/parameters/lgaFilter"
         - $ref: "#/components/parameters/wardFilter"
         - $ref: "#/components/parameters/politicalUnitFilter"
+        - name: officeId
+          in: query
+          description: Only return candidates running for this office.
+          schema:
+            type: integer
+            minimum: 1
         - name: cursor
           in: query
           schema:
@@ -1042,7 +1048,24 @@ components:
         total:
           type: integer
           description: Total matching items across all pages, when the route provides it.
+        offices:
+          type: array
+          description: Offices with candidates in the filtered area. Returned on the first page of /api/coverage/candidates only, ignoring the officeId filter.
+          items:
+            $ref: "#/components/schemas/CandidateOfficeOption"
       additionalProperties: false
+    CandidateOfficeOption:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        hierarchyLevel:
+          type: integer
+        count:
+          type: integer
+      required: [id, name, hierarchyLevel, count]
     SuccessOkResponse:
       allOf:
         - $ref: "#/components/schemas/SuccessEnvelope"
