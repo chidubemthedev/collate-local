@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiClientError } from "@/lib/api/client";
 import { GEOGRAPHY_KEYS } from "@/lib/hooks/use-geography";
 import type {
@@ -54,6 +54,14 @@ export function useCoverageSummary(
   });
 }
 
+const CANDIDATE_COVERAGE_PAGE_SIZE = 12;
+
+export interface CandidateCoveragePage {
+  items: CandidateCoverage[];
+  nextCursor: string | null;
+  total: number;
+}
+
 /**
  * Fetch candidates whose seats fall in the current scope, with their coverage.
  */
@@ -63,15 +71,22 @@ export function useCandidateCoverage(filters: CoverageFilters = {}) {
   if (filters.lgaId && filters.lgaId > 0) cleanFilters.lgaId = filters.lgaId;
   if (filters.wardId && filters.wardId > 0) cleanFilters.wardId = filters.wardId;
 
-  return useQuery<CandidateCoverage[], ApiClientError>({
+  return useInfiniteQuery<CandidateCoveragePage, ApiClientError>({
     queryKey: [...COVERAGE_KEYS.all, "candidates", cleanFilters] as const,
-    queryFn: async () => {
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) => {
       const res = await apiClient.get<CandidateCoverage[]>("/api/coverage/candidates", {
         ...cleanFilters,
-        limit: 100,
+        limit: CANDIDATE_COVERAGE_PAGE_SIZE,
+        cursor: pageParam as string | null,
       });
-      return res.data;
+      return {
+        items: res.data,
+        nextCursor: res.meta?.nextCursor ?? null,
+        total: res.meta?.total ?? res.data.length,
+      };
     },
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     staleTime: 1000 * 60 * 2,
   });
 }

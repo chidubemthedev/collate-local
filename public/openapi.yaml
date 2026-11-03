@@ -1039,6 +1039,9 @@ components:
           type: [string, "null"]
         limit:
           type: integer
+        total:
+          type: integer
+          description: Total matching items across all pages, when the route provides it.
       additionalProperties: false
     SuccessOkResponse:
       allOf:

@@ -18,6 +18,7 @@ export interface CandidateCoverageItem {
 export interface CandidateCoveragePage {
   items: CandidateCoverageItem[];
   nextCursor: string | null;
+  total: number;
 }
 
 export interface CandidateCoverageQuery {
@@ -151,6 +152,24 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
       [query.actorPersonId, "view_candidate_coverage", query.ipAddress],
     );
 
+    const totalRows = await manager.query<Array<{ total: string }>>(
+      `
+        SELECT COUNT(*) AS total
+        FROM candidate c
+        JOIN seat st ON st.id = c.seat_id
+        WHERE EXISTS (
+          SELECT 1
+          FROM pu_political_unit ppu
+          JOIN polling_unit pu ON pu.id = ppu.polling_unit_id
+          JOIN ward w ON w.id = pu.ward_id
+          JOIN lga l ON l.id = w.lga_id
+          JOIN state s ON s.id = l.state_id
+          WHERE ppu.political_unit_id = st.political_unit_id AND ${geo}
+        );
+      `,
+      query.geoParameters,
+    );
+
     const items = pageRows.map((row): CandidateCoverageItem => {
       const totalPUs = Number(row.total_pus);
       const coveredPUs = Number(row.covered_pus);
@@ -171,6 +190,7 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
     return {
       items,
       nextCursor: hasMore && last ? `${last.hierarchy_level}.${last.id}` : null,
+      total: Number(totalRows[0]?.total ?? 0),
     };
   });
 }

@@ -13,6 +13,7 @@ export interface SuccessEnvelope<T> {
   meta?: {
     nextCursor?: string | null;
     limit?: number;
+    total?: number;
   };
 }
 
