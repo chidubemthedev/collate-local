@@ -1,14 +1,22 @@
 import type { DataSource } from "typeorm";
+import { maskPhoneNumber } from "@/lib/policy/core/list-agents";
 
 export const CANDIDATE_COVERAGE_MAX_LIMIT = 100;
+
+export type CandidateChannelStatus = "connected" | "sms_only" | "not_matched";
 
 export interface CandidateCoverageItem {
   id: number;
   office: string;
   hierarchyLevel: number;
   seat: string;
+  stateId: number | null;
+  inecStateCode: string | null;
   name: string;
   deputyName: string | null;
+  maskedPhone: string | null;
+  channelStatus: CandidateChannelStatus;
+  isOffCycle: boolean;
   totalPUs: number;
   coveredPUs: number;
   coveragePct: number;
@@ -37,8 +45,13 @@ interface Row {
   office_name: string;
   hierarchy_level: number;
   seat_name: string;
+  state_id: number | null;
+  inec_state_code: string | null;
   full_name: string;
   deputy_name: string | null;
+  phone_e164: string | null;
+  has_telegram: boolean;
+  is_off_cycle: boolean;
   total_pus: string;
   covered_pus: string;
   extra_agents: string;
@@ -64,14 +77,27 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
       SELECT
         c.id,
         c.person_id,
+        o.id AS office_id,
         o.office_name,
         o.hierarchy_level,
         pun.id AS unit_id,
-        pun.political_unit_name AS seat_name
+        pun.political_unit_name AS seat_name,
+        seat_state.id AS state_id,
+        seat_state.inec_state_code
       FROM candidate c
       JOIN seat st ON st.id = c.seat_id
       JOIN office o ON o.id = st.office_id
       JOIN political_unit pun ON pun.id = st.political_unit_id
+      LEFT JOIN LATERAL (
+        SELECT s2.id, s2.inec_state_code
+        FROM pu_political_unit ppu2
+        JOIN polling_unit pu2 ON pu2.id = ppu2.polling_unit_id
+        JOIN ward w2 ON w2.id = pu2.ward_id
+        JOIN lga l2 ON l2.id = w2.lga_id
+        JOIN state s2 ON s2.id = l2.state_id
+        WHERE ppu2.political_unit_id = pun.id AND pun.political_unit_type <> 'country'
+        LIMIT 1
+      ) seat_state ON TRUE
       WHERE (${levelParam}::int IS NULL OR (o.hierarchy_level, c.id) > (${levelParam}::int, ${idParam}::int))
         AND EXISTS (
           SELECT 1
@@ -90,7 +116,31 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
       page.office_name,
       page.hierarchy_level,
       page.seat_name,
+      page.state_id,
+      page.inec_state_code,
       person.full_name,
+      (
+        SELECT ph.e164_number
+        FROM phone_number ph
+        WHERE ph.person_id = page.person_id
+        ORDER BY (ph.telegram_chat_id IS NOT NULL) DESC, ph.is_confirmed DESC, ph.e164_number
+        LIMIT 1
+      ) AS phone_e164,
+      EXISTS (
+        SELECT 1 FROM phone_number ph
+        WHERE ph.person_id = page.person_id AND ph.telegram_chat_id IS NOT NULL
+      ) AS has_telegram,
+      (
+        page.state_id IS NOT NULL
+        AND EXISTS (
+          SELECT 1
+          FROM election_day_office edo
+          JOIN election_day_off_cycle_state oc ON oc.election_day_id = edo.election_day_id
+          WHERE edo.office_id = page.office_id
+            AND oc.state_id = page.state_id
+            AND edo.election_day_id = (SELECT id FROM election_day ORDER BY election_date DESC LIMIT 1)
+        )
+      ) AS is_off_cycle,
       (
         SELECT mate_person.full_name
         FROM candidate mate
@@ -148,8 +198,15 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
     const last = pageRows[pageRows.length - 1];
 
     await manager.query(
-      `INSERT INTO audit_log (actor_person_id, action_type, ip_address) VALUES ($1, $2, $3);`,
-      [query.actorPersonId, "view_candidate_coverage", query.ipAddress],
+      `INSERT INTO audit_log (actor_person_id, action_type, target_entity_type, target_entity_id, ip_address)
+       VALUES ($1, $2, $3, $4, $5);`,
+      [
+        query.actorPersonId,
+        "view_candidate_coverage",
+        pageRows.length > 0 ? "candidate" : null,
+        pageRows.length > 0 ? pageRows.map((row) => row.id).join(",").slice(0, 250) : null,
+        query.ipAddress,
+      ],
     );
 
     const totalRows = await manager.query<Array<{ total: string }>>(
@@ -178,8 +235,13 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
         office: row.office_name,
         hierarchyLevel: row.hierarchy_level,
         seat: row.seat_name,
+        stateId: row.state_id,
+        inecStateCode: row.inec_state_code,
         name: row.full_name,
         deputyName: row.deputy_name,
+        maskedPhone: maskPhoneNumber(row.phone_e164),
+        channelStatus: row.has_telegram ? "connected" : row.phone_e164 ? "sms_only" : "not_matched",
+        isOffCycle: row.is_off_cycle,
         totalPUs,
         coveredPUs,
         coveragePct: totalPUs > 0 ? Math.round((coveredPUs / totalPUs) * 100) : 0,

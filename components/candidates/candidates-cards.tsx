@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { CandidateData } from "@/lib/types";
-import { useApp } from "@/lib/context/app-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,11 +9,8 @@ import { Progress } from "@/components/ui/progress";
 import { CandidateDetailModal } from "./candidate-detail-modal";
 import {
   ShieldCheck,
-  Eye,
   AlertTriangle,
   Phone,
-  FileText,
-  User,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -24,16 +20,15 @@ interface CandidatesCardsProps {
 }
 
 export function CandidatesCards({ candidates }: CandidatesCardsProps) {
-  const { setPersonaId, activePersona } = useApp();
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [pageState, setPageState] = useState({ list: candidates, page: 1 });
   const PAGE_SIZE = 12;
 
-  // Auto-reset page when candidates list changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [candidates]);
+  // Reset to the first page whenever the candidate list changes
+  const currentPage = pageState.list === candidates ? pageState.page : 1;
+  const setCurrentPage = (update: (page: number) => number) =>
+    setPageState({ list: candidates, page: update(currentPage) });
 
   const totalItems = candidates.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
@@ -66,14 +61,6 @@ export function CandidatesCards({ candidates }: CandidatesCardsProps) {
     }
   };
 
-  const getPersonaTarget = (cand: CandidateData) => {
-    if (cand.office === "President") return "persona-cand-pres";
-    if (cand.office === "House of Reps") return "persona-cand-rep-onitsha";
-    if (cand.office === "State Assembly" && cand.id === "cand-ass-04-onitsha-1") return "persona-cand-ass-onitsha-1";
-    if (cand.office === "State Assembly" && cand.id === "cand-ass-04-onitsha-2") return "persona-cand-ass-onitsha-2";
-    return null;
-  };
-
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -83,9 +70,6 @@ export function CandidatesCards({ candidates }: CandidatesCardsProps) {
           </div>
         ) : (
           paginatedCandidates.map((cand) => {
-            const personaTarget = getPersonaTarget(cand);
-            const isCurrentActive = personaTarget && activePersona.id === personaTarget;
-
             if (cand.isOffCycle) {
               return (
                 <Card
@@ -99,16 +83,16 @@ export function CandidatesCards({ candidates }: CandidatesCardsProps) {
                         {cand.office}
                       </Badge>
                       <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-800 border-amber-300">
-                        Off-Cycle State
+                        Off-Cycle Seat
                       </Badge>
                     </div>
                     <div>
-                      <div className="text-xs text-muted-foreground">Seat: <span className="font-semibold text-foreground">{cand.seat} State</span></div>
+                      <div className="text-xs text-muted-foreground">Seat: <span className="font-semibold text-foreground">{cand.seat}</span></div>
                       <div className="font-bold text-sm text-foreground mt-0.5">{cand.name}</div>
                     </div>
                     <div className="text-[11px] text-amber-800 dark:text-amber-300 bg-amber-100/60 dark:bg-amber-950/50 p-2.5 rounded border border-amber-200 flex items-start gap-1.5">
                       <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                      <span>{cand.offCycleNote || "No governorship election in Anambra in 2027 (off-cycle state)."}</span>
+                      <span>This seat is not up in the next election day (off-cycle state).</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -118,9 +102,7 @@ export function CandidatesCards({ candidates }: CandidatesCardsProps) {
             return (
               <Card
                 key={cand.id}
-                className={`border-border/70 bg-card shadow-none hover:border-primary/50 hover:bg-muted/10 transition-all flex flex-col justify-between cursor-pointer ${
-                  isCurrentActive ? "ring-2 ring-primary bg-primary/5" : ""
-                }`}
+                className="border-border/70 bg-card shadow-none hover:border-primary/50 hover:bg-muted/10 transition-all flex flex-col justify-between cursor-pointer"
                 onClick={() => handleOpenCandidate(cand)}
               >
                 <CardContent className="p-4 space-y-3">
@@ -148,7 +130,7 @@ export function CandidatesCards({ candidates }: CandidatesCardsProps) {
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
                     <div className="flex items-center gap-1 font-mono">
                       <Phone className="w-3 h-3 text-foreground/60" />
-                      <span>{cand.phoneMasked}</span>
+                      <span>{cand.phoneMasked ?? "No phone on file"}</span>
                     </div>
                     <Badge
                       variant="outline"
@@ -160,7 +142,7 @@ export function CandidatesCards({ candidates }: CandidatesCardsProps) {
                           : "bg-muted text-muted-foreground"
                       }`}
                     >
-                      {cand.telegramStatus === "connected" ? "Telegram" : "SMS Only"}
+                      {cand.telegramStatus === "connected" ? "Telegram" : cand.telegramStatus === "sms_only" ? "SMS Only" : "Not Matched"}
                     </Badge>
                   </div>
 
@@ -183,21 +165,6 @@ export function CandidatesCards({ candidates }: CandidatesCardsProps) {
                       </span>
                     </div>
                   </div>
-
-                  {/* Persona Switcher Button */}
-                  {personaTarget && (
-                    <div className="pt-1" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant={isCurrentActive ? "default" : "outline"}
-                        size="sm"
-                        className="w-full text-xs h-7 gap-1"
-                        onClick={() => setPersonaId(personaTarget)}
-                      >
-                        <Eye className="w-3 h-3" />
-                        {isCurrentActive ? "Active Scoped View" : "View As Candidate"}
-                      </Button>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             );

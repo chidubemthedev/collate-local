@@ -2,11 +2,9 @@
 
 import React from "react";
 import { CandidateData } from "@/lib/types";
-import { useApp } from "@/lib/context/app-context";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
@@ -17,16 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   ShieldCheck,
   AlertTriangle,
-  User,
-  Users,
-  Phone,
-  MessageSquare,
   Send,
-  Eye,
-  CheckCircle2,
-  AlertCircle,
-  FileText,
-  MapPin,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -41,8 +30,6 @@ export function CandidateDetailModal({
   open,
   onOpenChange,
 }: CandidateDetailModalProps) {
-  const { setPersonaId, activePersona } = useApp();
-
   if (!candidate) return null;
 
   const getOfficeBadgeColor = (office: string) => {
@@ -61,17 +48,6 @@ export function CandidateDetailModal({
         return "bg-muted text-muted-foreground";
     }
   };
-
-  const getPersonaTarget = () => {
-    if (candidate.office === "President") return "persona-cand-pres";
-    if (candidate.office === "House of Reps") return "persona-cand-rep-onitsha";
-    if (candidate.office === "State Assembly" && candidate.id === "cand-ass-04-onitsha-1") return "persona-cand-ass-onitsha-1";
-    if (candidate.office === "State Assembly" && candidate.id === "cand-ass-04-onitsha-2") return "persona-cand-ass-onitsha-2";
-    return null;
-  };
-
-  const personaTarget = getPersonaTarget();
-  const isCurrentActive = personaTarget && activePersona.id === personaTarget;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,7 +87,7 @@ export function CandidateDetailModal({
               <div>
                 <p className="font-semibold">Off-Cycle Election Seat</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {candidate.offCycleNote || "No election scheduled for this seat in 2027 general election cycle."}
+                  This seat is not up in the next election day (off-cycle state).
                 </p>
               </div>
             </div>
@@ -173,18 +149,9 @@ export function CandidateDetailModal({
                     </Badge>
                   </div>
                   <span className="text-[10px] text-muted-foreground font-mono block mt-1">
-                    {candidate.phoneMasked}
+                    {candidate.phoneMasked ?? "No phone on file"}
                   </span>
                 </div>
-              </div>
-
-              {/* Verification Reference */}
-              <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
-                <span className="flex items-center gap-1">
-                  <FileText className="w-3.5 h-3.5" />
-                  INEC Validation Source
-                </span>
-                <span className="font-mono font-medium text-foreground">{candidate.source}</span>
               </div>
             </>
           )}
@@ -193,20 +160,6 @@ export function CandidateDetailModal({
 
           {/* Action Buttons */}
           <div className="space-y-2 pt-1">
-            {personaTarget && (
-              <Button
-                variant={isCurrentActive ? "default" : "outline"}
-                className="w-full text-xs h-8 gap-1.5"
-                onClick={() => {
-                  setPersonaId(personaTarget);
-                  onOpenChange(false);
-                }}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                {isCurrentActive ? "Active Scoped View" : "View As This Candidate"}
-              </Button>
-            )}
-
             <div className="flex items-center gap-2">
               <Link
                 href={`/broadcasts/new?target=${encodeURIComponent(candidate.name)}`}
