@@ -4,6 +4,7 @@ import React from "react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { MapPin, Users, ShieldCheck, Info, Landmark } from "lucide-react";
 
 interface KPISummaryProps {
@@ -43,7 +44,7 @@ export function KPISummary({
         </div>
         <div className="mt-2">
           <div className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
-            {totalPUs.toLocaleString()}
+            <AnimatedNumber value={totalPUs} />
           </div>
         </div>
       </div>
@@ -57,10 +58,10 @@ export function KPISummary({
         <div className="mt-2">
           <div className="flex items-baseline gap-1.5">
             <span className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
-              {gpsPUs.toLocaleString()}
+              <AnimatedNumber value={gpsPUs} />
             </span>
             <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-              ({gpsPct}%)
+              (<AnimatedNumber value={gpsPct} />%)
             </span>
           </div>
           <Progress value={gpsPct} className="h-1.5 mt-2 bg-blue-100 dark:bg-blue-950/50" />
@@ -74,7 +75,7 @@ export function KPISummary({
         </div>
         <div className="mt-2">
           <div className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
-            {(wardsCount ?? (statesCount !== undefined ? statesCount : 1)).toLocaleString()}
+            <AnimatedNumber value={wardsCount ?? (statesCount !== undefined ? statesCount : 1)} />
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
             {wardsCount !== undefined ? "Registration areas" : "Administrative units"}
@@ -90,7 +91,7 @@ export function KPISummary({
         </div>
         <div className="mt-2">
           <div className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
-            {(lgasCount ?? (statesCount !== undefined ? statesCount : 1)).toLocaleString()}
+            <AnimatedNumber value={lgasCount ?? (statesCount !== undefined ? statesCount : 1)} />
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
             Local govt councils
@@ -117,10 +118,10 @@ export function KPISummary({
         <div className="mt-2">
           <div className="flex items-baseline justify-between">
             <span className="text-xl md:text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
-              {officialAgentPct}%
+              <AnimatedNumber value={officialAgentPct} />%
             </span>
             <span className="text-[11px] text-muted-foreground">
-              {coveredPUs.toLocaleString()} / {totalPUs.toLocaleString()} PUs
+              <AnimatedNumber value={coveredPUs} /> / <AnimatedNumber value={totalPUs} /> PUs
             </span>
           </div>
           <div className="mt-1.5 space-y-1">
@@ -132,7 +133,7 @@ export function KPISummary({
             </div>
             <div className="flex items-center justify-between text-[10px] text-muted-foreground">
               <span className="text-amber-600 dark:text-amber-400 font-medium">
-                {noCoveragePUs.toLocaleString()} gaps
+                <AnimatedNumber value={noCoveragePUs} /> gaps
               </span>
               <span>Target: 100%</span>
             </div>
@@ -153,7 +154,7 @@ export function KPISummary({
         </div>
         <div className="mt-2">
           <div className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
-            {extraAgentsCount.toLocaleString()}
+            <AnimatedNumber value={extraAgentsCount} />
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
             Candidate-sponsored protectors & mobilisers
