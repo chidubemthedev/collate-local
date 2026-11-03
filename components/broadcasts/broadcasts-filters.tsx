@@ -187,7 +187,19 @@ export function BroadcastsFilters({
         <div className="min-w-0 w-full">
           <Select value={selectedScope} onValueChange={(v) => v && onScopeChange(v)}>
             <SelectTrigger className="h-8.5 text-xs bg-background w-full">
-              <SelectValue placeholder="Target Geography" />
+              <SelectValue placeholder="Target Geography">
+                {(val) => {
+                  if (!val || val === "all") return "All Geographies";
+                  const labels: Record<string, string> = {
+                    national: "Nigeria (National)",
+                    "04": "04 · Anambra State",
+                    "24": "24 · Lagos State",
+                    "19": "19 · Kano State",
+                    "04-17": "04-17 · Onitsha North LGA",
+                  };
+                  return labels[val] || val;
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Geographies</SelectItem>
@@ -204,7 +216,17 @@ export function BroadcastsFilters({
         <div className="min-w-0 w-full">
           <Select value={selectedSenderRole} onValueChange={(v) => v && onSenderRoleChange(v)}>
             <SelectTrigger className="h-8.5 text-xs bg-background w-full">
-              <SelectValue placeholder="Sender Role" />
+              <SelectValue placeholder="Sender Role">
+                {(val) => {
+                  if (!val || val === "all") return "All Senders";
+                  const labels: Record<string, string> = {
+                    Party: "Party · National",
+                    Candidate: "Candidates",
+                    Admin: "Admin · System",
+                  };
+                  return labels[val] || val;
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Senders</SelectItem>
@@ -222,7 +244,16 @@ export function BroadcastsFilters({
             onValueChange={(v) => v && onChannelChange && onChannelChange(v)}
           >
             <SelectTrigger className="h-8.5 text-xs bg-background w-full">
-              <SelectValue placeholder="Delivery Channel" />
+              <SelectValue placeholder="Delivery Channel">
+                {(val) => {
+                  if (!val || val === "all") return "All Channels";
+                  const labels: Record<string, string> = {
+                    Telegram: "Telegram",
+                    SMS: "SMS",
+                  };
+                  return labels[val] || val;
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Channels</SelectItem>

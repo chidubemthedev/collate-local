@@ -192,7 +192,17 @@ export function ReportFilters({
           <div className="w-[180px]">
             <Select value={selectedGroup} onValueChange={(val) => val && onGroupChange(val)}>
               <SelectTrigger className="h-9 text-xs bg-background">
-                <SelectValue placeholder="Filter by Group" />
+                <SelectValue placeholder="Filter by Group">
+                  {(val) => {
+                    if (!val || val === "all") return "All Groups & Roles";
+                    const labels: Record<string, string> = {
+                      candidate: "NDC Candidates",
+                      official: "Official Party Agents",
+                      extra: "Candidate Extra Agents",
+                    };
+                    return labels[val] || val;
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Groups & Roles</SelectItem>

@@ -244,7 +244,19 @@ export function AgentsFilters({
             }}
           >
             <SelectTrigger className="h-8.5 text-xs bg-background w-full">
-              <SelectValue placeholder="All Sponsors" />
+              <SelectValue placeholder="All Sponsors">
+                {(val) => {
+                  if (!val || val === "all") return "All Sponsors";
+                  const labels: Record<string, string> = {
+                    Party: "Party Official",
+                    President: "Presidency",
+                    Senate: "Senate",
+                    "House of Reps": "House of Reps",
+                    "State Assembly": "State Assembly",
+                  };
+                  return labels[val] || val;
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Sponsors</SelectItem>
@@ -269,7 +281,18 @@ export function AgentsFilters({
             }}
           >
             <SelectTrigger className="h-8.5 text-xs bg-background w-full">
-              <SelectValue placeholder="All Roles" />
+              <SelectValue placeholder="All Roles">
+                {(val) => {
+                  if (!val || val === "all") return "All Roles";
+                  const labels: Record<string, string> = {
+                    "Official Party Agent": "Official Party Agent",
+                    Protector: "Protector (Ballot Guard)",
+                    Mobiliser: "Mobiliser (Turnout)",
+                    Snapper: "Snapper (EC8A Photos)",
+                  };
+                  return labels[val] || val;
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Roles</SelectItem>
