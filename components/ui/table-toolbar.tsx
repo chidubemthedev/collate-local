@@ -1,7 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { X, SlidersHorizontal } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { X, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,18 +23,40 @@ export function TableToolbar({
   actions,
   activeFilters = [],
   onClear,
+  inlineMobile = false,
 }: {
   children: ReactNode;
   actions?: ReactNode;
   activeFilters?: ActiveTableFilter[];
   onClear?: () => void;
+  inlineMobile?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
+
   return (
     <div className="space-y-2.5">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <div className="hidden min-w-0 flex-1 items-center gap-2 sm:flex">
           {children}
         </div>
+        {inlineMobile ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="sm:hidden"
+            aria-expanded={open}
+            onClick={() => setOpen((value) => !value)}
+          >
+            <SlidersHorizontal className="mr-2 h-4 w-4" />
+            Filters
+            <Badge variant="secondary" className="ml-1 px-1.5">
+              {activeFilters.length}
+            </Badge>
+            <ChevronDown
+              className={`ml-1 h-4 w-4 transition-transform duration-300 ${open ? "rotate-180" : ""}`}
+            />
+          </Button>
+        ) : (
         <Sheet>
           <SheetTrigger
             render={
@@ -54,8 +76,22 @@ export function TableToolbar({
             <div className="space-y-3 px-4 pb-4">{children}</div>
           </SheetContent>
         </Sheet>
+        )}
         {actions && <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">{actions}</div>}
       </div>
+
+      {inlineMobile && (
+        <div
+          className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out sm:hidden ${
+            open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+          }`}
+          aria-hidden={!open}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="space-y-3 pb-1 pt-0.5">{children}</div>
+          </div>
+        </div>
+      )}
 
       {activeFilters.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">

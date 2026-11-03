@@ -137,6 +137,7 @@ export function CoverageFilters({
       </div>
 
       <TableToolbar
+        inlineMobile
         onClear={onReset}
         activeFilters={[
           ...(stateCode !== "all" ? [{ id: "state", label: `State: ${selectedState?.name ?? stateCode}`, onRemove: () => { setStateCode(activePersona.stateCode || "all"); setLgaCode("all"); setWardCode("all"); } }] : []),
