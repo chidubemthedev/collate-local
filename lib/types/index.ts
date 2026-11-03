@@ -157,20 +157,6 @@ export interface BroadcastRecipientLog {
   phoneMasked?: string;
 }
 
-export interface RecipientPerson {
-  id: string;
-  name: string;
-  group: string;
-  area: string;
-  phoneMasked: string;
-  telegramStatus: "Telegram connected" | "SMS only" | "Number not matched";
-  source: string;
-  stateCode?: string;
-  lgaCode?: string;
-  wardCode?: string;
-  puCode?: string;
-}
-
 export interface AccessGroup {
   id: string;
   name: string;

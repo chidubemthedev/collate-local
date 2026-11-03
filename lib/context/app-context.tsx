@@ -1,17 +1,15 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { Persona, BroadcastData, RecipientPerson, AccessGroup } from "@/lib/types";
+import { Persona, BroadcastData, AccessGroup } from "@/lib/types";
 import { PERSONAS, getEffectivePersona } from "@/lib/tree-permissions";
 import { BROADCASTS_DATA } from "@/lib/data/broadcasts-data";
-import { RECIPIENTS_DATA } from "@/lib/data/recipients-data";
 import { ACCESS_GROUPS_DATA } from "@/lib/data/settings-data";
 
 interface AppContextType {
   activePersona: Persona;
   setPersonaId: (id: string) => void;
   broadcasts: BroadcastData[];
-  recipients: RecipientPerson[];
   accessGroups: AccessGroup[];
   // Selected area filter shortcuts across pages
   selectedStateCode: string;
@@ -28,7 +26,6 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [personaId, setPersonaIdState] = useState<string>("persona-party-national");
   const [broadcasts] = useState<BroadcastData[]>(BROADCASTS_DATA);
-  const [recipients] = useState<RecipientPerson[]>(RECIPIENTS_DATA);
   const [accessGroups] = useState<AccessGroup[]>(ACCESS_GROUPS_DATA);
 
   // Global area navigation state
@@ -75,7 +72,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         activePersona,
         setPersonaId,
         broadcasts,
-        recipients,
         accessGroups,
         selectedStateCode,
         setSelectedStateCode,

@@ -12,9 +12,19 @@ export const agentFiltersSchema = z.object({
   ownerGroupId: idFilter.optional(),
   ownerCandidateId: idFilter.optional(),
   agentKind: z.nativeEnum(AgentKind).optional(),
+  channel: z.enum(["telegram", "not_connected"]).optional(),
+  q: z.string().trim().min(1).max(100).optional(),
   cursor: z.string().max(512).refine(isValidCursor).optional(),
   // Candidates must not get bulk export; this cap applies to every caller.
   limit: z.coerce.number().int().min(1).max(100).default(50),
 }).strict();
 
+export const agentSummaryFiltersSchema = agentFiltersSchema.omit({
+  cursor: true,
+  limit: true,
+  channel: true,
+  agentKind: true,
+});
+
 export type AgentFilters = z.infer<typeof agentFiltersSchema>;
+export type AgentSummaryFilters = z.infer<typeof agentSummaryFiltersSchema>;
