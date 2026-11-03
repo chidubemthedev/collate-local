@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { STATES_DATA, LGAS_DATA } from "@/lib/data/inec-data";
+import { TableToolbar } from "@/components/ui/table-toolbar";
 import {
   Search,
   Plus,
@@ -65,7 +66,6 @@ export function RecipientsFilters({
   selectedSource,
   onSourceChange,
   onReset,
-  isFiltered,
   onExportCSV,
 }: RecipientsFiltersProps) {
   const availableLgas = LGAS_DATA.filter(
@@ -166,32 +166,51 @@ export function RecipientsFilters({
           </button>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            title="Not unavailable yet"
-            className="h-9 text-xs font-medium gap-1.5 border-border"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            <span>Import CSV: Unavailable</span>
-          </Button>
-
-          <Button
-            size="sm"
-            disabled
-            title="Not available yet"
-            className="h-9 text-xs font-semibold gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Recipient: Unavailable</span>
-          </Button>
-        </div>
       </div>
 
-      {/* Second Row: Search, Dropdowns, Reset & Export */}
+      <TableToolbar
+        onClear={onReset}
+        activeFilters={[
+          ...(statusTab !== "all" ? [{ id: "status", label: `Status: ${statusTab}`, onRemove: () => onStatusTabChange("all") }] : []),
+          ...(searchQuery ? [{ id: "search", label: `Search: ${searchQuery}`, onRemove: () => onSearchChange("") }] : []),
+          ...(selectedGroup !== "all" ? [{ id: "group", label: `Role: ${selectedGroup}`, onRemove: () => onGroupChange("all") }] : []),
+          ...(selectedState !== "all" ? [{ id: "state", label: `State: ${STATES_DATA.find((state) => state.code === selectedState)?.name ?? selectedState}`, onRemove: () => { onStateChange("all"); onLgaChange("all"); } }] : []),
+          ...(selectedLga !== "all" ? [{ id: "lga", label: `LGA: ${availableLgas.find((lga) => lga.code === selectedLga)?.name ?? selectedLga}`, onRemove: () => onLgaChange("all") }] : []),
+          ...(selectedSource !== "all" ? [{ id: "source", label: `Source: ${selectedSource}`, onRemove: () => onSourceChange("all") }] : []),
+        ]}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled
+              title="Not unavailable yet"
+              className="h-9 text-xs font-medium gap-1.5 border-border"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Import CSV: Unavailable</span>
+            </Button>
+            <Button
+              size="sm"
+              disabled
+              title="Not available yet"
+              className="h-9 text-xs font-semibold gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Recipient: Unavailable</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onExportCSV}
+              className="h-9 text-xs font-medium gap-1.5 border-border shrink-0"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Export CSV</span>
+            </Button>
+          </>
+        }
+      >
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="flex flex-1 flex-wrap items-center gap-2.5">
           {/* Search Box */}
@@ -286,31 +305,10 @@ export function RecipientsFilters({
             </Select>
           </div>
 
-          {/* Reset Filters */}
-          {isFiltered && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onReset}
-              className="h-9 px-2.5 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <RotateCcw className="w-3.5 h-3.5 mr-1" />
-              Reset
-            </Button>
-          )}
         </div>
 
-        {/* Export CSV Button */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onExportCSV}
-          className="h-9 text-xs font-medium gap-1.5 border-border shrink-0 self-end lg:self-auto"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Export CSV</span>
-        </Button>
       </div>
+      </TableToolbar>
     </div>
   );
 }

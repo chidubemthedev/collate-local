@@ -153,7 +153,7 @@ export function CoverageTable({
         {level === "national" && (
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-muted/40 text-xs">
+              <TableHeader className="sticky top-0 z-10 bg-muted/40 text-xs">
                 <TableRow>
                   <TableHead className="w-16 font-semibold">Code</TableHead>
                   <TableHead className="font-semibold">State</TableHead>
@@ -237,7 +237,7 @@ export function CoverageTable({
         {level === "state" && (
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-muted/40 text-xs">
+              <TableHeader className="sticky top-0 z-10 bg-muted/40 text-xs">
                 <TableRow>
                   <TableHead className="w-20 font-semibold">Code</TableHead>
                   <TableHead className="font-semibold">Local Govt Area</TableHead>
@@ -321,7 +321,7 @@ export function CoverageTable({
         {level === "lga" && (
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-muted/40 text-xs">
+              <TableHeader className="sticky top-0 z-10 bg-muted/40 text-xs">
                 <TableRow>
                   <TableHead className="w-24 font-semibold">Code</TableHead>
                   <TableHead className="font-semibold">Ward Name</TableHead>
@@ -405,7 +405,7 @@ export function CoverageTable({
         {level === "ward" && (
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-muted/40 text-xs">
+              <TableHeader className="sticky top-0 z-10 bg-muted/40 text-xs">
                 <TableRow>
                   <TableHead className="w-32 font-semibold">INEC Code</TableHead>
                   <TableHead className="font-semibold min-w-[200px]">Polling Unit & Location</TableHead>

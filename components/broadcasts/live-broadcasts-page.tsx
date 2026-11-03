@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CardListSkeleton, StatCardSkeleton } from "@/components/ui/skeleton";
+import { TableToolbar } from "@/components/ui/table-toolbar";
 
 const statuses: Array<"all" | BroadcastStatus> = [
   "all",
@@ -106,19 +108,12 @@ export default function LiveBroadcastsPage() {
             <Send className="h-6 w-6 text-primary" />
             Broadcasts
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Broadcasts visible to your account, with delivery counts from the API.
-          </p>
         </div>
-        <Link
-          href="/broadcasts/new"
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80"
-        >
-          <Plus className="h-4 w-4" />New Broadcast
-        </Link>
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      {broadcastsQuery.isPending ? (
+        <StatCardSkeleton count={3} />
+      ) : <div className="grid gap-3 sm:grid-cols-3">
         <Card><CardContent className="p-4">
           <p className="text-xs text-muted-foreground">Broadcasts loaded</p>
           <p className="mt-1 text-2xl font-semibold">{broadcasts.length}</p>
@@ -135,10 +130,34 @@ export default function LiveBroadcastsPage() {
             {broadcasts.reduce((sum, item) => sum + item.deliveryCounts.delivered + item.deliveryCounts.deliveredBySms, 0)}
           </p>
         </CardContent></Card>
-      </div>
+      </div>}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-56 flex-1">
+      <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
+      <TableToolbar
+        onClear={() => {
+          setStatus("all");
+          setSearch("");
+        }}
+        activeFilters={[
+          ...(status !== "all" ? [{ id: "status", label: `Status: ${labelStatus(status)}`, onRemove: () => setStatus("all") }] : []),
+          ...(search ? [{ id: "search", label: `Search: ${search}`, onRemove: () => setSearch("") }] : []),
+        ]}
+        actions={
+          <>
+            <Link
+              href="/broadcasts/new"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/80"
+            >
+              <Plus className="h-4 w-4" />New Broadcast
+            </Link>
+            <Button variant="outline" onClick={exportCsv} disabled={filteredBroadcasts.length === 0}>
+              <Download className="mr-2 h-4 w-4" />Export loaded rows
+            </Button>
+          </>
+        }
+      >
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-[minmax(12rem,1fr)_12rem]">
+        <div className="relative min-w-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
@@ -151,7 +170,7 @@ export default function LiveBroadcastsPage() {
           aria-label="Filter by status"
           value={status}
           onChange={(event) => setStatus(event.target.value as "all" | BroadcastStatus)}
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+          className="h-10 min-w-0 rounded-md border border-input bg-background px-3 text-sm"
         >
           {statuses.map((value) => (
             <option key={value} value={value}>
@@ -159,13 +178,11 @@ export default function LiveBroadcastsPage() {
             </option>
           ))}
         </select>
-        <Button variant="outline" onClick={exportCsv} disabled={filteredBroadcasts.length === 0}>
-          <Download className="mr-2 h-4 w-4" />Export loaded rows
-        </Button>
-      </div>
+        </div>
+      </TableToolbar>
 
       {broadcastsQuery.isPending ? (
-        <div className="py-12 text-center text-sm text-muted-foreground">Loading broadcasts…</div>
+        <CardListSkeleton count={4} />
       ) : broadcastsQuery.isError ? (
         <div className="space-y-3 rounded-lg border border-destructive/30 p-8 text-center">
           <AlertCircle className="mx-auto h-6 w-6 text-destructive" />
@@ -179,12 +196,14 @@ export default function LiveBroadcastsPage() {
           {broadcasts.length === 0 ? "No broadcasts are available." : "No broadcasts match these filters."}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div
+          aria-busy={broadcastsQuery.isFetching}
+          className={`divide-y divide-border/60 ${broadcastsQuery.isFetching ? "opacity-60" : ""}`}
+        >
           {filteredBroadcasts.map((broadcast) => {
             const counts = broadcast.deliveryCounts;
             return (
-              <Card key={broadcast.id}>
-                <CardContent className="space-y-3 p-4 sm:p-5">
+              <div key={broadcast.id} className="space-y-3 py-4 first:pt-1 last:pb-1">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <Link
@@ -216,8 +235,7 @@ export default function LiveBroadcastsPage() {
                     <span>Failed: {counts.failed}</span>
                     <span>Tapped OK: {counts.tappedOk}</span>
                   </div>
-                </CardContent>
-              </Card>
+              </div>
             );
           })}
         </div>
@@ -234,6 +252,7 @@ export default function LiveBroadcastsPage() {
           </Button>
         </div>
       )}
+      </section>
     </div>
   );
 }

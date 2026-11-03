@@ -13,7 +13,6 @@ import {
   Contact,
   ShieldCheck,
   Layers,
-  Database,
   Eye,
   LogOut,
   LogIn,
@@ -245,16 +244,6 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* Footer data disclaimer matching wireframe */}
-      <div className="p-3 border-t border-border/60 bg-muted/20 text-[11px] text-muted-foreground space-y-1">
-        <div className="flex items-center gap-1.5 font-medium text-foreground">
-          <Database className="w-3.5 h-3.5 text-emerald-600" />
-          <span>INEC real data</span>
-        </div>
-        <p className="text-[10px] text-muted-foreground leading-normal">
-          DUMMY sample coverage for the wireframe demo.
-        </p>
-      </div>
     </aside>
   );
 }

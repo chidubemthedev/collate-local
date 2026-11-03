@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, StatCardSkeleton, TableSkeleton } from "@/components/ui/skeleton";
 
 export function CoverageFiltersSkeleton() {
   return (
@@ -52,23 +52,7 @@ export function CoverageFiltersSkeleton() {
 
 export function KPISummarySkeleton() {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div
-          key={i}
-          className="border border-border/60 rounded-xl bg-card p-3.5 flex flex-col justify-between h-[106px]"
-        >
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-3.5 w-20" />
-            <Skeleton className="h-4 w-4 rounded-full" />
-          </div>
-          <div className="space-y-1.5">
-            <Skeleton className="h-6 w-24" />
-            <Skeleton className="h-3 w-28" />
-          </div>
-        </div>
-      ))}
-    </div>
+    <StatCardSkeleton count={6} />
   );
 }
 
@@ -150,48 +134,25 @@ export function CoverageMapSkeleton() {
 
 export function CoverageTableSkeleton() {
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2 px-1">
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-4 w-36" />
-          <Skeleton className="h-4 w-16 rounded" />
-        </div>
-        <Skeleton className="h-7.5 w-24 rounded-lg" />
-      </div>
-
-      <div className="border border-border/60 rounded-xl overflow-hidden bg-card">
-        <div className="p-3 border-b border-border/60 bg-muted/30 grid grid-cols-6 gap-4">
-          <Skeleton className="h-3.5 w-10" />
-          <Skeleton className="h-3.5 w-24" />
-          <Skeleton className="h-3.5 w-16 justify-self-end" />
-          <Skeleton className="h-3.5 w-28 col-span-2" />
-          <Skeleton className="h-3.5 w-12 justify-self-end" />
-        </div>
-        <div className="divide-y divide-border/40">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="p-3.5 grid grid-cols-6 gap-4 items-center">
-              <Skeleton className="h-3 w-8" />
-              <Skeleton className="h-3.5 w-28" />
-              <Skeleton className="h-3 w-14 justify-self-end" />
-              <div className="col-span-2 space-y-1">
-                <div className="flex justify-between">
-                  <Skeleton className="h-3 w-8" />
-                  <Skeleton className="h-3 w-16" />
-                </div>
-                <Skeleton className="h-1.5 w-full rounded-full" />
-              </div>
-              <Skeleton className="h-6 w-14 justify-self-end rounded" />
-            </div>
-          ))}
-        </div>
-      </div>
+    <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
+      <TableSkeleton
+        columns={[
+          "Code",
+          "State",
+          { label: "Total PUs", className: "text-right" },
+          { label: "With GPS", className: "hidden md:table-cell text-right" },
+          "Official Coverage",
+          { label: "Extra Agents", className: "hidden sm:table-cell text-right" },
+          { label: "Action", className: "text-right" },
+        ]}
+      />
     </div>
   );
 }
 
 export function CoverageDashboardSkeleton() {
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div aria-busy="true" className="space-y-6 max-w-7xl mx-auto">
       {/* Header Skeleton */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
         <div className="space-y-1.5">
@@ -204,11 +165,13 @@ export function CoverageDashboardSkeleton() {
         <Skeleton className="h-9 w-44 rounded-lg" />
       </div>
 
-      <CoverageFiltersSkeleton />
       <KPISummarySkeleton />
       <AtStakeCandidatesSkeleton />
       <CoverageMapSkeleton />
-      <CoverageTableSkeleton />
+      <div className="space-y-3 rounded-xl border bg-card p-3 sm:p-4">
+        <CoverageFiltersSkeleton />
+        <CoverageTableSkeleton />
+      </div>
     </div>
   );
 }

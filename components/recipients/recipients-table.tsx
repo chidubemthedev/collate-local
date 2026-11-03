@@ -78,10 +78,10 @@ export function RecipientsTable({
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+    <div className="min-w-0 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
-          <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase tracking-wider font-semibold text-[11px]">
+          <thead className="sticky top-0 z-10 bg-muted/50 border-b border-border text-muted-foreground uppercase tracking-wider font-semibold text-[11px]">
             <tr>
               <th className="py-3 px-4">Personnel & NDPA Contact</th>
               <th className="py-3 px-3">Role / Ticket</th>
@@ -118,7 +118,7 @@ export function RecipientsTable({
 
                 {/* Jurisdiction / Area */}
                 <td className="py-3.5 px-3 min-w-[200px]">
-                  <div className="flex items-center gap-1 text-foreground/90 font-medium text-xs">
+                  <div title={person.area} className="flex items-center gap-1 text-foreground/90 font-medium text-xs">
                     <MapPin className="w-3 h-3 text-muted-foreground shrink-0" />
                     <span className="line-clamp-1">{person.area}</span>
                   </div>
@@ -136,7 +136,7 @@ export function RecipientsTable({
 
                 {/* Source Citation */}
                 <td className="py-3.5 px-3 whitespace-nowrap text-muted-foreground font-mono text-[11px]">
-                  {person.source}
+                  <span title={person.source} className="block max-w-[16rem] truncate">{person.source}</span>
                 </td>
 
                 {/* Actions */}

@@ -24,7 +24,6 @@ import {
   Edit2,
   Lock,
   Plus,
-  Sparkles,
 } from "lucide-react";
 
 interface AccessMatrixTableProps {
@@ -317,18 +316,6 @@ export function AccessMatrixTable({
           </Table>
         </div>
 
-        {/* Footnote on Inverted Tree Governance */}
-        <div className="p-3 bg-slate-50/80 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
-          <div className="flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-            <span>
-              <strong>Inverted Tree Engine:</strong> A user at office level $X$ sees and broadcasts only to overlapping geographic subtrees.
-            </span>
-          </div>
-          <span className="hidden md:inline font-mono text-[10px] text-slate-400">
-            PRD 28-Oct Rule: Any Overlap Computes Subtree
-          </span>
-        </div>
       </div>
     </div>
   );
