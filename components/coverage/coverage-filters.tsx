@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { TableToolbar } from "@/components/ui/table-toolbar";
 import { Search, Filter, RotateCcw, ChevronRight, Lock, MapPin } from "lucide-react";
 import type { CandidateOfficeOption } from "@/types/api";
+import { FieldSpinner } from "@/components/ui/field-spinner";
 
 interface CoverageFiltersProps {
   stateCode: string;
@@ -32,6 +33,7 @@ interface CoverageFiltersProps {
   offices: CandidateOfficeOption[];
   officeId: number | null;
   setOfficeId: (id: number | null) => void;
+  officesLoading?: boolean;
 }
 
 export function CoverageFilters({
@@ -54,6 +56,7 @@ export function CoverageFilters({
   offices,
   officeId,
   setOfficeId,
+  officesLoading = false,
 }: CoverageFiltersProps) {
   // Fetch live geography data
   const { data: apiStates = [] } = useGeographyStates();
@@ -63,14 +66,14 @@ export function CoverageFilters({
   );
   const selectedStateId = selectedState ? selectedState.id : null;
 
-  const { data: apiLgas = [] } = useGeographyLgas(selectedStateId);
+  const { data: apiLgas = [], isFetching: lgasLoading } = useGeographyLgas(selectedStateId);
   const availableLGAs = stateCode === "all" ? [] : apiLgas;
   const selectedLga = availableLGAs.find(
     (l) => l.code === lgaCode || String(l.id) === lgaCode
   );
   const selectedLgaId = selectedLga ? selectedLga.id : null;
 
-  const { data: apiWards = [] } = useGeographyWards(selectedLgaId);
+  const { data: apiWards = [], isFetching: wardsLoading } = useGeographyWards(selectedLgaId);
   const availableWards = lgaCode === "all" ? [] : apiWards;
   const selectedWard = availableWards.find(
     (w) => w.code === wardCode || String(w.id) === wardCode
@@ -85,6 +88,8 @@ export function CoverageFilters({
   };
 
   const selectedOffice = offices.find((office) => office.id === officeId);
+  const lgaBusy = stateCode !== "all" && lgasLoading;
+  const wardBusy = lgaCode !== "all" && wardsLoading;
   const totalRaces = offices.reduce((sum, office) => sum + office.count, 0);
 
   return (
@@ -205,7 +210,10 @@ export function CoverageFilters({
         {/* LGA Filter */}
         <div className="space-y-1">
           <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-            <span>LGA</span>
+            <span className="flex items-center gap-1.5">
+              LGA
+              <FieldSpinner loading={lgaBusy} />
+            </span>
             {!activePersona.canFilterByLGA && (
               <Tooltip>
                 <TooltipTrigger>
@@ -227,11 +235,12 @@ export function CoverageFilters({
                 setWardCode("all");
               }
             }}
-            disabled={stateCode === "all" || !activePersona.canFilterByLGA}
+            disabled={stateCode === "all" || !activePersona.canFilterByLGA || lgaBusy}
           >
             <SelectTrigger className="w-full h-8.5 text-xs bg-background">
               <SelectValue placeholder={stateCode === "all" ? "Select State first" : "All LGAs"}>
                 {(val) => {
+                  if (lgaBusy) return "Loading LGAs…";
                   if (!val || val === "all") return stateCode === "all" ? "Select State first" : "All LGAs";
                   const found = availableLGAs.find(
                     (l) => l.code === val || String(l.id) === val
@@ -253,19 +262,21 @@ export function CoverageFilters({
 
         {/* Ward Filter */}
         <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             Ward / Area
+            <FieldSpinner loading={wardBusy} />
           </label>
           <Select
             value={wardCode}
             onValueChange={(val) => {
               if (val) setWardCode(val);
             }}
-            disabled={lgaCode === "all"}
+            disabled={lgaCode === "all" || wardBusy}
           >
             <SelectTrigger className="w-full h-8.5 text-xs bg-background">
               <SelectValue placeholder={lgaCode === "all" ? "Select LGA first" : "All Wards"}>
                 {(val) => {
+                  if (wardBusy) return "Loading wards…";
                   if (!val || val === "all") return lgaCode === "all" ? "Select LGA first" : "All Wards";
                   const found = availableWards.find(
                     (w) => w.code === val || String(w.id) === val
@@ -287,17 +298,18 @@ export function CoverageFilters({
 
         {/* Office Filter */}
         <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             Office
+            <FieldSpinner loading={officesLoading} />
           </label>
           <Select
             value={officeId === null ? "all" : String(officeId)}
             onValueChange={(val) => setOfficeId(val && val !== "all" ? Number(val) : null)}
-            disabled={offices.length === 0}
+            disabled={offices.length === 0 || officesLoading}
           >
             <SelectTrigger className="w-full h-8.5 text-xs bg-background">
               <SelectValue placeholder="All offices">
-                {() => (selectedOffice ? selectedOffice.name : "All offices")}
+                {() => (officesLoading ? "Loading offices…" : selectedOffice ? selectedOffice.name : "All offices")}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>

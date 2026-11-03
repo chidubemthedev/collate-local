@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { TableToolbar } from "@/components/ui/table-toolbar";
+import { FieldSpinner } from "@/components/ui/field-spinner";
 import {
   Search,
   Filter,
@@ -77,15 +78,17 @@ export function AgentsFilters({
   );
   const selectedStateId = foundState ? foundState.id : null;
 
-  const { data: apiLgas = [] } = useGeographyLgas(selectedStateId);
+  const { data: apiLgas = [], isFetching: lgasFetching } = useGeographyLgas(selectedStateId);
   const availableLGAs = selectedState === "all" ? [] : apiLgas;
   const foundLga = availableLGAs.find(
     (l) => l.code === selectedLga || String(l.id) === selectedLga
   );
   const selectedLgaId = foundLga ? foundLga.id : null;
 
-  const { data: apiWards = [] } = useGeographyWards(selectedLgaId);
+  const { data: apiWards = [], isFetching: wardsFetching } = useGeographyWards(selectedLgaId);
   const availableWards = selectedLga === "all" ? [] : apiWards;
+  const lgaBusy = selectedState !== "all" && lgasFetching;
+  const wardBusy = selectedLga !== "all" && wardsFetching;
 
   const tabs: Array<{
     id: AgentsFiltersProps["selectedTypeTab"];
@@ -205,8 +208,9 @@ export function AgentsFilters({
 
         {/* LGA Filter */}
         <div className="space-y-1 min-w-0 w-full">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 truncate">
             LGA
+            <FieldSpinner loading={lgaBusy} />
           </label>
           <Select
             value={selectedLga}
@@ -216,11 +220,12 @@ export function AgentsFilters({
                 setSelectedWard("all");
               }
             }}
-            disabled={selectedState === "all"}
+            disabled={selectedState === "all" || lgaBusy}
           >
             <SelectTrigger className="h-8.5 text-xs bg-background w-full">
               <SelectValue placeholder={selectedState === "all" ? "Select state" : "All LGAs"}>
                 {(val) => {
+                  if (lgaBusy) return "Loading LGAs…";
                   if (!val || val === "all") return selectedState === "all" ? "Select state" : "All LGAs";
                   const found = availableLGAs.find((l) => l.code === val || String(l.id) === val);
                   return found ? found.name : val;
@@ -240,19 +245,21 @@ export function AgentsFilters({
 
         {/* Ward Filter */}
         <div className="space-y-1 min-w-0 w-full">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 truncate">
             Ward
+            <FieldSpinner loading={wardBusy} />
           </label>
           <Select
             value={selectedWard}
             onValueChange={(val) => {
               if (val) setSelectedWard(val);
             }}
-            disabled={selectedLga === "all"}
+            disabled={selectedLga === "all" || wardBusy}
           >
             <SelectTrigger className="h-8.5 text-xs bg-background w-full">
               <SelectValue placeholder={selectedLga === "all" ? "Select LGA" : "All Wards"}>
                 {(val) => {
+                  if (wardBusy) return "Loading wards…";
                   if (!val || val === "all") return selectedLga === "all" ? "Select LGA" : "All Wards";
                   const found = availableWards.find((w) => w.code === val || String(w.id) === val);
                   return found ? found.name : val;

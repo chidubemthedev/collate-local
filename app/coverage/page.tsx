@@ -138,13 +138,14 @@ export default function CoveragePage() {
   });
   const selectedOfficeId = officeChoice.areaKey === areaKey ? officeChoice.officeId : null;
   const setSelectedOfficeId = (officeId: number | null) => setOfficeChoice({ areaKey, officeId });
-  const candidateOffices =
-    useCandidateCoverage({
-      stateId: selectedStateId,
-      lgaId: selectedLgaId,
-      wardId: selectedWardId,
-      officeId: selectedOfficeId,
-    }).data?.pages[0]?.offices ?? [];
+  const candidateQuery = useCandidateCoverage({
+    stateId: selectedStateId,
+    lgaId: selectedLgaId,
+    wardId: selectedWardId,
+    officeId: selectedOfficeId,
+  });
+  const candidateOffices = candidateQuery.data?.pages[0]?.offices ?? [];
+  const officesLoading = candidateQuery.isFetching && !candidateQuery.isFetchingNextPage;
 
   const {
     data: apiPollingUnits = [],
@@ -511,6 +512,7 @@ export default function CoveragePage() {
         setSelectedOfficeId(null);
       }}
       offices={candidateOffices}
+      officesLoading={officesLoading}
       officeId={selectedOfficeId}
       setOfficeId={setSelectedOfficeId}
     />
