@@ -121,9 +121,9 @@ export function BroadcastCard({ broadcast, onPreview }: BroadcastCardProps) {
                   Duplicate Campaign
                 </DropdownMenuItem>
                 {broadcast.failed > 0 && (
-                  <DropdownMenuItem className="gap-2 text-amber-600 dark:text-amber-400 cursor-pointer">
+                  <DropdownMenuItem disabled className="gap-2 text-muted-foreground">
                     <RotateCw className="w-3.5 h-3.5" />
-                    Resend to {broadcast.failed} Failed
+                    Resend to {broadcast.failed} Failed: Not available yet
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />

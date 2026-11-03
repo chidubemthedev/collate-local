@@ -7,8 +7,6 @@ import { useApp } from "@/lib/context/app-context";
 import { RecipientsKPISummary } from "@/components/recipients/recipients-kpi-summary";
 import { RecipientsFilters } from "@/components/recipients/recipients-filters";
 import { RecipientsTable } from "@/components/recipients/recipients-table";
-import { AddRecipientModal } from "@/components/recipients/add-recipient-modal";
-import { ImportCSVModal } from "@/components/recipients/import-csv-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,30 +14,21 @@ import {
   UserPlus,
   Upload,
   Download,
-  CheckCircle2,
   AlertCircle,
   Radio,
   Sparkles,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 export default function RecipientsPage() {
-  const router = useRouter();
   const { activePersona } = useApp();
 
-  const [recipientsList, setRecipientsList] = useState<RecipientPerson[]>(RECIPIENTS_DATA);
+  const [recipientsList] = useState<RecipientPerson[]>(RECIPIENTS_DATA);
   const [statusTab, setStatusTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedGroup, setSelectedGroup] = useState<string>("all");
   const [selectedState, setSelectedState] = useState<string>("all");
   const [selectedLga, setSelectedLga] = useState<string>("all");
   const [selectedSource, setSelectedSource] = useState<string>("all");
-
-  // Modals state
-  const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
-  const [editingRecipient, setEditingRecipient] = useState<RecipientPerson | null>(null);
-  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const isCandidatePersona = activePersona.role.startsWith("Candidate");
 
@@ -133,40 +122,6 @@ export default function RecipientsPage() {
     setSelectedSource("all");
   };
 
-  const handleOpenAdd = () => {
-    setEditingRecipient(null);
-    setIsAddModalOpen(true);
-  };
-
-  const handleOpenEdit = (recipient: RecipientPerson) => {
-    setEditingRecipient(recipient);
-    setIsAddModalOpen(true);
-  };
-
-  const handleSaveRecipient = (saved: RecipientPerson) => {
-    if (editingRecipient) {
-      setRecipientsList((prev) =>
-        prev.map((item) => (item.id === saved.id ? saved : item))
-      );
-      setToastMessage(`Updated personnel record for ${saved.name}.`);
-    } else {
-      setRecipientsList((prev) => [saved, ...prev]);
-      setToastMessage(`Registered new personnel: ${saved.name}.`);
-    }
-
-    setTimeout(() => setToastMessage(null), 3500);
-  };
-
-  const handleImportSuccess = (imported: RecipientPerson[]) => {
-    setRecipientsList((prev) => [...imported, ...prev]);
-    setToastMessage(`Successfully imported ${imported.length} new personnel records from CSV.`);
-    setTimeout(() => setToastMessage(null), 4000);
-  };
-
-  const handleSendDirectPing = (person: RecipientPerson) => {
-    router.push(`/broadcasts/new`);
-  };
-
   const handleExportCSV = () => {
     const headers = [
       "ID",
@@ -230,33 +185,25 @@ export default function RecipientsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsImportModalOpen(true)}
+            disabled
+            title="Not available yet"
             className="h-10 text-xs font-medium gap-1.5 border-border"
           >
-            <Upload className="w-4 h-4 text-primary" />
-            <span>Import CSV</span>
+            <Upload className="w-4 h-4" />
+            <span>Import CSV: Not available yet</span>
           </Button>
 
           <Button
             size="sm"
-            onClick={handleOpenAdd}
-            className="h-10 text-xs font-semibold gap-1.5 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+            disabled
+            title="Not available yet"
+            className="h-10 text-xs font-semibold gap-1.5"
           >
             <UserPlus className="w-4 h-4" />
-            <span>Add Recipient</span>
+            <span>Add Recipient: Not available yet</span>
           </Button>
         </div>
       </div>
-
-      {/* Toast Notification Banner */}
-      {toastMessage && (
-        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between gap-2 shadow-xs">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>{toastMessage}</span>
-          </div>
-        </div>
-      )}
 
       {/* KPI Metrics Summary */}
       <RecipientsKPISummary recipients={recipientsList} />
@@ -278,8 +225,6 @@ export default function RecipientsPage() {
         onSourceChange={setSelectedSource}
         onReset={handleResetFilters}
         isFiltered={isFiltered}
-        onOpenAddModal={handleOpenAdd}
-        onOpenImportModal={() => setIsImportModalOpen(true)}
         onExportCSV={handleExportCSV}
       />
 
@@ -299,26 +244,7 @@ export default function RecipientsPage() {
       )}
 
       {/* Recipients Data Table */}
-      <RecipientsTable
-        recipients={filteredRecipients}
-        onEditRecipient={handleOpenEdit}
-        onSendDirectPing={handleSendDirectPing}
-      />
-
-      {/* Add / Edit Recipient Modal */}
-      <AddRecipientModal
-        open={isAddModalOpen}
-        onOpenChange={setIsAddModalOpen}
-        editingRecipient={editingRecipient}
-        onSave={handleSaveRecipient}
-      />
-
-      {/* Import CSV Modal */}
-      <ImportCSVModal
-        open={isImportModalOpen}
-        onOpenChange={setIsImportModalOpen}
-        onImportSuccess={handleImportSuccess}
-      />
+      <RecipientsTable recipients={filteredRecipients} />
     </div>
   );
 }

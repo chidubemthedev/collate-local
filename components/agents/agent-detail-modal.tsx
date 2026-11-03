@@ -304,18 +304,9 @@ export function AgentDetailModal({
                 </Button>
               ) : (
                 <div className="space-y-2 pt-1 border-t border-amber-200 dark:border-amber-800">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-foreground">
-                      Assign Official Agent
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setPersonIdInput("f0ebf80e-bee5-4f01-af92-e636bf4879c5")}
-                      className="text-[10px] text-primary hover:underline"
-                    >
-                      Use Demo Agent ID
-                    </button>
-                  </div>
+                  <label className="text-xs font-semibold text-foreground block">
+                    Assign Official Agent
+                  </label>
                   <Input
                     placeholder="Person UUID (e.g. f0ebf80e-...)"
                     value={personIdInput}

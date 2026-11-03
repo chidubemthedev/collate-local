@@ -19,9 +19,6 @@ import {
   Eye,
   EyeOff,
   Copy,
-  RefreshCw,
-  XCircle,
-  CheckCircle2,
   AlertTriangle,
   Download,
   Key,
@@ -32,42 +29,8 @@ import { CANDIDATE_ACCESS_LINKS_DATA, AUDIT_LOG_DATA, CHANNEL_GATEWAY_CONFIG } f
 
 export function SecurityPrivacySettings() {
   const [phoneMasking, setPhoneMasking] = useState(CHANNEL_GATEWAY_CONFIG.ndpa.phoneMaskingEnabled);
-  const [candidateLinks, setCandidateLinks] = useState<CandidateAccessLink[]>(CANDIDATE_ACCESS_LINKS_DATA);
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(AUDIT_LOG_DATA);
-  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const handleCopyLink = (link: CandidateAccessLink) => {
-    navigator.clipboard?.writeText(link.accessUrl);
-    setCopiedLinkId(link.id);
-    setTimeout(() => setCopiedLinkId(null), 2000);
-  };
-
-  const handleRevokeLink = (id: string) => {
-    setCandidateLinks((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status: "Revoked" } : item))
-    );
-    setToastMessage("Candidate access link revoked successfully.");
-    setTimeout(() => setToastMessage(null), 3000);
-  };
-
-  const handleReissueLink = (id: string) => {
-    const newToken = `ndc_reissued_${Math.random().toString(36).substring(2, 7)}_2027`;
-    setCandidateLinks((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              accessUrl: `https://collate.party/view?token=${newToken}`,
-              expiresAt: "2027-01-20",
-              status: "Active",
-            }
-          : item
-      )
-    );
-    setToastMessage("New revocable access token generated and activated.");
-    setTimeout(() => setToastMessage(null), 3000);
-  };
+  const [candidateLinks] = useState<CandidateAccessLink[]>(CANDIDATE_ACCESS_LINKS_DATA);
+  const [auditLogs] = useState<AuditLogEntry[]>(AUDIT_LOG_DATA);
 
   const handleExportAuditLogs = () => {
     const csvHeader = "ID,Timestamp,Actor,Role,Action,Target,IPAddress,Status\n";
@@ -89,19 +52,6 @@ export function SecurityPrivacySettings() {
 
   return (
     <div className="space-y-6">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-semibold flex items-center justify-between shadow-xs animate-in fade-in">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            <span>{toastMessage}</span>
-          </div>
-          <button onClick={() => setToastMessage(null)} className="text-emerald-600 hover:text-emerald-900">
-            ×
-          </button>
-        </div>
-      )}
-
       {/* NDPA 2023 Secrecy Banner & Controls */}
       <Card className="border-purple-200 bg-purple-50/30 shadow-xs">
         <CardHeader className="p-5 pb-3">
@@ -203,7 +153,6 @@ export function SecurityPrivacySettings() {
               </TableHeader>
               <TableBody className="divide-y divide-slate-100">
                 {candidateLinks.map((link) => {
-                  const isCopied = copiedLinkId === link.id;
                   return (
                     <TableRow key={link.id} className="hover:bg-slate-50/80 transition-colors">
                       <TableCell className="py-2.5">
@@ -215,20 +164,18 @@ export function SecurityPrivacySettings() {
                       </TableCell>
                       <TableCell className="py-2.5">
                         <div className="flex items-center gap-1.5 max-w-xs">
-                          <code className="text-[11px] font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 truncate">
-                            {link.accessUrl}
-                          </code>
+                          <span className="text-[11px] text-slate-500 italic">Not available yet</span>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleCopyLink(link)}
-                            className="h-6 w-6 p-0 text-slate-500 hover:text-slate-800"
-                            title="Copy link"
+                            disabled
+                            className="h-6 w-6 p-0 text-slate-500"
+                            title="Not available yet"
+                            aria-label="Copy link: Not available yet"
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
                         </div>
-                        {isCopied && <span className="text-[10px] text-emerald-600 font-semibold">Copied!</span>}
                       </TableCell>
                       <TableCell className="py-2.5 text-xs text-slate-600">
                         {link.expiresAt}
@@ -248,30 +195,15 @@ export function SecurityPrivacySettings() {
                         </Badge>
                       </TableCell>
                       <TableCell className="py-2.5 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleReissueLink(link.id)}
-                            className="h-7 px-2 text-[11px] text-blue-700 hover:bg-blue-50 gap-1"
-                            title="Reissue new token"
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                            <span>Reissue</span>
-                          </Button>
-                          {link.status === "Active" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRevokeLink(link.id)}
-                              className="h-7 px-2 text-[11px] text-red-600 hover:bg-red-50 gap-1"
-                              title="Revoke link"
-                            >
-                              <XCircle className="h-3 w-3" />
-                              <span>Revoke</span>
-                            </Button>
-                          )}
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled
+                          className="h-7 px-2 text-[11px] text-slate-500"
+                          title="Not available yet"
+                        >
+                          Not available yet
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
