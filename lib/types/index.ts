@@ -105,24 +105,19 @@ export interface PollingUnitData {
 }
 
 export interface CandidateData {
-  id: string;
-  office: OfficeType;
+  id: number;
+  office: string;
   seat: string;
-  stateCode?: string;
-  lgaCodes?: string[];
-  wardCodes?: string[];
+  stateCode: string | null;
   name: string;
-  deputyName?: string;
-  isOffCycle?: boolean;
-  offCycleNote?: string;
+  deputyName: string | null;
+  isOffCycle: boolean;
   totalPUs: number;
   coveredPUs: number;
   coveragePct: number;
   extraAgentsCount: number;
-  sharesLGA?: boolean;
-  phoneMasked: string;
+  phoneMasked: string | null;
   telegramStatus: "connected" | "sms_only" | "not_matched";
-  source: string;
 }
 
 export interface BroadcastData {

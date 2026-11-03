@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { CandidateData } from "@/lib/types";
-import { useApp } from "@/lib/context/app-context";
 import {
   Table,
   TableBody,
@@ -17,33 +16,25 @@ import { Progress } from "@/components/ui/progress";
 import { CandidateDetailModal } from "./candidate-detail-modal";
 import {
   ShieldCheck,
-  Eye,
-  AlertTriangle,
-  Send,
-  Phone,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  User,
 } from "lucide-react";
-import Link from "next/link";
 
 interface CandidatesTableProps {
   candidates: CandidateData[];
 }
 
 export function CandidatesTable({ candidates }: CandidatesTableProps) {
-  const { setPersonaId, activePersona } = useApp();
   const [selectedCandidate, setSelectedCandidate] =
     useState<CandidateData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [pageState, setPageState] = useState({ list: candidates, page: 1 });
   const PAGE_SIZE = 10;
 
-  // Auto-reset page when candidate list changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [candidates]);
+  // Reset to the first page whenever the candidate list changes
+  const currentPage = pageState.list === candidates ? pageState.page : 1;
+  const setCurrentPage = (update: (page: number) => number) =>
+    setPageState({ list: candidates, page: update(currentPage) });
 
   const totalItems = candidates.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
@@ -74,16 +65,6 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
       default:
         return "bg-muted text-muted-foreground";
     }
-  };
-
-  const getPersonaTarget = (cand: CandidateData) => {
-    if (cand.office === "President") return "persona-cand-pres";
-    if (cand.office === "House of Reps") return "persona-cand-rep-onitsha";
-    if (cand.office === "State Assembly" && cand.id === "cand-ass-04-onitsha-1")
-      return "persona-cand-ass-onitsha-1";
-    if (cand.office === "State Assembly" && cand.id === "cand-ass-04-onitsha-2")
-      return "persona-cand-ass-onitsha-2";
-    return null;
   };
 
   return (
@@ -125,10 +106,6 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
               </TableRow>
             ) : (
               paginatedCandidates.map((cand) => {
-                const personaTarget = getPersonaTarget(cand);
-                const isCurrentActive =
-                  personaTarget && activePersona.id === personaTarget;
-
                 if (cand.isOffCycle) {
                   return (
                     <TableRow
@@ -149,18 +126,18 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                           {cand.name}
                         </div>
                         <div className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">
-                          {cand.offCycleNote || "Off-cycle state"}
+                          Off-cycle seat
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-muted-foreground">
-                        {cand.seat} State
+                        {cand.seat}
                       </TableCell>
                       <TableCell colSpan={3}>
                         <Badge
                           variant="outline"
                           className="text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border-amber-300"
                         >
-                          No 2027 Election (Off-Cycle)
+                          Not in the next election day (Off-Cycle)
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -183,9 +160,7 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                 return (
                   <TableRow
                     key={cand.id}
-                    className={`hover:bg-muted/30 transition-colors cursor-pointer ${
-                      isCurrentActive ? "bg-primary/5" : ""
-                    }`}
+                    className="hover:bg-muted/30 transition-colors cursor-pointer"
                     onClick={() => handleOpenCandidate(cand)}
                   >
                     <TableCell>
@@ -212,9 +187,6 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                       <div className="font-medium text-foreground">
                         {cand.seat}
                       </div>
-                      {/* <div className="text-[10px] text-muted-foreground font-mono">
-                        {cand.source}
-                      </div> */}
                     </TableCell>
 
                     <TableCell>
@@ -262,9 +234,11 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                               ? "SMS Only"
                               : "Not Matched"}
                         </Badge>
-                        <div className="text-[10px] text-muted-foreground font-mono">
-                          {cand.phoneMasked}
-                        </div>
+                        {cand.phoneMasked && (
+                          <div className="text-[10px] text-muted-foreground font-mono">
+                            {cand.phoneMasked}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
 
@@ -273,20 +247,6 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                         className="flex items-center justify-end gap-1"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {personaTarget && (
-                          <Button
-                            variant={isCurrentActive ? "default" : "outline"}
-                            size="sm"
-                            className="h-6.5 text-[11px] px-2 gap-1"
-                            onClick={() => setPersonaId(personaTarget)}
-                            title="Switch persona to this candidate"
-                          >
-                            <Eye className="w-2.5 h-2.5" />
-                            <span>
-                              {isCurrentActive ? "Active" : "View As"}
-                            </span>
-                          </Button>
-                        )}
                         <Button
                           variant="ghost"
                           size="sm"

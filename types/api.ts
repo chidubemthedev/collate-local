@@ -162,8 +162,13 @@ export interface CandidateCoverage {
   office: string;
   hierarchyLevel: number;
   seat: string;
+  stateId: number | null;
+  inecStateCode: string | null;
   name: string;
   deputyName: string | null;
+  maskedPhone: string | null;
+  channelStatus: "connected" | "sms_only" | "not_matched";
+  isOffCycle: boolean;
   totalPUs: number;
   coveredPUs: number;
   coveragePct: number;

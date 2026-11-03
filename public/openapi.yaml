@@ -1493,10 +1493,24 @@ components:
           type: integer
         seat:
           type: string
+        stateId:
+          type: [integer, "null"]
+          description: State the seat sits in; null for national seats.
+        inecStateCode:
+          type: [string, "null"]
         name:
           type: string
         deputyName:
           type: [string, "null"]
+        maskedPhone:
+          type: [string, "null"]
+          description: Masked phone number; the full number is never returned.
+        channelStatus:
+          type: string
+          enum: [connected, sms_only, not_matched]
+        isOffCycle:
+          type: boolean
+          description: True when the seat's state votes off-cycle on the latest election day for this office.
         totalPUs:
           type: integer
         coveredPUs:
@@ -1505,7 +1519,7 @@ components:
           type: integer
         extraAgentsCount:
           type: integer
-      required: [id, office, hierarchyLevel, seat, name, deputyName, totalPUs, coveredPUs, coveragePct, extraAgentsCount]
+      required: [id, office, hierarchyLevel, seat, stateId, inecStateCode, name, deputyName, maskedPhone, channelStatus, isOffCycle, totalPUs, coveredPUs, coveragePct, extraAgentsCount]
     CoverageGap:
       type: object
       properties:

@@ -2,26 +2,19 @@
 
 import React, { useState, useMemo } from "react";
 import { useCandidates } from "@/lib/hooks/use-candidates";
-import { CandidateData, OfficeType } from "@/lib/types";
-import { useApp } from "@/lib/context/app-context";
 import { CandidatesFilters } from "@/components/candidates/candidates-filters";
 import { CandidatesTable } from "@/components/candidates/candidates-table";
 import { CandidatesCards } from "@/components/candidates/candidates-cards";
 import { CandidatesDirectorySkeleton } from "@/components/candidates/candidates-skeletons";
 import { Button } from "@/components/ui/button";
 import {
-  ShieldCheck,
   Send,
-  Download,
-  CheckCircle2,
-  Sparkles,
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 
 export default function CandidatesPage() {
-  const { activePersona } = useApp();
   const { data: rawCandidates = [], isLoading, error, refetch } = useCandidates();
 
   const [selectedOffice, setSelectedOffice] = useState<string>("all");
@@ -100,10 +93,10 @@ export default function CandidatesPage() {
 
   const handleExportCSV = () => {
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Office,Candidate Name,Running Mate,Constituency/Seat,State Code,Covered PUs,Total PUs,Coverage %,Extra Agents,Phone (Masked),Channel Status,INEC Source\n";
+    csvContent += "Office,Candidate Name,Running Mate,Constituency/Seat,State Code,Covered PUs,Total PUs,Coverage %,Extra Agents,Phone (Masked),    Channel Status\n";
 
     filteredCandidates.forEach((c) => {
-      csvContent += `"${c.office}","${c.name}","${c.deputyName || ""}","${c.seat}","${c.stateCode || "National"}",${c.coveredPUs},${c.totalPUs},"${c.coveragePct}%",${c.extraAgentsCount},"${c.phoneMasked}","${c.telegramStatus}","${c.source}"\n`;
+          csvContent += `"${c.office}","${c.name}","${c.deputyName || ""}","${c.seat}","${c.stateCode || "National"}",${c.coveredPUs},${c.totalPUs},"${c.coveragePct}%",${c.extraAgentsCount},"${c.phoneMasked ?? ""}","${c.telegramStatus}"\n`;
     });
 
     const encodedUri = encodeURI(csvContent);
