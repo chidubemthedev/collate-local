@@ -210,7 +210,7 @@ export function CandidateDetailModal({
             <div className="flex items-center gap-2">
               <Link
                 href={`/broadcasts/new?target=${encodeURIComponent(candidate.name)}`}
-                className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-8 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm flex-1"
+                className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-8 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all flex-1"
                 onClick={() => onOpenChange(false)}
               >
                 <Send className="w-3.5 h-3.5" />
