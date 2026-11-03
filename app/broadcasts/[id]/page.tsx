@@ -29,26 +29,41 @@ interface BroadcastDeliveryReportPageProps {
 }
 
 export function BroadcastDeliveryReportContent({ id }: { id: string }) {
-  // Find broadcast or default to bc-1
-  const initialBroadcast =
-    BROADCASTS_DATA.find((b) => b.id === id) || BROADCASTS_DATA[0];
+  const found = BROADCASTS_DATA.find((b) => b.id === id);
 
-  const [broadcast, setBroadcast] = useState<BroadcastData>(initialBroadcast);
-  const [logs, setLogs] = useState<BroadcastRecipientLog[]>(
+  if (!found) {
+    return (
+      <div className="max-w-xl mx-auto mt-16 p-6 rounded-xl border border-border bg-card text-center space-y-3">
+        <AlertTriangle className="w-6 h-6 text-amber-600 mx-auto" />
+        <p className="text-sm font-semibold text-foreground">Broadcast not found</p>
+        <p className="text-xs text-muted-foreground">
+          This broadcast does not exist or you do not have access to it.
+        </p>
+        <Link
+          href="/broadcasts"
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back to broadcasts
+        </Link>
+      </div>
+    );
+  }
+
+  return <BroadcastDeliveryReportBody initialBroadcast={found} />;
+}
+
+function BroadcastDeliveryReportBody({ initialBroadcast }: { initialBroadcast: BroadcastData }) {
+  const broadcast = initialBroadcast;
+  const logs: BroadcastRecipientLog[] =
     initialBroadcast.recipientsList && initialBroadcast.recipientsList.length > 0
       ? initialBroadcast.recipientsList
-      : SAMPLE_DELIVERY_LOGS
-  );
+      : SAMPLE_DELIVERY_LOGS;
 
   const [statusTab, setStatusTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedGroup, setSelectedGroup] = useState<string>("all");
   const [isMessageModalOpen, setIsMessageModalOpen] = useState<boolean>(false);
-
-  // Resending states
-  const [isResendingAllFailed, setIsResendingAllFailed] = useState<boolean>(false);
-  const [resendingLogId, setResendingLogId] = useState<string | null>(null);
-  const [resendSuccessBanner, setResendSuccessBanner] = useState<string | null>(null);
 
   // Compute status counts for filters
   const statusCounts = useMemo(() => {
@@ -115,54 +130,6 @@ export function BroadcastDeliveryReportContent({ id }: { id: string }) {
     setStatusTab("all");
     setSearchQuery("");
     setSelectedGroup("all");
-  };
-
-  // Batch Resend Failed
-  const handleResendAllFailed = () => {
-    setIsResendingAllFailed(true);
-
-    setTimeout(() => {
-      // Convert all failed logs to Delivered
-      setLogs((prev) =>
-        prev.map((log) =>
-          log.status === "Failed" || log.status === "Pending"
-            ? { ...log, status: "Delivered", time: "Just now" }
-            : log
-        )
-      );
-
-      // Update broadcast metrics
-      setBroadcast((prev) => ({
-        ...prev,
-        delivered: prev.delivered + prev.failed + prev.pending,
-        failed: 0,
-        pending: 0,
-        deliveredPct: 100,
-      }));
-
-      setIsResendingAllFailed(false);
-      setResendSuccessBanner(
-        "Successfully re-transmitted alerts to all failed recipients via SMS fallback."
-      );
-
-      setTimeout(() => {
-        setResendSuccessBanner(null);
-      }, 4000);
-    }, 1200);
-  };
-
-  // Single Resend
-  const handleResendSingle = (logId: string) => {
-    setResendingLogId(logId);
-
-    setTimeout(() => {
-      setLogs((prev) =>
-        prev.map((l) =>
-          l.id === logId ? { ...l, status: "Delivered", time: "Just now" } : l
-        )
-      );
-      setResendingLogId(null);
-    }, 800);
   };
 
   // Export CSV
@@ -258,26 +225,16 @@ export function BroadcastDeliveryReportContent({ id }: { id: string }) {
           {broadcast.failed > 0 && (
             <Button
               size="sm"
-              disabled={isResendingAllFailed}
-              onClick={handleResendAllFailed}
-              className="text-xs gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+              disabled
+              title="Not available yet"
+              className="text-xs gap-1.5 font-semibold"
             >
-              <RotateCw className={`w-3.5 h-3.5 ${isResendingAllFailed ? "animate-spin" : ""}`} />
-              <span>Resend to {broadcast.failed} Failed</span>
+              <RotateCw className="w-3.5 h-3.5" />
+              <span>Resend to {broadcast.failed} Failed: Not available yet</span>
             </Button>
           )}
         </div>
       </div>
-
-      {/* Success Notification Banner */}
-      {resendSuccessBanner && (
-        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between gap-2 shadow-xs">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>{resendSuccessBanner}</span>
-          </div>
-        </div>
-      )}
 
       {/* KPI Metrics Summary */}
       <ReportKPISummary broadcast={broadcast} />
@@ -297,11 +254,7 @@ export function BroadcastDeliveryReportContent({ id }: { id: string }) {
       />
 
       {/* Delivery Logs Table */}
-      <ReportLogsTable
-        logs={filteredLogs}
-        onResendSingle={handleResendSingle}
-        resendingId={resendingLogId}
-      />
+      <ReportLogsTable logs={filteredLogs} />
 
       {/* Message Copy Modal */}
       <ReportMessageModal

@@ -29,14 +29,10 @@ import {
 
 interface AccessMatrixTableProps {
   groups: AccessGroup[];
-  onEditGroup?: (group: AccessGroup) => void;
-  onCreateGroup?: () => void;
 }
 
 export function AccessMatrixTable({
   groups,
-  onEditGroup,
-  onCreateGroup,
 }: AccessMatrixTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [tabFilter, setTabFilter] = useState<"all" | "system" | "custom">("all");
@@ -109,16 +105,15 @@ export function AccessMatrixTable({
             />
           </div>
 
-          {onCreateGroup && (
-            <Button
-              onClick={onCreateGroup}
-              size="sm"
-              className="h-8 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-medium gap-1.5 shrink-0"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>New Group</span>
-            </Button>
-          )}
+          <Button
+            disabled
+            title="Not available yet"
+            size="sm"
+            className="h-8 text-xs font-medium gap-1.5 shrink-0"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>New Group: Not available yet</span>
+          </Button>
         </div>
       </div>
 
@@ -305,9 +300,10 @@ export function AccessMatrixTable({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => onEditGroup && onEditGroup(group)}
-                            className="h-7 w-7 p-0 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50"
-                            title="Edit Custom Group"
+                            disabled
+                            className="h-7 w-7 p-0 text-slate-400"
+                            title="Not available yet"
+                            aria-label="Edit custom group: Not available yet"
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </Button>

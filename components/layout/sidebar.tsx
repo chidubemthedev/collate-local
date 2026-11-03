@@ -3,9 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useApp } from "@/lib/context/app-context";
-import { useSession, useLogout } from "@/lib/hooks/use-auth";
-import { PERSONAS } from "@/lib/tree-permissions";
+import { useSession, usePermissions, useLogout } from "@/lib/hooks/use-auth";
 import {
   MapPin,
   Users,
@@ -14,7 +12,6 @@ import {
   Send,
   Contact,
   ShieldCheck,
-  ChevronDown,
   Layers,
   Database,
   Eye,
@@ -22,19 +19,11 @@ import {
   LogIn,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { activePersona, setPersonaId } = useApp();
   const { data: session } = useSession();
+  const { data: permissions } = usePermissions();
   const logoutMutation = useLogout();
 
   if (pathname === "/login") {
@@ -48,8 +37,9 @@ export function Sidebar() {
     return pathname.startsWith(path);
   };
 
-  const isSettingsAllowed =
-    activePersona.role === "Party · National" || activePersona.role === "Admin";
+  const canManageCoverage = permissions?.canManageCoverage === true;
+  const canBroadcast = permissions?.canBroadcast === true;
+  const isAdmin = permissions?.isAdmin === true;
 
   return (
     <aside className="hidden md:flex w-64 flex-col border-r border-border bg-sidebar text-sidebar-foreground h-screen sticky top-0 overflow-y-auto">
@@ -77,45 +67,20 @@ export function Sidebar() {
           <Eye className="w-3 h-3 text-emerald-600" />
           View as
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger className="w-full text-left bg-background border border-border hover:bg-accent rounded-md p-2 flex items-center justify-between text-xs transition-colors shadow-xs">
-            <div className="truncate pr-2">
-              <div className="font-medium text-foreground truncate">
-                {activePersona.label}
-              </div>
-              <div className="text-[11px] text-muted-foreground truncate">
-                {activePersona.name}
-              </div>
-            </div>
-            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-60" align="start">
-            <DropdownMenuLabel className="text-xs font-semibold">
-              Simulate Hierarchy & Permissions
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {PERSONAS.map((p) => (
-              <DropdownMenuItem
-                key={p.id}
-                onClick={() => setPersonaId(p.id)}
-                className={`text-xs py-1.5 cursor-pointer flex flex-col items-start ${
-                  activePersona.id === p.id
-                    ? "bg-accent text-accent-foreground font-medium"
-                    : ""
-                }`}
-              >
-                <span className="font-medium">{p.label}</span>
-                <span className="text-[10px] text-muted-foreground">{p.name}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <button
+          type="button"
+          disabled
+          title="Not available yet"
+          className="w-full rounded-md border border-border bg-background p-2 text-left text-xs text-muted-foreground disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          View as · Not available yet
+        </button>
       </div>
 
       {/* Navigation Links */}
       <nav className="flex-1 p-3 space-y-5">
         {/* Polling Units Group */}
-        <div>
+        {canManageCoverage && <div>
           <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
             Polling Units
           </div>
@@ -154,10 +119,10 @@ export function Sidebar() {
               <span>Agents</span>
             </Link>
           </div>
-        </div>
+        </div>}
 
         {/* Messaging Group */}
-        <div>
+        {canBroadcast && <div>
           <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
             Messaging
           </div>
@@ -174,9 +139,6 @@ export function Sidebar() {
                 <Radio className="w-4 h-4 shrink-0" />
                 <span>Broadcasts</span>
               </div>
-              <Badge variant="outline" className="text-[10px] h-4 px-1.5 py-0">
-                4 sent
-              </Badge>
             </Link>
             <Link
               href="/broadcasts/new"
@@ -201,10 +163,10 @@ export function Sidebar() {
               <span>Recipients</span>
             </Link>
           </div>
-        </div>
+        </div>}
 
         {/* Settings Group (Party and Admin only) */}
-        {isSettingsAllowed && (
+        {isAdmin && (
           <div>
             <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
               Settings

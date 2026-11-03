@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Database,
   RefreshCw,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { apiClient, ApiClientError } from "@/lib/api/client";
 import type { QueueSummaryRow, RecentJob } from "@/app/api/admin/queue/route";
 
 interface QueueData {
@@ -48,34 +50,31 @@ function formatDate(iso: string | null): string {
 }
 
 export default function QueueDashboardPage() {
-  const [data, setData] = useState<QueueData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/admin/queue");
-      if (response.status === 401) { setError("Not authenticated."); return; }
-      if (response.status === 403) { setError("Admin access required."); return; }
-      if (!response.ok) { setError("Failed to load queue data."); return; }
-      const json = await response.json() as { status: string; data: QueueData };
-      setData(json.data);
-      setLastRefresh(new Date());
-    } catch {
-      setError("Network error.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchData();
-    const interval = setInterval(() => { void fetchData(); }, 10_000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+  const {
+    data,
+    error,
+    isError,
+    isFetching,
+    isLoading,
+    dataUpdatedAt,
+    refetch,
+  } = useQuery<QueueData, ApiClientError>({
+    queryKey: ["admin", "queue"],
+    queryFn: async () => {
+      const response = await apiClient.get<QueueData>("/api/admin/queue");
+      return response.data;
+    },
+    refetchInterval: 10_000,
+    retry: false,
+  });
+  const lastRefresh = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
+  const errorMessage = error
+    ? error.status === 401
+      ? "Not authenticated."
+      : error.status === 403
+        ? "Admin access required."
+        : error.message
+    : null;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -94,21 +93,21 @@ export default function QueueDashboardPage() {
           </p>
         </div>
         <Button
-          onClick={() => void fetchData()}
-          disabled={loading}
+          onClick={() => void refetch()}
+          disabled={isFetching}
           size="sm"
           variant="outline"
           className="gap-1.5 text-xs"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
 
-      {error && (
+      {isError && errorMessage && (
         <div className="p-3.5 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-xs text-red-800">
           <XCircle className="h-4 w-4 shrink-0" />
-          {error}
+          {errorMessage}
         </div>
       )}
 
@@ -156,7 +155,7 @@ export default function QueueDashboardPage() {
                 </div>
               </div>
             ))}
-            {data.summary.length === 0 && !loading && (
+            {data.summary.length === 0 && !isLoading && (
               <div className="col-span-full text-center py-8 text-sm text-slate-400">
                 No jobs found. Create a broadcast to see jobs here.
               </div>
@@ -209,7 +208,7 @@ export default function QueueDashboardPage() {
         </>
       )}
 
-      {loading && !data && (
+      {isLoading && !data && (
         <div className="flex items-center justify-center py-16 text-slate-400 gap-2 text-sm">
           <Loader2 className="w-5 h-5 animate-spin" />
           Loading queue data…

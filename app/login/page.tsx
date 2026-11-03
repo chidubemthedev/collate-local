@@ -20,52 +20,6 @@ import {
   Info,
 } from "lucide-react";
 
-interface DemoAccount {
-  name: string;
-  role: string;
-  scope: string;
-  email: string;
-}
-
-const DEMO_ACCOUNTS: DemoAccount[] = [
-  {
-    name: "Bamidele Johnson",
-    role: "National Admin",
-    scope: "National",
-    email: "bamidele-johnson@demo.collate.test",
-  },
-  {
-    name: "Chioma Habiba",
-    role: "State Coordinator",
-    scope: "Lagos State",
-    email: "chioma-habiba@demo.collate.test",
-  },
-  {
-    name: "Danjuma Rotimi",
-    role: "State Coordinator",
-    scope: "Kano State",
-    email: "danjuma-rotimi@demo.collate.test",
-  },
-  {
-    name: "Nneka Okon",
-    role: "State Coordinator",
-    scope: "Rivers State",
-    email: "nneka-90@demo.collate.test",
-  },
-  {
-    name: "Musa Aliyu",
-    role: "LGA Coordinator",
-    scope: "LGA Level",
-    email: "musa-91@demo.collate.test",
-  },
-  {
-    name: "Aisha Bello",
-    role: "Ward Coordinator",
-    scope: "Ward Level",
-    email: "aisha-92@demo.collate.test",
-  },
-];
-
 export default function LoginPage() {
   const router = useRouter();
   const { data: session, isLoading: isCheckingSession } = useSession();
@@ -109,7 +63,7 @@ export default function LoginPage() {
       const error = err as { message?: string; code?: string };
       if (error.code === "not_found") {
         setErrorMessage(
-          "This email is not registered or eligible for PU App access. Please select one of the demo accounts below."
+          "This email is not registered or eligible for PU App access. Contact an administrator."
         );
       } else if (error.code === "too_many_requests") {
         setErrorMessage("Too many login attempts. Please wait a few minutes before trying again.");
@@ -117,12 +71,6 @@ export default function LoginPage() {
         setErrorMessage(error.message || "Failed to send verification code. Please try again.");
       }
     }
-  };
-
-  // Quick fill demo account
-  const handleSelectDemoAccount = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setErrorMessage(null);
   };
 
   // Handle OTP digit changes
@@ -260,7 +208,7 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="name@demo.collate.test"
+                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={requestOtpMutation.isPending}
@@ -372,38 +320,6 @@ export default function LoginPage() {
             </form>
           )}
         </CardContent>
-
-        {/* Demo Accounts Quick-Select Drawer/Footer */}
-        {step === "email" && (
-          <CardFooter className="flex flex-col items-start border-t border-border/80 pt-4 bg-muted/20">
-            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              Demo Accounts (Click to Fill)
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 w-full">
-              {DEMO_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={() => handleSelectDemoAccount(acc.email)}
-                  className={`text-left p-2 rounded-lg border transition-all text-xs flex flex-col gap-0.5 ${
-                    email === acc.email
-                      ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40"
-                      : "border-border/70 hover:border-emerald-600/50 hover:bg-accent"
-                  }`}
-                >
-                  <div className="font-medium text-foreground truncate flex items-center justify-between">
-                    <span>{acc.name}</span>
-                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">
-                      {acc.scope}
-                    </Badge>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground truncate">{acc.email}</div>
-                </button>
-              ))}
-            </div>
-          </CardFooter>
-        )}
       </Card>
     </div>
   );

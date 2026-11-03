@@ -39,13 +39,13 @@ export interface UnifiedAgentRecord {
   sponsor: string;
   role: string;
   phoneMasked: string;
-  telegramStatus: "connected" | "sms_only" | "not_matched";
+  telegramStatus?: "connected" | "sms_only" | "not_matched";
   puCode: string;
   puName: string;
   puLocation: string;
-  latitude: number;
-  longitude: number;
-  hasGPS: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  hasGPS?: boolean;
   wardCode?: string;
   wardName?: string;
   lgaCode?: string;
@@ -77,7 +77,10 @@ export function AgentDetailModal({
 
   if (!agent) return null;
 
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${agent.latitude},${agent.longitude}`;
+  const hasCoords = typeof agent.latitude === "number" && typeof agent.longitude === "number";
+  const mapUrl = hasCoords
+    ? `https://www.google.com/maps/search/?api=1&query=${agent.latitude},${agent.longitude}`
+    : "";
 
   const isGap = agent.type === "gap";
   const isOfficial = agent.type === "official";
@@ -165,7 +168,7 @@ export function AgentDetailModal({
                 <Building className="w-3.5 h-3.5 text-primary" />
                 {agent.puName}
               </span>
-              {agent.latitude !== 0 && agent.longitude !== 0 && (
+              {hasCoords && (
                 <a
                   href={mapUrl}
                   target="_blank"
@@ -183,13 +186,13 @@ export function AgentDetailModal({
             </p>
             <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground pt-1 border-t border-border/50">
               <span>Code: {agent.puCode}</span>
-              <span>
-                {agent.latitude !== 0 && agent.longitude !== 0
-                  ? `GPS: ${agent.latitude.toFixed(4)}° N, ${agent.longitude.toFixed(4)}° E`
-                  : agent.hasGPS
-                  ? "GPS: Validated"
-                  : "GPS: Not Available"}
-              </span>
+              {hasCoords ? (
+                <span>
+                  GPS: {(agent.latitude as number).toFixed(4)}° N, {(agent.longitude as number).toFixed(4)}° E
+                </span>
+              ) : agent.hasGPS === false ? (
+                <span>GPS: Not Available</span>
+              ) : null}
             </div>
           </div>
 
@@ -221,22 +224,24 @@ export function AgentDetailModal({
                     Channel & Contact
                   </span>
                   <div>
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] ${
-                        agent.telegramStatus === "connected"
-                          ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-300"
+                    {agent.telegramStatus && (
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] ${
+                          agent.telegramStatus === "connected"
+                            ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-300"
+                            : agent.telegramStatus === "sms_only"
+                            ? "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-300"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {agent.telegramStatus === "connected"
+                          ? "Telegram Connected"
                           : agent.telegramStatus === "sms_only"
-                          ? "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-300"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {agent.telegramStatus === "connected"
-                        ? "Telegram Connected"
-                        : agent.telegramStatus === "sms_only"
-                        ? "SMS Fallback Only"
-                        : "Number Not Matched"}
-                    </Badge>
+                          ? "SMS Fallback Only"
+                          : "Number Not Matched"}
+                      </Badge>
+                    )}
                   </div>
                   <span className="text-xs font-mono font-medium text-foreground block pt-0.5">
                     {agent.phoneMasked}
@@ -299,18 +304,9 @@ export function AgentDetailModal({
                 </Button>
               ) : (
                 <div className="space-y-2 pt-1 border-t border-amber-200 dark:border-amber-800">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-foreground">
-                      Assign Official Agent
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setPersonIdInput("f0ebf80e-bee5-4f01-af92-e636bf4879c5")}
-                      className="text-[10px] text-primary hover:underline"
-                    >
-                      Use Demo Agent ID
-                    </button>
-                  </div>
+                  <label className="text-xs font-semibold text-foreground block">
+                    Assign Official Agent
+                  </label>
                   <Input
                     placeholder="Person UUID (e.g. f0ebf80e-...)"
                     value={personIdInput}

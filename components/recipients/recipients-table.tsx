@@ -19,14 +19,10 @@ import Link from "next/link";
 
 interface RecipientsTableProps {
   recipients: RecipientPerson[];
-  onEditRecipient: (recipient: RecipientPerson) => void;
-  onSendDirectPing: (recipient: RecipientPerson) => void;
 }
 
 export function RecipientsTable({
   recipients,
-  onEditRecipient,
-  onSendDirectPing,
 }: RecipientsTableProps) {
   if (recipients.length === 0) {
     return (
@@ -149,20 +145,21 @@ export function RecipientsTable({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => onSendDirectPing(person)}
-                      className="h-7 px-2 text-xs text-primary hover:text-primary hover:bg-primary/10 gap-1"
-                      title="Send Direct Alert"
+                      disabled
+                      className="h-7 px-2 text-xs text-muted-foreground gap-1"
+                      title="Not available yet"
                     >
                       <Send className="w-3 h-3" />
-                      <span className="hidden sm:inline">Ping</span>
+                      <span className="hidden sm:inline">Ping: Not available yet</span>
                     </Button>
 
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => onEditRecipient(person)}
-                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                      title="Edit Details"
+                      disabled
+                      className="h-7 px-2 text-xs text-muted-foreground"
+                      title="Not available yet"
+                      aria-label="Edit details: Not available yet"
                     >
                       <Edit2 className="w-3 h-3" />
                     </Button>
