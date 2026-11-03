@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       cursor,
     });
 
-    return success(page.items, { nextCursor: page.nextCursor, limit });
+    return success(page.items, { nextCursor: page.nextCursor, limit, total: page.total });
   } catch (error) {
     console.error("[/api/coverage/candidates] failed", error);
     return internalError();

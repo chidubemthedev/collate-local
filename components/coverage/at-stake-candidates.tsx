@@ -35,13 +35,23 @@ function getOfficeBadgeColor(office: string) {
 }
 
 export function AtStakeCandidates({ stateId, lgaId, wardId }: AtStakeCandidatesProps) {
-  const { data, isPending, isError, isFetching, refetch } = useCandidateCoverage({
+  const {
+    data,
+    isPending,
+    isError,
+    isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+  } = useCandidateCoverage({
     stateId,
     lgaId,
     wardId,
   });
 
-  const candidates = data ?? [];
+  const candidates = data?.pages.flatMap((page) => page.items) ?? [];
+  const totalRaces = data?.pages[0]?.total ?? candidates.length;
 
   return (
     <div className="space-y-2.5">
@@ -53,7 +63,7 @@ export function AtStakeCandidates({ stateId, lgaId, wardId }: AtStakeCandidatesP
           </h3>
           {data ? (
             <Badge variant="secondary" className="text-xs px-2 py-0.5 font-normal">
-              {candidates.length} race{candidates.length === 1 ? "" : "s"} at this level
+              {totalRaces.toLocaleString()} race{totalRaces === 1 ? "" : "s"} at this level
             </Badge>
           ) : null}
         </div>
@@ -145,6 +155,19 @@ export function AtStakeCandidates({ stateId, lgaId, wardId }: AtStakeCandidatesP
           ))}
         </div>
       )}
+
+      {hasNextPage ? (
+        <div className="flex justify-center pt-1">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isFetchingNextPage}
+            onClick={() => fetchNextPage()}
+          >
+            {isFetchingNextPage ? "Loading…" : "Load more"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
