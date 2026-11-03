@@ -23,8 +23,8 @@ import { PoliticalUnitsView } from "@/components/coverage/political-units-view";
 import {
   CoverageDashboardSkeleton,
   KPISummarySkeleton,
+  CoverageTableSkeleton,
 } from "@/components/coverage/coverage-skeletons";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   ShieldCheck,
@@ -34,7 +34,6 @@ import {
   Layers,
   Sparkles,
   CheckCircle2,
-  Loader2,
   AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -85,7 +84,13 @@ export default function CoveragePage() {
     return selectedState ? selectedState.id : null;
   }, [selectedState]);
 
-  const { data: apiLgas = [], error: lgasError, refetch: refetchLgas } = useGeographyLgas(selectedStateId);
+  const {
+    data: apiLgas = [],
+    isLoading: isLoadingLgas,
+    isFetching: isFetchingLgas,
+    error: lgasError,
+    refetch: refetchLgas,
+  } = useGeographyLgas(selectedStateId);
 
   const lgasList = useMemo(() => {
     if (selectedStateCode === "all") return [];
@@ -102,7 +107,13 @@ export default function CoveragePage() {
     return selectedLga ? selectedLga.id : null;
   }, [selectedLga]);
 
-  const { data: apiWards = [], error: wardsError, refetch: refetchWards } = useGeographyWards(selectedLgaId);
+  const {
+    data: apiWards = [],
+    isLoading: isLoadingWards,
+    isFetching: isFetchingWards,
+    error: wardsError,
+    refetch: refetchWards,
+  } = useGeographyWards(selectedLgaId);
 
   const wardsList = useMemo(() => {
     if (selectedLgaCode === "all") return [];
@@ -121,6 +132,8 @@ export default function CoveragePage() {
 
   const {
     data: apiPollingUnits = [],
+    isLoading: isLoadingPollingUnits,
+    isFetching: isFetchingPollingUnits,
     error: pusError,
     refetch: refetchPus,
   } = useGeographyPollingUnits(selectedWardId);
@@ -388,7 +401,14 @@ export default function CoveragePage() {
     return result;
   }, [pollingUnitsList, filterMode, searchQuery]);
 
-  const isLiveSyncing = isFetchingStates || isFetchingSummary;
+  const isCoverageTableLoading =
+    (currentLevel === "state" && isLoadingLgas) ||
+    (currentLevel === "lga" && isLoadingWards) ||
+    (currentLevel === "ward" && isLoadingPollingUnits);
+  const isCoverageTableFetching =
+    (currentLevel === "state" && isFetchingLgas) ||
+    (currentLevel === "lga" && isFetchingWards) ||
+    (currentLevel === "ward" && isFetchingPollingUnits);
 
   const router = useRouter();
   const queryErrors = [statesError, lgasError, wardsError, pusError, summaryError].filter(
@@ -442,27 +462,37 @@ export default function CoveragePage() {
     );
   }
 
+  const coverageFilters = (
+    <CoverageFilters
+      unitMode={unitMode}
+      setUnitMode={setUnitMode}
+      stateCode={selectedStateCode}
+      setStateCode={setSelectedStateCode}
+      lgaCode={selectedLgaCode}
+      setLgaCode={setSelectedLgaCode}
+      wardCode={selectedWardCode}
+      setWardCode={setSelectedWardCode}
+      filterMode={filterMode}
+      setFilterMode={setFilterMode}
+      sortBy={sortBy}
+      setSortBy={setSortBy}
+      searchQuery={searchQuery}
+      setSearchQuery={setSearchQuery}
+      activePersona={activePersona}
+      totalPUsCount={kpiData?.totalPUs ?? 0}
+      gapsCount={kpiData?.noCoveragePUs ?? 0}
+      onReset={resetAreaFilters}
+    />
+  );
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              2027 Coverage Dashboard
-            </h1>
-            <Badge
-              variant="outline"
-              className="text-xs px-2 py-0.5 gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-300"
-            >
-              {isLiveSyncing ? (
-                <Loader2 className="w-3 h-3 text-emerald-600 animate-spin" />
-              ) : (
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              )}
-              <span>Live INEC Engine</span>
-            </Badge>
-          </div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+            2027 Coverage Dashboard
+          </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Monitor real-time official party agent deployment
             {kpiData ? ` across ${kpiData.totalPUs.toLocaleString()} polling units in view.` : "."}
@@ -479,28 +509,6 @@ export default function CoveragePage() {
           </Link>
         </div>
       </div>
-
-      {/* Filter and Hierarchy Switcher Bar */}
-      <CoverageFilters
-        unitMode={unitMode}
-        setUnitMode={setUnitMode}
-        stateCode={selectedStateCode}
-        setStateCode={setSelectedStateCode}
-        lgaCode={selectedLgaCode}
-        setLgaCode={setSelectedLgaCode}
-        wardCode={selectedWardCode}
-        setWardCode={setSelectedWardCode}
-        filterMode={filterMode}
-        setFilterMode={setFilterMode}
-        sortBy={sortBy}
-        setSortBy={setSortBy}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        activePersona={activePersona}
-        totalPUsCount={kpiData?.totalPUs ?? 0}
-        gapsCount={kpiData?.noCoveragePUs ?? 0}
-        onReset={resetAreaFilters}
-      />
 
       {/* Top Metric Cards */}
       {isLoadingSummary && !kpiData ? (
@@ -519,17 +527,14 @@ export default function CoveragePage() {
           statesCount={kpiData.statesCount}
         />
       ) : null}
-      {/* "At stake here" Candidate Cards */}
       <AtStakeCandidates
         stateCode={selectedStateCode}
         lgaCode={selectedLgaCode}
         wardCode={selectedWardCode}
       />
 
-      {/* MAIN VIEW MODE: Administrative (Map & Table) vs Political */}
       {unitMode === "administrative" ? (
-        <div className="space-y-5">
-          {/* Geographic Visualizer Map */}
+        <>
           <CoverageMap
             stateCode={selectedStateCode}
             lgaCode={selectedLgaCode}
@@ -552,29 +557,41 @@ export default function CoveragePage() {
             }}
             onSelectWard={(code) => setSelectedWardCode(code)}
           />
-
-          {/* Drilldown Dual Data Table */}
-          <CoverageTable
-            level={currentLevel}
-            states={filteredStates}
-            lgas={filteredLGAs}
-            wards={filteredWards}
-            pollingUnits={filteredPollingUnits}
-            onOpenState={(code) => {
-              setSelectedStateCode(code);
-              setSelectedLgaCode("all");
-              setSelectedWardCode("all");
-            }}
-            onOpenLga={(code) => {
-              setSelectedLgaCode(code);
-              setSelectedWardCode("all");
-            }}
-            onOpenWard={(code) => setSelectedWardCode(code)}
-          />
-        </div>
+          <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
+            {coverageFilters}
+          <div
+            aria-busy={isCoverageTableFetching}
+            className={isCoverageTableFetching && !isCoverageTableLoading ? "opacity-60" : ""}
+          >
+            {isCoverageTableLoading ? (
+              <CoverageTableSkeleton />
+            ) : (
+              <CoverageTable
+                level={currentLevel}
+                states={filteredStates}
+                lgas={filteredLGAs}
+                wards={filteredWards}
+                pollingUnits={filteredPollingUnits}
+                onOpenState={(code) => {
+                  setSelectedStateCode(code);
+                  setSelectedLgaCode("all");
+                  setSelectedWardCode("all");
+                }}
+                onOpenLga={(code) => {
+                  setSelectedLgaCode(code);
+                  setSelectedWardCode("all");
+                }}
+                onOpenWard={(code) => setSelectedWardCode(code)}
+              />
+            )}
+          </div>
+          </section>
+        </>
       ) : (
-        /* Political Units Hierarchical Races View */
-        <PoliticalUnitsView />
+        <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
+          {coverageFilters}
+          <PoliticalUnitsView />
+        </section>
       )}
     </div>
   );

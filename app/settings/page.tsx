@@ -11,6 +11,7 @@ import { ChannelGatewaySettings } from "@/components/settings/channel-gateway-se
 import { SecurityPrivacySettings } from "@/components/settings/security-privacy-settings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton, StatCardSkeleton, TableSkeleton } from "@/components/ui/skeleton";
 import {
   Settings,
   Shield,
@@ -29,7 +30,24 @@ export default function SettingsPage() {
   const customGroups = allGroups.filter((g) => !g.isSystem);
 
   if (isLoading) {
-    return <p className="p-6 text-sm text-slate-500">Checking access…</p>;
+    return (
+      <div aria-busy="true" className="mx-auto max-w-7xl space-y-6">
+        <header className="flex items-center justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-72" />
+            <Skeleton className="h-4 w-96 max-w-full" />
+          </div>
+          <Skeleton className="h-8 w-40 shrink-0 rounded-lg" />
+        </header>
+        <StatCardSkeleton count={5} className="grid-cols-2 md:grid-cols-3 lg:grid-cols-5" />
+        <div className="flex gap-2 overflow-hidden border-b pb-3">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-9 w-36 shrink-0 rounded-lg" />
+          ))}
+        </div>
+        <TableSkeleton columns={["Access group", "Dashboard", "Coverage", "Candidates", "Agents", "Broadcasts", "Settings"]} />
+      </div>
+    );
   }
 
   if (isError) {
@@ -62,12 +80,6 @@ export default function SettingsPage() {
               <Settings className="h-6 w-6 text-emerald-700" />
               <span>Settings & Access Groups</span>
             </h1>
-            <Badge
-              variant="outline"
-              className="bg-emerald-50 text-emerald-800 border-emerald-200 text-xs font-semibold px-2 py-0.5"
-            >
-              PRD Page 16
-            </Badge>
           </div>
           <p className="text-xs md:text-sm text-slate-500 mt-1">
             Manage Inverted Tree role permissions, custom campaign access groups, Telegram & SMS routing, and NDPA 2023 agent privacy.

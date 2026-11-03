@@ -186,9 +186,6 @@ export default function NewBroadcastPage() {
             <Send className="h-6 w-6 text-primary" />
             <span>Compose Broadcast</span>
           </h1>
-          <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-            Preview a permitted audience and queue a message through the broadcast API.
-          </p>
         </div>
         <Badge variant="outline" className="w-fit text-xs">
           Sending as: {permissions.roles.join(", ") || "Account"}

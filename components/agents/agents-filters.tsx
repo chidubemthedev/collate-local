@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { TableToolbar } from "@/components/ui/table-toolbar";
 import {
   Search,
   Filter,
@@ -86,7 +87,12 @@ export function AgentsFilters({
   const { data: apiWards = [] } = useGeographyWards(selectedLgaId);
   const availableWards = selectedLga === "all" ? [] : apiWards;
 
-  const tabs = [
+  const tabs: Array<{
+    id: AgentsFiltersProps["selectedTypeTab"];
+    label: string;
+    count: number;
+    icon: typeof Users;
+  }> = [
     { id: "all", label: "All Records", count: counts.all, icon: Users },
     { id: "official", label: "Official Party Agents", count: counts.official, icon: ShieldCheck },
     { id: "extra", label: "Candidate Extra Agents", count: counts.extra, icon: Users },
@@ -94,7 +100,7 @@ export function AgentsFilters({
   ];
 
   return (
-    <div className="bg-card border border-border/70 rounded-xl p-3 sm:p-4 space-y-3">
+    <div className="space-y-3">
       {/* Top Bar: Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/60">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
@@ -104,7 +110,7 @@ export function AgentsFilters({
             return (
               <button
                 key={tab.id}
-                onClick={() => setSelectedTypeTab(tab.id as any)}
+                onClick={() => setSelectedTypeTab(tab.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   isSelected
                     ? "bg-primary text-primary-foreground"
@@ -128,7 +134,39 @@ export function AgentsFilters({
         </div>
       </div>
 
-      {/* Main Filter Controls Grid: 2 columns on mobile, 3 on tablet, 6 on desktop */}
+      <TableToolbar
+        onClear={onReset}
+        activeFilters={[
+          ...(selectedState !== "all" ? [{ id: "state", label: `State: ${foundState?.name ?? selectedState}`, onRemove: () => { setSelectedState("all"); setSelectedLga("all"); setSelectedWard("all"); } }] : []),
+          ...(selectedLga !== "all" ? [{ id: "lga", label: `LGA: ${foundLga?.name ?? selectedLga}`, onRemove: () => { setSelectedLga("all"); setSelectedWard("all"); } }] : []),
+          ...(selectedWard !== "all" ? [{ id: "ward", label: `Ward: ${availableWards.find((ward) => ward.code === selectedWard || String(ward.id) === selectedWard)?.name ?? selectedWard}`, onRemove: () => setSelectedWard("all") }] : []),
+          ...(selectedSponsor !== "all" ? [{ id: "sponsor", label: `Sponsor: ${selectedSponsor}`, onRemove: () => setSelectedSponsor("all") }] : []),
+          ...(selectedRole !== "all" ? [{ id: "role", label: `Role: ${selectedRole}`, onRemove: () => setSelectedRole("all") }] : []),
+          ...(selectedChannel !== "all" ? [{ id: "channel", label: `Channel: ${selectedChannel}`, onRemove: () => setSelectedChannel("all") }] : []),
+          ...(searchQuery ? [{ id: "search", label: `Search: ${searchQuery}`, onRemove: () => setSearchQuery("") }] : []),
+          ...(selectedTypeTab !== "all" ? [{ id: "type", label: `Type: ${selectedTypeTab}`, onRemove: () => setSelectedTypeTab("all") }] : []),
+        ]}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onExportCSV}
+              className="text-xs h-7.5 gap-1.5 px-2.5"
+            >
+              <Download className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>Export Roster (CSV)</span>
+            </Button>
+            <Link
+              href="/broadcasts/new?group=agents"
+              className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-7.5 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Broadcast to Agents</span>
+            </Link>
+          </>
+        }
+      >
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
         {/* State Filter */}
         <div className="space-y-1 min-w-0 w-full">
@@ -305,7 +343,7 @@ export function AgentsFilters({
         </div>
 
         {/* Search */}
-        <div className="space-y-1 min-w-0 w-full">
+        <div className="order-first space-y-1 min-w-0 w-full">
           <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
             Search
           </label>
@@ -321,52 +359,10 @@ export function AgentsFilters({
           </div>
         </div>
       </div>
-
-      {/* Bottom Action Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/50 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">
-            Showing <strong className="text-foreground">{totalFilteredCount}</strong> record{totalFilteredCount !== 1 ? "s" : ""}
-          </span>
-          {(selectedState !== "all" ||
-            selectedLga !== "all" ||
-            selectedWard !== "all" ||
-            selectedSponsor !== "all" ||
-            selectedRole !== "all" ||
-            selectedChannel !== "all" ||
-            searchQuery) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onReset}
-              className="h-6 text-xs text-muted-foreground hover:text-foreground gap-1 px-2"
-            >
-              <RotateCcw className="w-3 h-3" />
-              Reset filters
-            </Button>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onExportCSV}
-            className="text-xs h-7.5 gap-1.5 px-2.5"
-          >
-            <Download className="w-3.5 h-3.5 text-muted-foreground" />
-            <span>Export Roster (CSV)</span>
-          </Button>
-
-          <Link
-            href="/broadcasts/new?group=agents"
-            className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-7.5 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Broadcast to Agents</span>
-          </Link>
-        </div>
-      </div>
+      </TableToolbar>
+      <p className="text-xs text-muted-foreground">
+        Showing <strong className="text-foreground">{totalFilteredCount}</strong> record{totalFilteredCount !== 1 ? "s" : ""}
+      </p>
     </div>
   );
 }

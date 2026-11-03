@@ -207,53 +207,10 @@ export default function RecipientsPage() {
           </p>
         </div>
 
-        {/* Header Action Buttons */}
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            title="Not available yet"
-            className="h-10 text-xs font-medium gap-1.5 border-border"
-          >
-            <Upload className="w-4 h-4" />
-            <span>Import CSV: Unavailable</span>
-          </Button>
-
-          <Button
-            size="sm"
-            disabled
-            title="Not available yet"
-            className="h-10 text-xs font-semibold gap-1.5"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>Add Recipient: Unavailable</span>
-          </Button>
-        </div>
       </div>
 
       {/* KPI Metrics Summary */}
       <RecipientsKPISummary recipients={recipientsList} />
-
-      {/* Filters Toolbar */}
-      <RecipientsFilters
-        statusTab={statusTab}
-        onStatusTabChange={setStatusTab}
-        statusCounts={statusCounts}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        selectedGroup={selectedGroup}
-        onGroupChange={setSelectedGroup}
-        selectedState={selectedState}
-        onStateChange={setSelectedState}
-        selectedLga={selectedLga}
-        onLgaChange={setSelectedLga}
-        selectedSource={selectedSource}
-        onSourceChange={setSelectedSource}
-        onReset={handleResetFilters}
-        isFiltered={isFiltered}
-        onExportCSV={handleExportCSV}
-      />
 
       {/* Persona Notice if Scoped */}
       {isCandidatePersona && (
@@ -274,8 +231,27 @@ export default function RecipientsPage() {
         </div>
       )}
 
-      {/* Recipients Data Table */}
-      <RecipientsTable recipients={filteredRecipients} />
+      <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
+        <RecipientsFilters
+          statusTab={statusTab}
+          onStatusTabChange={setStatusTab}
+          statusCounts={statusCounts}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          selectedGroup={selectedGroup}
+          onGroupChange={setSelectedGroup}
+          selectedState={selectedState}
+          onStateChange={setSelectedState}
+          selectedLga={selectedLga}
+          onLgaChange={setSelectedLga}
+          selectedSource={selectedSource}
+          onSourceChange={setSelectedSource}
+          onReset={handleResetFilters}
+          isFiltered={isFiltered}
+          onExportCSV={handleExportCSV}
+        />
+        <RecipientsTable recipients={filteredRecipients} />
+      </section>
     </div>
   );
 }
