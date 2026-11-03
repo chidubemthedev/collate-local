@@ -10,7 +10,15 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AgentAutocomplete } from "./agent-autocomplete";
 import { useCreateAssignment, useDeleteAssignment } from "@/lib/hooks/use-coverage";
 import {
@@ -72,6 +80,8 @@ export function AgentDetailModal({
   const deleteAssignment = useDeleteAssignment();
 
   const [personIdInput, setPersonIdInput] = useState("");
+  const [ownerType, setOwnerType] = useState<"group" | "candidate">("group");
+  const [ownerIdInput, setOwnerIdInput] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
 
@@ -86,8 +96,9 @@ export function AgentDetailModal({
   const isOfficial = agent.type === "official";
 
   const handleLiveAssign = async () => {
-    if (!agent.puId || !personIdInput.trim()) {
-      setAssignError("Please enter a valid Person ID");
+    const ownerId = Number(ownerIdInput);
+    if (!agent.puId || !personIdInput.trim() || !Number.isSafeInteger(ownerId) || ownerId < 1) {
+      setAssignError("Enter a valid Person ID and select a valid owner ID.");
       return;
     }
 
@@ -98,9 +109,11 @@ export function AgentDetailModal({
         personId: personIdInput.trim(),
         agentKind: "official",
         slotNumber: 0,
+        ...(ownerType === "group" ? { ownerGroupId: ownerId } : { ownerCandidateId: ownerId }),
       });
       setIsAssigning(false);
       setPersonIdInput("");
+      setOwnerIdInput("");
       if (onAssignOfficial) {
         onAssignOfficial(agent.puCode);
       }
@@ -322,7 +335,31 @@ export function AgentDetailModal({
                     preferredState={agent.stateName}
                     disabled={createAssignment.isPending}
                   />
-
+                  <div className="grid grid-cols-[120px_1fr] gap-2">
+                    <Select
+                      value={ownerType}
+                      onValueChange={(value) => {
+                        if (value === "group" || value === "candidate") setOwnerType(value);
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="group">Group</SelectItem>
+                        <SelectItem value="candidate">Candidate</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      min={1}
+                      step={1}
+                      placeholder={ownerType === "group" ? "Group ID" : "Candidate ID"}
+                      value={ownerIdInput}
+                      onChange={(e) => setOwnerIdInput(e.target.value)}
+                      className="h-8 text-xs font-mono bg-background"
+                    />
+                  </div>
                   {assignError && (
                     <p className="text-[11px] text-destructive">{assignError}</p>
                   )}
@@ -330,7 +367,7 @@ export function AgentDetailModal({
                     <Button
                       size="sm"
                       onClick={handleLiveAssign}
-                      disabled={createAssignment.isPending || !personIdInput.trim()}
+                      disabled={createAssignment.isPending || !personIdInput.trim() || !ownerIdInput.trim()}
                       className="flex-1 text-xs h-7.5 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
                     >
                       {createAssignment.isPending && (
@@ -344,6 +381,7 @@ export function AgentDetailModal({
                       onClick={() => {
                         setIsAssigning(false);
                         setAssignError(null);
+                        setOwnerIdInput("");
                         setPersonIdInput("");
                       }}
                       className="text-xs h-7.5"

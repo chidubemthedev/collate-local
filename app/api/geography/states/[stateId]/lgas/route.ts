@@ -26,6 +26,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ stateId: s
     });
     const rows = await dataSource.query<Array<{
       id: number;
+      state_id: number;
+      inec_state_code: string;
       code: string;
       name: string;
       total_pus: string;
@@ -36,6 +38,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ stateId: s
     }>>(`
       SELECT
         l.id,
+        s.id AS state_id,
+        s.inec_state_code,
         l.inec_lga_code AS code,
         l.lga_name AS name,
         COUNT(DISTINCT pu.id) AS total_pus,
@@ -49,7 +53,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ stateId: s
       LEFT JOIN polling_unit pu ON pu.ward_id = w.id
       LEFT JOIN agent_assignment aa ON aa.polling_unit_id = pu.id AND aa.agent_kind = 'official'
       WHERE l.state_id = $6 AND ${scope.sql}
-      GROUP BY l.id, l.inec_lga_code, l.lga_name
+      GROUP BY l.id, s.id, s.inec_state_code, l.inec_lga_code, l.lga_name
       ORDER BY l.lga_name ASC;
     `, [...scope.parameters, stateIdNum]);
 
@@ -58,7 +62,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ stateId: s
       const coveredPUs = Number(row.covered_pus ?? 0);
       return {
         id: row.id,
-        stateCode: String(stateIdNum),
+        stateId: row.state_id,
+        inecStateCode: row.inec_state_code,
         code: row.code,
         name: row.name,
         totalPUs,

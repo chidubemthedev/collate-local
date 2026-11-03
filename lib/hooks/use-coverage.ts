@@ -88,8 +88,8 @@ export function useCreateAssignment() {
         personId: payload.personId,
         agentKind: kind,
         slotNumber: payload.slotNumber ?? (kind === "extra" ? 1 : 0),
-        ownerGroupId: payload.ownerGroupId !== undefined ? payload.ownerGroupId : 18,
-        ownerCandidateId: payload.ownerCandidateId !== undefined ? payload.ownerCandidateId : null,
+        ownerGroupId: payload.ownerGroupId ?? null,
+        ownerCandidateId: payload.ownerCandidateId ?? null,
       };
       const res = await apiClient.post<CreateAssignmentResponse>("/api/coverage/assignments", body);
       return res.data;

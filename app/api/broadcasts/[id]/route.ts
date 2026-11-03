@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth/current-user";
+import { getClientIp } from "@/lib/auth/request";
 import { failure, internalError, success } from "@/lib/api/response";
 import { policyErrorResponse } from "@/lib/policy/http";
 import { policyUserFromCurrentUser } from "@/lib/policy";
@@ -16,7 +17,7 @@ export async function GET(
       return failure("validation_failed", "Invalid broadcast ID");
     }
     const user = await policyUserFromCurrentUser(currentUser);
-    const detail = await getBroadcastDetail(user, id);
+    const detail = await getBroadcastDetail(user, id, getClientIp(_request));
     if (!detail) {
       return failure("not_found", "Broadcast not found");
     }
