@@ -13,6 +13,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useCreateAssignment, useDeleteAssignment } from "@/lib/hooks/use-coverage";
 import {
   ShieldCheck,
@@ -41,6 +48,8 @@ interface PUDetailDrawerProps {
 export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) {
   const [isAssigning, setIsAssigning] = useState(false);
   const [personIdInput, setPersonIdInput] = useState("");
+  const [ownerType, setOwnerType] = useState<"group" | "candidate">("group");
+  const [ownerIdInput, setOwnerIdInput] = useState("");
   const [assignError, setAssignError] = useState<string | null>(null);
 
   const createAssignment = useCreateAssignment();
@@ -51,8 +60,9 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${pu.latitude},${pu.longitude}`;
 
   const handleAssign = async () => {
-    if (!pu.id || !personIdInput.trim()) {
-      setAssignError("Please enter a valid Person ID");
+    const ownerId = Number(ownerIdInput);
+    if (!pu.id || !personIdInput.trim() || !Number.isSafeInteger(ownerId) || ownerId < 1) {
+      setAssignError("Enter a valid Person ID and select a valid owner ID.");
       return;
     }
 
@@ -63,9 +73,11 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
         personId: personIdInput.trim(),
         agentKind: "official",
         slotNumber: 0,
+        ...(ownerType === "group" ? { ownerGroupId: ownerId } : { ownerCandidateId: ownerId }),
       });
       setIsAssigning(false);
       setPersonIdInput("");
+      setOwnerIdInput("");
       onOpenChange(false);
     } catch (err: unknown) {
       const message =
@@ -229,6 +241,33 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
                         autoFocus
                       />
                     </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-foreground block">
+                        Assignment owner:
+                      </label>
+                      <div className="grid grid-cols-[120px_1fr] gap-2">
+                        <Select value={ownerType} onValueChange={(value) => {
+                          if (value === "group" || value === "candidate") setOwnerType(value);
+                        }}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="group">Group</SelectItem>
+                            <SelectItem value="candidate">Candidate</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={ownerIdInput}
+                          onChange={(e) => setOwnerIdInput(e.target.value)}
+                          placeholder={ownerType === "group" ? "Group ID" : "Candidate ID"}
+                          className="text-xs h-8 font-mono"
+                        />
+                      </div>
+                    </div>
                     {assignError && (
                       <p className="text-[11px] text-destructive">{assignError}</p>
                     )}
@@ -237,7 +276,7 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
                         size="sm"
                         className="text-xs h-7 gap-1 bg-amber-600 hover:bg-amber-700 text-white"
                         onClick={handleAssign}
-                        disabled={createAssignment.isPending || !personIdInput.trim()}
+                        disabled={createAssignment.isPending || !personIdInput.trim() || !ownerIdInput.trim()}
                       >
                         {createAssignment.isPending && (
                           <Loader2 className="w-3 h-3 animate-spin" />
@@ -251,6 +290,7 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
                         onClick={() => {
                           setIsAssigning(false);
                           setAssignError(null);
+                          setOwnerIdInput("");
                         }}
                       >
                         Cancel

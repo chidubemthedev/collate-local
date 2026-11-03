@@ -70,16 +70,27 @@ describe("use-broadcasts", () => {
         data: {
           id: "b-1",
           status: "completed",
+          title: "Test broadcast",
+          messageText: "Test broadcast",
+          sender: { id: "u-1", displayName: "Sender" },
+          audienceSummary: [],
+          deliveryCounts: {
+            pending: 0,
+            sent: 10,
+            delivered: 10,
+            deliveredBySms: 0,
+            failed: 0,
+            tappedOk: 5,
+          },
           scheduledSendAt: null,
           createdAt: "2026-11-03T00:00:00Z",
-          counts: { pending: 0, sent: 10, delivered: 10, failed: 0, tapped_ok: 5 },
         },
       });
 
       const res = await apiClient.get<BroadcastDetail>("/api/broadcasts/b-1");
       expect(getSpy).toHaveBeenCalledWith("/api/broadcasts/b-1");
       expect(res.data.status).toBe("completed");
-      expect(res.data.counts.delivered).toBe(10);
+      expect(res.data.deliveryCounts.delivered).toBe(10);
     });
 
     it("fetches broadcast deliveries via apiClient", async () => {

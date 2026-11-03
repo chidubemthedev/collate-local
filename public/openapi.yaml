@@ -19,6 +19,7 @@ tags:
   - name: Health
   - name: Authentication
   - name: Agents
+  - name: Admin
   - name: Broadcasts
   - name: Geography
   - name: Coverage
@@ -219,6 +220,31 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalServerError"
+  /api/admin/queue:
+    get:
+      tags: [Admin]
+      summary: Read the background job queue
+      description: Requires an authenticated administrator. Returns job counts by name and up to 50 recent jobs.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Queue summary and recent jobs.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/AdminQueueData"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /api/agents:
     get:
       tags: [Agents]
@@ -319,7 +345,7 @@ paths:
     get:
       tags: [Broadcasts]
       summary: List broadcasts
-      description: Admins see every broadcast; other callers see only broadcasts they sent.
+      description: Admins see every broadcast; other callers see only broadcasts they sent. Delivery counts are grouped in one query, and sender/audience labels contain no personal phone data.
       security:
         - sessionCookie: []
       parameters:
@@ -395,7 +421,7 @@ paths:
     get:
       tags: [Broadcasts]
       summary: Read a broadcast
-      description: Returns delivery counts by status. A broadcast outside the caller's visibility returns 404.
+      description: Returns broadcast details and delivery counts. A broadcast outside the caller's visibility returns 404.
       security:
         - sessionCookie: []
       parameters:
@@ -426,7 +452,7 @@ paths:
     get:
       tags: [Broadcasts]
       summary: List broadcast deliveries
-      description: Returns delivery rows with masked phone numbers and writes an audit event. A broadcast outside the caller's visibility returns 404.
+      description: Returns delivery rows with masked phone numbers and available delivery timestamps, and writes an audit event. Per-recipient assignment area, group, and source citation are not stored with delivery records. A broadcast outside the caller's visibility returns 404.
       security:
         - sessionCookie: []
       parameters:
@@ -714,7 +740,8 @@ paths:
         of `ownerGroupId` or `ownerCandidateId`. Official slot number is 0; extra slot
         numbers must be positive. Admins can manage any owner. Other users must manage
         the selected party/campaign group or their own candidate record and have scope
-        access to the polling unit.
+        access to the polling unit. A missing or invisible owner group returns 400
+        with `validation_failed`.
       security:
         - sessionCookie: []
       requestBody:
@@ -736,7 +763,7 @@ paths:
                       data:
                         $ref: "#/components/schemas/CreatedAssignmentData"
         "400":
-          description: Invalid JSON or assignment input.
+          description: Invalid JSON/input or a missing/invisible owner group (`validation_failed`).
           content:
             application/json:
               schema:
@@ -891,6 +918,62 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    AdminQueueData:
+      type: object
+      properties:
+        summary:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueueSummaryRow"
+        recent:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/RecentQueueJob"
+      required: [summary, recent]
+    QueueSummaryRow:
+      type: object
+      properties:
+        name:
+          type: string
+        created:
+          type: integer
+        active:
+          type: integer
+        completed:
+          type: integer
+        failed:
+          type: integer
+        cancelled:
+          type: integer
+        total:
+          type: integer
+      required: [name, created, active, completed, failed, cancelled, total]
+    RecentQueueJob:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        state:
+          type: string
+        createdOn:
+          type: string
+          format: date-time
+        startedOn:
+          type: [string, "null"]
+          format: date-time
+        completedOn:
+          type: [string, "null"]
+          format: date-time
+        retryCount:
+          type: integer
+        retryLimit:
+          type: integer
+        output:
+          type: [string, "null"]
+      required: [id, name, state, createdOn, startedOn, completedOn, retryCount, retryLimit, output]
     SuccessEnvelope:
       type: object
       properties:
@@ -1052,48 +1135,62 @@ components:
         status:
           type: string
           enum: [draft, scheduled, sending, completed, failed, cancelled]
+        title:
+          type: string
+          description: First 60 characters of the message, trimmed.
         messageText:
           type: string
           description: Truncated to 200 characters.
+        sender:
+          $ref: "#/components/schemas/BroadcastSender"
+        audienceSummary:
+          type: array
+          items:
+            type: string
+          description: Names resolved from audience filter IDs; contains no recipient personal data.
+        deliveryCounts:
+          $ref: "#/components/schemas/BroadcastDeliveryCounts"
         scheduledSendAt:
           type: [string, "null"]
           format: date-time
         createdAt:
           type: string
           format: date-time
-      required: [id, status, messageText, scheduledSendAt, createdAt]
-    BroadcastDetail:
+      required: [id, status, title, messageText, sender, audienceSummary, deliveryCounts, scheduledSendAt, createdAt]
+    BroadcastSender:
       type: object
       properties:
         id:
           type: string
           format: uuid
-        status:
+        displayName:
           type: string
-          enum: [draft, scheduled, sending, completed, failed, cancelled]
-        scheduledSendAt:
-          type: [string, "null"]
-          format: date-time
-        createdAt:
-          type: string
-          format: date-time
-        counts:
-          type: object
+      required: [id, displayName]
+    BroadcastDeliveryCounts:
+      type: object
+      properties:
+        pending:
+          type: integer
+        sent:
+          type: integer
+        delivered:
+          type: integer
+        deliveredBySms:
+          type: integer
+        failed:
+          type: integer
+        tappedOk:
+          type: integer
+      required: [pending, sent, delivered, deliveredBySms, failed, tappedOk]
+    BroadcastDetail:
+      allOf:
+        - $ref: "#/components/schemas/BroadcastListItem"
+        - type: object
           properties:
-            pending:
-              type: integer
-            sent:
-              type: integer
-            delivered:
-              type: integer
-            delivered_by_sms:
-              type: integer
-            failed:
-              type: integer
-            tapped_ok:
-              type: integer
-          required: [pending, sent, delivered, delivered_by_sms, failed, tapped_ok]
-      required: [id, status, scheduledSendAt, createdAt, counts]
+            messageText:
+              type: string
+              description: Full message text.
+          required: [messageText]
     BroadcastDelivery:
       type: object
       properties:
@@ -1222,7 +1319,9 @@ components:
       properties:
         id:
           type: integer
-        stateCode:
+        stateId:
+          type: integer
+        inecStateCode:
           type: string
         code:
           type: string
@@ -1242,7 +1341,7 @@ components:
           type: integer
         wardsCount:
           type: integer
-      required: [id, stateCode, code, name, totalPUs, gpsPUs, coveredPUs, noCoveragePUs, officialAgentPct, extraAgentsCount, wardsCount]
+      required: [id, stateId, inecStateCode, code, name, totalPUs, gpsPUs, coveredPUs, noCoveragePUs, officialAgentPct, extraAgentsCount, wardsCount]
     WardCoverage:
       type: object
       properties:
