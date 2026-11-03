@@ -3,26 +3,69 @@ info:
   title: Collate API
   version: 1.0.0
   description: |
-    Authentication, geography, and polling-unit coverage APIs.
-    JSON success responses use `{ status: "success", data }`; failures use
-    `{ status: "error", error: { code, message, fields? } }`.
+    Collate backend API: email-OTP authentication, geography, polling-unit
+    coverage, agents, broadcasts, the Telegram bot webhook and admin queue
+    monitoring.
+
+    ## Response envelope
+
+    Successes: `{ "status": "success", "data": ..., "meta"?: { nextCursor, limit, ... } }`.
+    Failures: `{ "status": "error", "error": { "code", "message", "fields"? } }`.
+    `fields` is only present on `validation_failed`.
+
+    | Error code | HTTP status |
+    |---|---|
+    | `validation_failed`, `invalid_filter` | 400 |
+    | `unauthorized`, `invalid_or_expired_code` | 401 |
+    | `forbidden`, `invalid_origin` | 403 |
+    | `not_found` | 404 |
+    | `conflict` | 409 |
+    | `too_many_requests` | 429 (with `Retry-After: 60`, except OTP request) |
+    | `internal_error` | 500 |
+
+    The API never returns 422; malformed input is always 400.
+
+    ## Authentication
 
     Protected endpoints use the HTTP-only session cookie issued by
     `POST /api/auth/otp/verify`. The cookie is named `collate_session` outside
-    production and `__Host-collate_session` in production. Swagger UI sends
-    same-origin cookies automatically after a successful sign-in. Swagger UI
-    uses `SERVER_BASE_URL` from the environment for the server URL when set.
+    production and `__Host-collate_session` in production. Sessions last 12 hours
+    absolute with a 2 hour idle timeout. Swagger UI sends same-origin cookies
+    automatically after a successful sign-in. Swagger UI uses `SERVER_BASE_URL`
+    from the environment for the server URL when set.
+
+    ## Conventions
+
+    - Mutating routes (`POST`, `DELETE`) require an `Origin` header that matches
+      the request origin; otherwise they return 403 `invalid_origin`.
+    - Lists use opaque keyset cursors (`meta.nextCursor`) and cap `limit` at 100.
+      `/api/coverage/gaps` is the exception: offset pagination, `limit` up to 500.
+    - Phone numbers are always masked in responses.
+    - Routes that return individual person data write an `audit_log` row.
 servers:
   - url: /
     description: Current Collate deployment
 tags:
   - name: Health
+    description: Liveness and database connectivity.
   - name: Authentication
+    description: Email OTP sign-in, session and permissions.
   - name: Agents
+    description: Polling-unit agents visible to the caller.
   - name: Admin
+    description: Administrator-only operations.
   - name: Broadcasts
+    description: Audience preview, creation, listing and delivery tracking.
   - name: Geography
+    description: State, LGA, ward and polling-unit drill-down with coverage counts.
   - name: Coverage
+    description: Coverage totals, candidate coverage, gaps and agent assignments.
+  - name: Telegram
+    description: Inbound Telegram bot webhook.
+  - name: Development
+    description: Dev-only utilities. These return 404 when `NODE_ENV=production`.
+  - name: Docs
+    description: This specification and Swagger UI.
 paths:
   /api/health:
     get:
@@ -65,6 +108,8 @@ paths:
                   format: email
                   example: person@example.com
               required: [email]
+            example:
+              email: person@example.com
       responses:
         "200":
           description: OTP sent.
@@ -96,7 +141,10 @@ paths:
     post:
       tags: [Authentication]
       summary: Verify an OTP and create a session
-      description: On success, sets the HTTP-only session cookie in the response.
+      description: |
+        On success, sets the HTTP-only session cookie in the response. Malformed bodies,
+        unknown emails, wrong codes and expired codes all return the same 401
+        `invalid_or_expired_code`. An OTP allows 5 failed attempts and is valid for 10 minutes.
       security: []
       requestBody:
         required: true
@@ -113,6 +161,9 @@ paths:
                   pattern: "^\\d{6}$"
                   example: "123456"
               required: [email, code]
+            example:
+              email: person@example.com
+              code: "123456"
       responses:
         "200":
           description: OTP verified and session cookie set.
@@ -125,8 +176,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SuccessOkResponse"
-        "400":
-          description: OTP is invalid, expired, or malformed.
+        "401":
+          description: OTP is invalid, expired, already used, or malformed (`invalid_or_expired_code`).
           content:
             application/json:
               schema:
@@ -382,6 +433,10 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/AudienceFilter"
+            example:
+              stateId: 1
+              lgaId: 12
+              agentKind: all
       responses:
         "200":
           description: Audience counts.
@@ -458,6 +513,12 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/CreateBroadcastInput"
+            example:
+              audienceFilter:
+                stateId: 1
+                agentKind: official
+              messageText: "Polling units open at 8am. Please be at your post by 7:30."
+              scheduledSendAt: "2027-02-20T06:00:00+01:00"
       responses:
         "201":
           description: Broadcast created and queued.
@@ -676,13 +737,26 @@ paths:
     get:
       tags: [Geography]
       summary: List accessible polling units and assigned agents in a ward
+      description: Cursor-paginated by polling unit code. Returns masked agent phone numbers and writes an audit log row.
       security:
         - sessionCookie: []
       parameters:
         - $ref: "#/components/parameters/wardId"
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 512
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
       responses:
         "200":
-          description: Polling units with location and agent details.
+          description: A page of polling units with location and agent details.
           content:
             application/json:
               schema:
@@ -694,12 +768,16 @@ paths:
                         type: array
                         items:
                           $ref: "#/components/schemas/PollingUnit"
+                      meta:
+                        $ref: "#/components/schemas/SuccessMeta"
         "400":
           $ref: "#/components/responses/InvalidId"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
   /api/coverage/summary:
@@ -792,6 +870,7 @@ paths:
     get:
       tags: [Coverage]
       summary: List polling units without an official agent
+      description: Offset-paginated (unlike the other lists); `limit` can be up to 500.
       security:
         - sessionCookie: []
       parameters:
@@ -928,8 +1007,168 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalServerError"
+  /api/telegram/webhook:
+    post:
+      tags: [Telegram]
+      summary: Receive a Telegram bot update
+      description: |
+        Called by Telegram, not by browsers. Authenticated by the
+        `X-Telegram-Bot-Api-Secret-Token` header, which must equal `TELEGRAM_WEBHOOK_SECRET`.
+        Handles `/start`, contact sharing (links a confirmed phone number to a `telegram_chat_id`),
+        consent buttons and delivery "OK" taps. Register it with `npm run telegram:webhook:set`.
+        Handler timeout is 10 seconds.
+      security:
+        - telegramWebhookSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: A Telegram `Update` object (see the Telegram Bot API).
+              additionalProperties: true
+            example:
+              update_id: 100000001
+              message:
+                message_id: 1
+                chat: { id: 123456789, type: private }
+                text: /start
+      responses:
+        "200":
+          description: Update accepted (the body is empty or Telegram-formatted).
+        "401":
+          description: Missing or wrong secret token header.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/dev/queue-test:
+    get:
+      tags: [Development]
+      summary: Per-queue job counts (dev only)
+      description: Returns pg-boss counts for every known queue. Returns 404 `not_found` when `NODE_ENV=production`. No authentication.
+      security: []
+      responses:
+        "200":
+          description: Queue counts. A queue whose stats cannot be read returns `{ queue, error }` instead of counts.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          queues:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                queue:
+                                  type: string
+                                counts:
+                                  type: object
+                                  properties:
+                                    deferred: { type: integer }
+                                    queued: { type: integer }
+                                    ready: { type: integer }
+                                    active: { type: integer }
+                                    failed: { type: integer }
+                                    total: { type: integer }
+                                capturedOn:
+                                  type: string
+                                  format: date-time
+                                error:
+                                  type: string
+                              required: [queue]
+                        required: [queues]
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags: [Development]
+      summary: Enqueue test jobs (dev only)
+      description: >-
+        Enqueues `count` test jobs (clamped to 1-50, default 1). Send `fail: true` to make them
+        fail and exercise retries. Returns 404 `not_found` when `NODE_ENV=production`. No authentication.
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                count:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 1
+                fail:
+                  type: boolean
+                  default: false
+            example:
+              count: 3
+              fail: false
+      responses:
+        "200":
+          description: Jobs enqueued.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+                          ids:
+                            type: array
+                            items:
+                              type: [string, "null"]
+                        required: [count, ids]
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /api/openapi:
+    get:
+      tags: [Docs]
+      summary: OpenAPI specification (YAML)
+      description: Serves this file with the first `servers` URL replaced by `SERVER_BASE_URL` when set.
+      security: []
+      responses:
+        "200":
+          description: The OpenAPI document.
+          content:
+            application/yaml:
+              schema:
+                type: string
+  /api/docs:
+    get:
+      tags: [Docs]
+      summary: Swagger UI
+      security: []
+      responses:
+        "200":
+          description: Swagger UI HTML page that loads `/api/openapi`.
+          content:
+            text/html:
+              schema:
+                type: string
 components:
   securitySchemes:
+    telegramWebhookSecret:
+      type: apiKey
+      in: header
+      name: X-Telegram-Bot-Api-Secret-Token
+      description: Shared secret set when the webhook is registered with Telegram (`TELEGRAM_WEBHOOK_SECRET`).
     sessionCookie:
       type: apiKey
       in: cookie
@@ -1003,7 +1242,7 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
     Forbidden:
-      description: Caller does not have permission to access this resource.
+      description: Caller has no membership, lacks permission (`forbidden`), or sent a mutating request with a missing or mismatched Origin (`invalid_origin`).
       content:
         application/json:
           schema:
@@ -1538,34 +1777,58 @@ components:
           type: boolean
         hasOfficialAgent:
           type: boolean
-        officialAgentName:
-          type: string
-        officialAgentPhone:
-          type: string
-        officialAgentTelegramStatus:
-          type: string
-        extraAgents:
+        agents:
           type: array
           items:
-            $ref: "#/components/schemas/ExtraAgent"
-      required: [id, code, name, wardCode, lgaCode, stateCode, latitude, longitude, hasGPS, hasOfficialAgent, extraAgents]
-    ExtraAgent:
+            $ref: "#/components/schemas/PollingUnitAgent"
+      required: [id, code, name, wardCode, lgaCode, stateCode, latitude, longitude, hasGPS, hasOfficialAgent, agents]
+      example:
+        id: 5082
+        code: 01/13/09/001
+        name: Central School Ohuru
+        wardCode: "09"
+        lgaCode: "13"
+        stateCode: "01"
+        latitude: null
+        longitude: null
+        hasGPS: false
+        hasOfficialAgent: true
+        agents:
+          - assignmentId: 3f2a7c1e-9b4d-4e6f-8a21-5c7d9e0b1a34
+            agentKind: official
+            slotNumber: 0
+            fullName: Ada Okafor
+            maskedPhone: "+234 *** *** 4567"
+            owner: { type: group, id: 2, displayName: NDC }
+    PollingUnitAgent:
       type: object
+      description: One agent assigned to a polling unit. The phone number is masked.
       properties:
-        id:
+        assignmentId:
           type: string
           format: uuid
-        name:
+        agentKind:
           type: string
-        owner:
+          enum: [official, extra]
+        slotNumber:
+          type: integer
+          description: 0 for the official agent, 1 or more for extra agents.
+        fullName:
           type: string
-        role:
-          type: string
-        phone:
+        maskedPhone:
           type: [string, "null"]
-        telegramStatus:
-          type: string
-      required: [id, name, owner, role, phone, telegramStatus]
+        owner:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [group, candidate]
+            id:
+              type: integer
+            displayName:
+              type: string
+          required: [type, id, displayName]
+      required: [assignmentId, agentKind, slotNumber, fullName, maskedPhone, owner]
     CoverageSummary:
       type: object
       properties:
