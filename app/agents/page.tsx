@@ -492,32 +492,31 @@ export default function AgentsPage() {
         totalPUs={summary?.totalPUs ?? 0}
       />
 
-      {/* Filter Bar */}
-      <AgentsFilters
-        selectedTypeTab={selectedTypeTab}
-        setSelectedTypeTab={setSelectedTypeTab}
-        selectedState={selectedStateCode}
-        setSelectedState={setSelectedStateCode}
-        selectedLga={selectedLgaCode}
-        setSelectedLga={setSelectedLgaCode}
-        selectedWard={selectedWardCode}
-        setSelectedWard={setSelectedWardCode}
-        selectedSponsor={selectedSponsor}
-        setSelectedSponsor={setSelectedSponsor}
-        selectedRole={selectedRole}
-        setSelectedRole={setSelectedRole}
-        selectedChannel={selectedChannel}
-        setSelectedChannel={setSelectedChannel}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        totalFilteredCount={filteredAgents.length}
-        counts={counts}
-        onReset={handleResetFilters}
-        onExportCSV={handleExportCSV}
-      />
-
-      {/* Table */}
-      <AgentsTable agents={filteredAgents} />
+      <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
+        <AgentsFilters
+          selectedTypeTab={selectedTypeTab}
+          setSelectedTypeTab={setSelectedTypeTab}
+          selectedState={selectedStateCode}
+          setSelectedState={setSelectedStateCode}
+          selectedLga={selectedLgaCode}
+          setSelectedLga={setSelectedLgaCode}
+          selectedWard={selectedWardCode}
+          setSelectedWard={setSelectedWardCode}
+          selectedSponsor={selectedSponsor}
+          setSelectedSponsor={setSelectedSponsor}
+          selectedRole={selectedRole}
+          setSelectedRole={setSelectedRole}
+          selectedChannel={selectedChannel}
+          setSelectedChannel={setSelectedChannel}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          totalFilteredCount={filteredAgents.length}
+          counts={counts}
+          onReset={handleResetFilters}
+          onExportCSV={handleExportCSV}
+        />
+        <AgentsTable agents={filteredAgents} />
+      </section>
     </div>
   );
 }

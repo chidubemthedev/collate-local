@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { TableToolbar } from "@/components/ui/table-toolbar";
 import {
   Search,
   Filter,
@@ -65,7 +66,7 @@ export function CandidatesFilters({
   ];
 
   return (
-    <div className="bg-card border border-border/70 rounded-xl p-3 sm:p-4 space-y-3">
+    <div className="space-y-3">
       {/* Top Bar: Office Tabs & View Mode */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/60">
         {/* Office Category Pills */}
@@ -122,6 +123,36 @@ export function CandidatesFilters({
       </div>
 
       {/* Main Filter Controls Grid: Strict 2-col on mobile, 4-col on desktop */}
+      <TableToolbar
+        onClear={onReset}
+        activeFilters={[
+          ...(selectedState !== "all" ? [{ id: "state", label: `State: ${STATES_DATA.find((state) => state.code === selectedState)?.name ?? selectedState}`, onRemove: () => setSelectedState("all") }] : []),
+          ...(selectedChannel !== "all" ? [{ id: "channel", label: `Channel: ${selectedChannel}`, onRemove: () => setSelectedChannel("all") }] : []),
+          ...(selectedCoverageTier !== "all" ? [{ id: "coverage", label: `Coverage: ${selectedCoverageTier}`, onRemove: () => setSelectedCoverageTier("all") }] : []),
+          ...(searchQuery ? [{ id: "search", label: `Search: ${searchQuery}`, onRemove: () => setSearchQuery("") }] : []),
+          ...(selectedOffice !== "all" ? [{ id: "office", label: `Office: ${selectedOffice}`, onRemove: () => setSelectedOffice("all") }] : []),
+        ]}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onExportCSV}
+              className="text-xs h-7.5 gap-1.5 px-2.5"
+            >
+              <Download className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>Export CSV</span>
+            </Button>
+            <Link
+              href="/broadcasts/new?group=candidates"
+              className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-7.5 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Message Filtered</span>
+            </Link>
+          </>
+        }
+      >
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
         {/* State Filter */}
         <div className="space-y-1 min-w-0 w-full">
@@ -217,7 +248,7 @@ export function CandidatesFilters({
         </div>
 
         {/* Search */}
-        <div className="space-y-1 min-w-0 w-full">
+        <div className="order-first space-y-1 min-w-0 w-full">
           <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
             Search
           </label>
@@ -234,49 +265,10 @@ export function CandidatesFilters({
         </div>
       </div>
 
-      {/* Bottom Action / Reset Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/50 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">
-            Showing <strong className="text-foreground">{totalCount}</strong> candidate ticket{totalCount !== 1 ? "s" : ""}
-          </span>
-          {(selectedOffice !== "all" ||
-            selectedState !== "all" ||
-            selectedChannel !== "all" ||
-            selectedCoverageTier !== "all" ||
-            searchQuery) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onReset}
-              className="h-6 text-xs text-muted-foreground hover:text-foreground gap-1 px-2"
-            >
-              <RotateCcw className="w-3 h-3" />
-              Reset filters
-            </Button>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onExportCSV}
-            className="text-xs h-7.5 gap-1.5 px-2.5"
-          >
-            <Download className="w-3.5 h-3.5 text-muted-foreground" />
-            <span>Export CSV</span>
-          </Button>
-
-          <Link
-            href={`/broadcasts/new?group=candidates`}
-            className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-7.5 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Message Filtered</span>
-          </Link>
-        </div>
-      </div>
+      </TableToolbar>
+      <p className="text-xs text-muted-foreground">
+        Showing <strong className="text-foreground">{totalCount}</strong> candidate ticket{totalCount !== 1 ? "s" : ""}
+      </p>
     </div>
   );
 }

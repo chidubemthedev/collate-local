@@ -15,7 +15,6 @@ import {
   Layers,
   Menu,
   Eye,
-  Database,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -255,13 +254,6 @@ export function MobileNav() {
                 )} */}
               </nav>
 
-              <div className="p-3 border-t border-border bg-muted/20 text-[10px] text-muted-foreground">
-                <div className="flex items-center gap-1 font-medium text-foreground">
-                  <Database className="w-3 h-3 text-emerald-600" />
-                  <span>INEC real data</span>
-                </div>
-                <p>DUMMY sample for wireframe demo</p>
-              </div>
             </SheetContent>
           </Sheet>
         </div>

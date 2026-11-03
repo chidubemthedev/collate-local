@@ -45,9 +45,6 @@ export function KPISummary({
           <div className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
             {totalPUs.toLocaleString()}
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            INEC verified in {levelName}
-          </div>
         </div>
       </div>
 
@@ -74,7 +71,6 @@ export function KPISummary({
       <div className="bg-card border border-border/60 rounded-xl p-3.5 shadow-none hover:border-border transition-colors flex flex-col justify-between h-full">
         <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
           <span>{wardsCount !== undefined ? "Wards" : "Sub-units"}</span>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 bg-muted rounded text-muted-foreground">INEC</span>
         </div>
         <div className="mt-2">
           <div className="text-xl md:text-2xl font-bold tracking-tight text-foreground">

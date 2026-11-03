@@ -87,10 +87,10 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
   };
 
   return (
-    <div className="border border-border/70 rounded-xl overflow-hidden bg-card">
+    <div className="min-w-0 overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader className="bg-muted/40 text-xs">
+          <TableHeader className="sticky top-0 z-10 bg-muted/40 text-xs">
             <TableRow>
               <TableHead className="w-28 font-semibold">Office</TableHead>
               <TableHead className="font-semibold min-w-[220px]">

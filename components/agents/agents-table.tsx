@@ -67,10 +67,10 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
   };
 
   return (
-    <div className="border border-border/70 rounded-xl overflow-hidden bg-card">
+    <div className="min-w-0 overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader className="bg-muted/40 text-xs">
+          <TableHeader className="sticky top-0 z-10 bg-muted/40 text-xs">
             <TableRow>
               <TableHead className="w-32 font-semibold">PU Code</TableHead>
               <TableHead className="font-semibold min-w-[200px]">Polling Unit & Location</TableHead>
@@ -112,7 +112,7 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
                         <div className="font-semibold text-foreground text-xs">{agent.puName}</div>
                         <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1">
                           <MapPin className="w-3 h-3 text-muted-foreground/70 shrink-0" />
-                          <span className="truncate max-w-[220px]">{agent.puLocation}</span>
+                          <span title={agent.puLocation} className="truncate max-w-[220px]">{agent.puLocation}</span>
                         </div>
                       </div>
                     </TableCell>
@@ -148,7 +148,7 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
 
                     {/* Sponsor / Owner */}
                     <TableCell className="hidden md:table-cell">
-                      <div className="text-xs text-foreground font-medium truncate max-w-[180px]">
+                      <div title={agent.sponsor} className="text-xs text-foreground font-medium truncate max-w-[180px]">
                         {agent.sponsor}
                       </div>
                     </TableCell>

@@ -39,7 +39,6 @@ export function ChannelGatewaySettings() {
               <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-200 text-[11px] font-semibold border border-blue-400/30">
                 Dual Channel Infrastructure
               </span>
-              <span className="text-xs text-blue-200">PRD 26-Oct Channel Architecture</span>
             </div>
             <h2 className="text-lg font-bold tracking-tight">
               Telegram Bot Gateway & Telco SMS Fallback
@@ -54,7 +53,6 @@ export function ChannelGatewaySettings() {
               <Zap className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-xs font-bold text-white">Live Failover Active</div>
               <div className="text-[11px] text-blue-200">Failover Timeout: {fallbackMinutes} mins</div>
             </div>
           </div>
@@ -269,18 +267,6 @@ export function ChannelGatewaySettings() {
         </Card>
       </div>
 
-      {/* Meta WhatsApp Policy Note */}
-      <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 flex items-start gap-3 text-xs text-slate-600">
-        <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-        <div className="space-y-0.5">
-          <p className="font-semibold text-slate-800">
-            Why Telegram + Telco SMS instead of WhatsApp Business API?
-          </p>
-          <p className="text-slate-600 leading-relaxed text-[11px]">
-            Per PRD 26-Oct decisions, Meta's global WhatsApp Business Messaging Policy strictly prohibits political parties, candidates, campaigns, and political consulting providers. The NDC architecture uses Telegram Bot for interactive message confirmation (OK buttons) backed by corporate Telco SMS routes.
-          </p>
-        </div>
-      </div>
     </div>
   );
 }

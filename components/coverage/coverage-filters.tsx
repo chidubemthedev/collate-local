@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { TableToolbar } from "@/components/ui/table-toolbar";
 import { Search, Filter, RotateCcw, ChevronRight, Lock, MapPin, Layers, Building2 } from "lucide-react";
 
 interface CoverageFiltersProps {
@@ -81,7 +82,7 @@ export function CoverageFilters({
   };
 
   return (
-    <div className="space-y-3 bg-card border border-border/60 rounded-xl p-3 sm:p-4 shadow-none">
+    <div className="space-y-3">
       {/* Top row: Unit mode tabs & Breadcrumbs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/60">
         {/* Unit Mode Toggle */}
@@ -165,7 +166,16 @@ export function CoverageFilters({
         </div>
       </div>
 
-      {/* Main Filter Controls Grid */}
+      <TableToolbar
+        onClear={onReset}
+        activeFilters={[
+          ...(stateCode !== "all" ? [{ id: "state", label: `State: ${selectedState?.name ?? stateCode}`, onRemove: () => { setStateCode(activePersona.stateCode || "all"); setLgaCode("all"); setWardCode("all"); } }] : []),
+          ...(lgaCode !== "all" ? [{ id: "lga", label: `LGA: ${selectedLga?.name ?? lgaCode}`, onRemove: () => { setLgaCode("all"); setWardCode("all"); } }] : []),
+          ...(wardCode !== "all" ? [{ id: "ward", label: `Ward: ${selectedWard?.name ?? wardCode}`, onRemove: () => setWardCode("all") }] : []),
+          ...(searchQuery ? [{ id: "search", label: `Search: ${searchQuery}`, onRemove: () => setSearchQuery("") }] : []),
+          ...(filterMode === "gaps" ? [{ id: "coverage", label: "Coverage: gaps only", onRemove: () => setFilterMode("all") }] : []),
+        ]}
+      >
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 items-end">
         {/* State Filter */}
         <div className="space-y-1">
@@ -320,7 +330,7 @@ export function CoverageFilters({
         </div>
 
         {/* Search Input */}
-        <div className="space-y-1 col-span-2 md:col-span-3 lg:col-span-1">
+        <div className="order-first space-y-1 col-span-2 md:col-span-3 lg:col-span-1">
           <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Search
           </label>
@@ -363,20 +373,8 @@ export function CoverageFilters({
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          {(stateCode !== "all" || lgaCode !== "all" || wardCode !== "all" || searchQuery || filterMode !== "all") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onReset}
-              className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 px-2"
-            >
-              <RotateCcw className="w-3 h-3" />
-              Reset filters
-            </Button>
-          )}
-        </div>
       </div>
+      </TableToolbar>
     </div>
   );
 }
