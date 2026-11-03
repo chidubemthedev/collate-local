@@ -55,9 +55,9 @@ const VARIABLE_PILLS = [
 export function StepMessage({ message, onChange }: StepMessageProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Character & SMS segment computation
+  // Character length computation (Telegram limit: 1000 characters)
   const charLength = message.body.length;
-  const smsSegments = charLength === 0 ? 0 : charLength <= 160 ? 1 : Math.ceil(charLength / 153);
+  const isOverLimit = charLength > 1000;
 
   const handleApplyTemplate = (tmpl: (typeof TEMPLATES)[0]) => {
     onChange({
@@ -162,11 +162,13 @@ export function StepMessage({ message, onChange }: StepMessageProps) {
           {/* Message Body Textarea */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold">Message Body (Markdown Supported)</Label>
-              <div className="text-[11px] text-muted-foreground font-mono flex items-center gap-2">
-                <span>{charLength} chars</span>
+              <Label className="text-xs font-semibold">Message Body (Telegram Markdown)</Label>
+              <div className="text-[11px] font-mono flex items-center gap-2">
+                <span className={isOverLimit ? "text-destructive font-bold" : "text-muted-foreground"}>
+                  {charLength} / 1000 chars
+                </span>
                 <span>•</span>
-                <span>{smsSegments} SMS {smsSegments === 1 ? "segment" : "segments"}</span>
+                <span className="text-muted-foreground">Telegram Direct</span>
               </div>
             </div>
 

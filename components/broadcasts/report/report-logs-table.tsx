@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import {
   CheckCircle2,
   CheckCheck,
-  Smartphone,
   Clock,
   AlertTriangle,
   RotateCw,
@@ -54,13 +53,6 @@ export function ReportLogsTable({
           <Badge className="bg-blue-600/10 text-blue-700 dark:text-blue-400 border-blue-500/20 text-[11px] font-semibold gap-1 py-0.5">
             <CheckCircle2 className="w-3 h-3 text-blue-600 dark:text-blue-400" />
             <span>Delivered</span>
-          </Badge>
-        );
-      case "Delivered by SMS":
-        return (
-          <Badge className="bg-purple-600/10 text-purple-700 dark:text-purple-400 border-purple-500/20 text-[11px] font-semibold gap-1 py-0.5">
-            <Smartphone className="w-3 h-3 text-purple-600 dark:text-purple-400" />
-            <span>Delivered by SMS</span>
           </Badge>
         );
       case "Pending":

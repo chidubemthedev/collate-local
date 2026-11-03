@@ -11,7 +11,6 @@ import {
   FileEdit,
   CheckCircle2,
   AlertTriangle,
-  Smartphone,
   Eye,
   ExternalLink,
   Users,
@@ -176,12 +175,6 @@ export function BroadcastCard({ broadcast, onPreview }: BroadcastCardProps) {
                     Delivered: {broadcast.delivered.toLocaleString()} / {broadcast.sent.toLocaleString()} ({broadcast.deliveredPct}%)
                   </span>
                 </span>
-                {broadcast.deliveredBySms ? (
-                  <span className="text-[11px] text-muted-foreground hidden sm:inline flex items-center gap-1">
-                    <Smartphone className="w-3 h-3" />
-                    ({broadcast.deliveredBySms} via SMS fallback)
-                  </span>
-                ) : null}
               </div>
 
               <div className="flex items-center gap-1.5 font-semibold text-primary">

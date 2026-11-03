@@ -3,6 +3,7 @@
 import React, { useState, useMemo, use, Suspense } from "react";
 import { BROADCASTS_DATA, SAMPLE_DELIVERY_LOGS } from "@/lib/data/broadcasts-data";
 import { BroadcastData, BroadcastRecipientLog } from "@/lib/types";
+import { useBroadcastDetail, useBroadcastDeliveries } from "@/lib/hooks/use-broadcasts";
 import { ReportKPISummary } from "@/components/broadcasts/report/report-kpi-summary";
 import { ReportFilters } from "@/components/broadcasts/report/report-filters";
 import { ReportLogsTable } from "@/components/broadcasts/report/report-logs-table";
@@ -29,36 +30,167 @@ interface BroadcastDeliveryReportPageProps {
 }
 
 export function BroadcastDeliveryReportContent({ id }: { id: string }) {
-  const found = BROADCASTS_DATA.find((b) => b.id === id);
+  const {
+    data: detail,
+    isLoading: isDetailLoading,
+    refetch: refetchDetail,
+  } = useBroadcastDetail(id);
 
-  if (!found) {
+  const {
+    data: deliveriesData,
+    refetch: refetchDeliveries,
+  } = useBroadcastDeliveries(id);
+
+  const fallbackMock = useMemo(() => {
+    return BROADCASTS_DATA.find((b) => b.id === id);
+  }, [id]);
+
+  if (isDetailLoading) {
     return (
-      <div className="max-w-xl mx-auto mt-16 p-6 rounded-xl border border-border bg-card text-center space-y-3">
-        <AlertTriangle className="w-6 h-6 text-amber-600 mx-auto" />
-        <p className="text-sm font-semibold text-foreground">Broadcast not found</p>
+      <div className="max-w-xl mx-auto mt-16 p-8 rounded-xl border border-border bg-card text-center space-y-3">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-sm font-semibold text-foreground">Loading delivery report...</p>
         <p className="text-xs text-muted-foreground">
-          This broadcast does not exist or you do not have access to it.
+          Fetching broadcast metrics and real-time recipient logs.
         </p>
-        <Link
-          href="/broadcasts"
-          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back to broadcasts
-        </Link>
       </div>
     );
   }
 
-  return <BroadcastDeliveryReportBody initialBroadcast={found} />;
+  // If live detail found from API
+  if (detail) {
+    const totalDispatches =
+      (detail.counts?.pending ?? 0) +
+      (detail.counts?.sent ?? 0) +
+      (detail.counts?.delivered ?? 0) +
+      (detail.counts?.failed ?? 0) +
+      (detail.counts?.tapped_ok ?? 0);
+
+    const sentCount = totalDispatches || (detail.counts?.sent ?? 0) || 1;
+    const delivered = detail.counts?.delivered ?? 0;
+    const tappedOk = detail.counts?.tapped_ok ?? 0;
+    const pending = detail.counts?.pending ?? 0;
+    const failed = detail.counts?.failed ?? 0;
+
+    const liveBroadcast: BroadcastData = {
+      id: detail.id,
+      title: `Broadcast #${detail.id.slice(0, 8)}`,
+      targetArea: "Target Audience",
+      senderRole: "Admin",
+      sentAt: detail.createdAt
+        ? new Date(detail.createdAt).toLocaleString("en-GB", {
+            timeZone: "Africa/Lagos",
+            dateStyle: "medium",
+            timeStyle: "short",
+          })
+        : "Just now",
+      timestamp: detail.createdAt,
+      candidatesCount: 0,
+      agentsCount: totalDispatches,
+      status:
+        detail.status === "completed"
+          ? "Sent"
+          : detail.status === "scheduled"
+          ? "Scheduled"
+          : detail.status === "failed"
+          ? "Failed"
+          : "Sent",
+      channel: "Telegram Bot",
+      sent: sentCount,
+      delivered,
+      deliveredPct: sentCount > 0 ? Math.round((delivered / sentCount) * 100) : 0,
+      tappedOk,
+      tappedOkPct: sentCount > 0 ? Math.round((tappedOk / sentCount) * 100) : 0,
+      pending,
+      failed,
+      messageContent: fallbackMock?.messageContent,
+    };
+
+    const liveLogs: BroadcastRecipientLog[] =
+      deliveriesData?.items && deliveriesData.items.length > 0
+        ? deliveriesData.items.map((del) => ({
+            id: del.id,
+            name: del.fullName,
+            group: del.channel === "telegram" ? "Telegram Agent" : "Official Agent",
+            area: "Assigned Polling Unit",
+            time:
+              del.sentAt || del.createdAt
+                ? new Date(del.sentAt || del.createdAt).toLocaleTimeString("en-GB", {
+                    timeZone: "Africa/Lagos",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "--:--",
+            status:
+              del.status === "tapped_ok"
+                ? "Tapped OK"
+                : del.status === "delivered"
+                ? "Delivered"
+                : del.status === "failed"
+                ? "Failed"
+                : "Pending",
+            source: "Telegram Bot",
+            phoneMasked: del.maskedPhone || "+234 ••• ••• •••",
+          }))
+        : [];
+
+    return (
+      <BroadcastDeliveryReportBody
+        initialBroadcast={liveBroadcast}
+        initialLogs={liveLogs}
+        onRefresh={() => {
+          refetchDetail();
+          refetchDeliveries();
+        }}
+      />
+    );
+  }
+
+  // Fallback to static mock if available
+  if (fallbackMock) {
+    const mockLogs: BroadcastRecipientLog[] =
+      fallbackMock.recipientsList && fallbackMock.recipientsList.length > 0
+        ? fallbackMock.recipientsList
+        : SAMPLE_DELIVERY_LOGS;
+
+    return (
+      <BroadcastDeliveryReportBody
+        initialBroadcast={fallbackMock}
+        initialLogs={mockLogs}
+      />
+    );
+  }
+
+  // Not found in API or mock data
+  return (
+    <div className="max-w-xl mx-auto mt-16 p-6 rounded-xl border border-border bg-card text-center space-y-3">
+      <AlertTriangle className="w-6 h-6 text-amber-600 mx-auto" />
+      <p className="text-sm font-semibold text-foreground">Broadcast not found</p>
+      <p className="text-xs text-muted-foreground">
+        This broadcast does not exist or you do not have access to it.
+      </p>
+      <Link
+        href="/broadcasts"
+        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" />
+        Back to broadcasts
+      </Link>
+    </div>
+  );
 }
 
-function BroadcastDeliveryReportBody({ initialBroadcast }: { initialBroadcast: BroadcastData }) {
+function BroadcastDeliveryReportBody({
+  initialBroadcast,
+  initialLogs,
+  onRefresh,
+}: {
+  initialBroadcast: BroadcastData;
+  initialLogs: BroadcastRecipientLog[];
+  onRefresh?: () => void;
+}) {
   const broadcast = initialBroadcast;
-  const logs: BroadcastRecipientLog[] =
-    initialBroadcast.recipientsList && initialBroadcast.recipientsList.length > 0
-      ? initialBroadcast.recipientsList
-      : SAMPLE_DELIVERY_LOGS;
+  const logs = initialLogs;
 
   const [statusTab, setStatusTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -71,7 +203,6 @@ function BroadcastDeliveryReportBody({ initialBroadcast }: { initialBroadcast: B
       all: logs.length,
       tappedOk: logs.filter((l) => l.status === "Tapped OK").length,
       delivered: logs.filter((l) => l.status === "Delivered").length,
-      deliveredBySms: logs.filter((l) => l.status === "Delivered by SMS").length,
       pending: logs.filter((l) => l.status === "Pending").length,
       failed: logs.filter((l) => l.status === "Failed").length,
     };
@@ -212,6 +343,18 @@ function BroadcastDeliveryReportBody({ initialBroadcast }: { initialBroadcast: B
 
         {/* Top Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap shrink-0">
+          {onRefresh && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRefresh}
+              className="text-xs gap-1.5 border-border"
+            >
+              <RotateCw className="w-3.5 h-3.5 text-muted-foreground" />
+              <span>Refresh</span>
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"

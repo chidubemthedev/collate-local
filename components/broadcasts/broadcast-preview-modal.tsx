@@ -45,7 +45,7 @@ export function BroadcastPreviewModal({
 }: BroadcastPreviewModalProps) {
   const [useVariablePreview, setUseVariablePreview] = useState<boolean>(true);
   const [acknowledged, setAcknowledged] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"telegram" | "sms" | "details">("telegram");
+  const [activeTab, setActiveTab] = useState<"telegram" | "details">("telegram");
 
   if (!broadcast) return null;
 
@@ -141,10 +141,6 @@ export function BroadcastPreviewModal({
                     <Bot className="w-3.5 h-3.5" />
                     Telegram View
                   </TabsTrigger>
-                  <TabsTrigger value="sms" className="text-xs gap-1.5">
-                    <Smartphone className="w-3.5 h-3.5" />
-                    SMS Fallback View
-                  </TabsTrigger>
                   <TabsTrigger value="details" className="text-xs gap-1.5">
                     <Eye className="w-3.5 h-3.5" />
                     Campaign Meta
@@ -228,38 +224,7 @@ export function BroadcastPreviewModal({
                 </div>
               </TabsContent>
 
-              {/* 2. SMS Fallback Mockup */}
-              <TabsContent value="sms" className="mt-0">
-                <div className="bg-slate-100 dark:bg-slate-900/60 p-4 sm:p-6 rounded-xl border border-border text-foreground">
-                  <div className="max-w-md mx-auto space-y-3">
-                    <div className="text-center text-[11px] text-muted-foreground font-mono">
-                      SMS Gateway: NDC-ALERT · +234 800 632 4357
-                    </div>
-
-                    <div className="bg-background dark:bg-slate-800 p-4 rounded-2xl border border-border/80 shadow-xs space-y-2">
-                      <div className="text-xs whitespace-pre-wrap leading-relaxed">
-                        {renderMessageContent()}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground text-right">
-                        Delivered via Telco Route · 160 chars/segment
-                      </div>
-                    </div>
-
-                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="font-semibold">SMS Fallback Policy</div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5">
-                          Triggered automatically when a recipient is not active on Telegram after 5
-                          minutes. A unique SMS confirmation code is attached.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              {/* 3. Campaign Meta */}
+              {/* 2. Campaign Meta */}
               <TabsContent value="details" className="mt-0 space-y-3">
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="p-3 rounded-lg border border-border bg-card">
@@ -313,9 +278,9 @@ export function BroadcastPreviewModal({
                         <div className="font-bold text-primary font-mono">{broadcast.tappedOk}</div>
                       </div>
                       <div className="p-2 rounded bg-background border border-border">
-                        <div className="text-muted-foreground text-[10px]">SMS Fallback</div>
-                        <div className="font-bold text-blue-600 font-mono">
-                          {broadcast.deliveredBySms || 0}
+                        <div className="text-muted-foreground text-[10px]">Pending</div>
+                        <div className="font-bold text-amber-600 font-mono">
+                          {broadcast.pending || 0}
                         </div>
                       </div>
                       <div className="p-2 rounded bg-background border border-border">

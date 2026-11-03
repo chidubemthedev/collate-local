@@ -134,12 +134,9 @@ export function BroadcastsTable({ broadcasts, onPreview }: BroadcastsTableProps)
                             className="h-full bg-emerald-500"
                           />
                         </div>
-                        {broadcast.deliveredBySms ? (
-                          <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <Smartphone className="w-2.5 h-2.5" />
-                            <span>{broadcast.deliveredBySms} SMS</span>
-                          </div>
-                        ) : null}
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <span>Telegram</span>
+                        </div>
                       </div>
                     ) : (
                       <span className="text-muted-foreground text-[11px]">Pending</span>

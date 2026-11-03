@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { BROADCASTS_DATA } from "@/lib/data/broadcasts-data";
 import { BroadcastData } from "@/lib/types";
 import { useApp } from "@/lib/context/app-context";
+import { useBroadcasts } from "@/lib/hooks/use-broadcasts";
 import { BroadcastsKPISummary } from "@/components/broadcasts/broadcasts-kpi-summary";
 import { BroadcastsFilters } from "@/components/broadcasts/broadcasts-filters";
 import { BroadcastCard } from "@/components/broadcasts/broadcast-card";
@@ -20,11 +21,13 @@ import {
   Inbox,
   AlertCircle,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 
 export default function BroadcastsPage() {
   const { activePersona } = useApp();
+  const { data: broadcastsPage, isLoading, isError, error, refetch } = useBroadcasts();
 
   const [statusTab, setStatusTab] = useState<"all" | "Sent" | "Scheduled" | "Draft">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -36,9 +39,69 @@ export default function BroadcastsPage() {
 
   const isCandidatePersona = activePersona.role.startsWith("Candidate");
 
+  // Determine source broadcasts: live API if loaded with items, or static fallback if no items yet
+  const sourceBroadcasts: BroadcastData[] = useMemo(() => {
+    if (broadcastsPage?.items && broadcastsPage.items.length > 0) {
+      return broadcastsPage.items.map((item) => {
+        const isScheduled = item.status === "scheduled";
+        const isDraft = item.status === "draft";
+        const isFailed = item.status === "failed";
+        const status: BroadcastData["status"] = isScheduled
+          ? "Scheduled"
+          : isDraft
+            ? "Draft"
+            : isFailed
+              ? "Failed"
+              : "Sent";
+
+        const firstLine = item.messageText
+          .split("\n")[0]
+          .trim()
+          .replace(/^[*_#\s]+|[*_#\s]+$/g, "");
+        const title =
+          firstLine.length > 0
+            ? firstLine.length > 50
+              ? `${firstLine.slice(0, 47)}...`
+              : firstLine
+            : "Telegram Broadcast Alert";
+
+        const formattedTime = new Date(item.createdAt).toLocaleDateString([], {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        return {
+          id: item.id,
+          title,
+          targetArea: "Audience Scope",
+          senderRole: "Campaign Manager",
+          sentAt: formattedTime,
+          timestamp: item.createdAt,
+          candidatesCount: 0,
+          agentsCount: 0,
+          status,
+          channel: "Telegram",
+          sent: 0,
+          delivered: 0,
+          deliveredPct: 0,
+          tappedOk: 0,
+          tappedOkPct: 0,
+          pending: 0,
+          failed: 0,
+          messageContent: item.messageText,
+        };
+      });
+    }
+
+    // Fallback to seeded demo dataset if live list is empty or pending first creation
+    return BROADCASTS_DATA;
+  }, [broadcastsPage]);
+
   // Filter broadcasts based on activePersona and filters
   const filteredBroadcasts = useMemo(() => {
-    return BROADCASTS_DATA.filter((broadcast) => {
+    return sourceBroadcasts.filter((broadcast) => {
       // 1. Status Tab Filter
       if (statusTab !== "all" && broadcast.status !== statusTab) {
         return false;
@@ -85,17 +148,17 @@ export default function BroadcastsPage() {
 
       return true;
     });
-  }, [statusTab, searchQuery, selectedScope, selectedSenderRole, isCandidatePersona, activePersona]);
+  }, [sourceBroadcasts, statusTab, searchQuery, selectedScope, selectedSenderRole, isCandidatePersona, activePersona]);
 
   // Counts for status tabs
   const statusCounts = useMemo(() => {
     return {
-      all: BROADCASTS_DATA.length,
-      sent: BROADCASTS_DATA.filter((b) => b.status === "Sent").length,
-      scheduled: BROADCASTS_DATA.filter((b) => b.status === "Scheduled").length,
-      draft: BROADCASTS_DATA.filter((b) => b.status === "Draft").length,
+      all: sourceBroadcasts.length,
+      sent: sourceBroadcasts.filter((b) => b.status === "Sent").length,
+      scheduled: sourceBroadcasts.filter((b) => b.status === "Scheduled").length,
+      draft: sourceBroadcasts.filter((b) => b.status === "Draft").length,
     };
-  }, []);
+  }, [sourceBroadcasts]);
 
   const isFiltered =
     statusTab !== "all" ||
@@ -127,7 +190,6 @@ export default function BroadcastsPage() {
       "Total Sent",
       "Delivered",
       "Delivered %",
-      "Delivered by SMS",
       "Tapped OK",
       "Tapped OK %",
       "Failed",
@@ -144,7 +206,6 @@ export default function BroadcastsPage() {
       b.sent,
       b.delivered,
       `${b.deliveredPct}%`,
-      b.deliveredBySms || 0,
       b.tappedOk,
       `${b.tappedOkPct}%`,
       b.failed,
@@ -176,12 +237,12 @@ export default function BroadcastsPage() {
               className="text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Telegram + SMS Live
+              Telegram Bot Active
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl">
-            Send, track, and schedule mass alerts via Telegram and SMS to candidates and polling unit
-            agents with 1-tap confirmation tracking.
+            Send, track, and schedule mass alerts via Telegram to polling unit agents with 1-tap
+            confirmation tracking.
           </p>
         </div>
 
@@ -197,8 +258,28 @@ export default function BroadcastsPage() {
         </div>
       </div>
 
+      {/* Loading & Error States */}
+      {isLoading && (
+        <div className="flex items-center gap-2 p-3 rounded-xl border border-border bg-muted/30 text-xs text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          <span>Syncing broadcast campaigns with server…</span>
+        </div>
+      )}
+
+      {isError && (
+        <div className="p-3 rounded-xl border border-destructive/30 bg-destructive/10 text-xs text-destructive flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>Failed to load live broadcasts: {error?.message || "Unknown error"}.</span>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-7 text-xs">
+            Retry
+          </Button>
+        </div>
+      )}
+
       {/* KPI Metrics Summary */}
-      <BroadcastsKPISummary broadcasts={BROADCASTS_DATA} />
+      <BroadcastsKPISummary broadcasts={sourceBroadcasts} />
 
       {/* Filters & Search Toolbar */}
       <BroadcastsFilters
@@ -279,7 +360,7 @@ export default function BroadcastsPage() {
         />
       )}
 
-      {/* Interactive Telegram / SMS Preview Modal */}
+      {/* Interactive Telegram Preview Modal */}
       <BroadcastPreviewModal
         broadcast={previewBroadcast}
         open={isPreviewOpen}
