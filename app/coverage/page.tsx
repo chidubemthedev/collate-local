@@ -20,7 +20,6 @@ import { AtStakeCandidates } from "@/components/coverage/at-stake-candidates";
 import { CoverageMap } from "@/components/coverage/coverage-map";
 import { CoverageFilters } from "@/components/coverage/coverage-filters";
 import { CoverageTable } from "@/components/coverage/coverage-table";
-import { PoliticalUnitsView } from "@/components/coverage/political-units-view";
 import {
   CoverageDashboardSkeleton,
   KPISummarySkeleton,
@@ -51,7 +50,6 @@ export default function CoveragePage() {
     resetAreaFilters,
   } = useApp();
 
-  const [unitMode, setUnitMode] = useState<"administrative" | "political">("administrative");
   const [filterMode, setFilterMode] = useState<"all" | "gaps">("all");
   const [sortBy, setSortBy] = useState<string>("pus-desc");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -476,8 +474,6 @@ export default function CoveragePage() {
 
   const coverageFilters = (
     <CoverageFilters
-      unitMode={unitMode}
-      setUnitMode={setUnitMode}
       stateCode={selectedStateCode}
       setStateCode={setSelectedStateCode}
       lgaCode={selectedLgaCode}
@@ -544,72 +540,65 @@ export default function CoveragePage() {
           />
         ) : null}
       </div>
+      <section className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
+        {coverageFilters}
+      </section>
       <AtStakeCandidates
         stateId={selectedStateId}
         lgaId={selectedLgaId}
         wardId={selectedWardId}
       />
 
-      {unitMode === "administrative" ? (
-        <>
-          <CoverageMap
-            stateCode={selectedStateCode}
-            lgaCode={selectedLgaCode}
-            wardCode={selectedWardCode}
-            stateName={selectedState?.name}
-            lgaName={selectedLga?.name}
-            wardName={selectedWard?.name}
-            states={statesList}
-            lgas={lgasList}
-            wards={wardsList}
-            pollingUnits={pollingUnitsList}
-            onSelectState={(code) => {
-              setSelectedStateCode(code);
-              setSelectedLgaCode("all");
-              setSelectedWardCode("all");
-            }}
-            onSelectLga={(code) => {
-              setSelectedLgaCode(code);
-              setSelectedWardCode("all");
-            }}
-            onSelectWard={(code) => setSelectedWardCode(code)}
-          />
-          <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
-            {coverageFilters}
-          <div
-            aria-busy={isCoverageTableFetching}
-            className={isCoverageTableFetching && !isCoverageTableLoading ? "opacity-60" : ""}
-          >
-            {isCoverageTableLoading ? (
-              <CoverageTableSkeleton />
-            ) : (
-              <CoverageTable
-                level={currentLevel}
-                states={filteredStates}
-                lgas={filteredLGAs}
-                wards={filteredWards}
-                pollingUnits={filteredPollingUnits}
-                onOpenState={(code) => {
-                  setSelectedStateCode(code);
-                  setSelectedLgaCode("all");
-                  setSelectedWardCode("all");
-                }}
-                onOpenLga={(code) => {
-                  setSelectedLgaCode(code);
-                  setSelectedWardCode("all");
-                }}
-                onOpenWard={(code) => setSelectedWardCode(code)}
-              />
-            )}
-          </div>
-          </section>
-        </>
-      ) : (
-        <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
-          {coverageFilters}
-          <PoliticalUnitsView />
-        </section>
-      )}
+      <CoverageMap
+        stateCode={selectedStateCode}
+        lgaCode={selectedLgaCode}
+        wardCode={selectedWardCode}
+        stateName={selectedState?.name}
+        lgaName={selectedLga?.name}
+        wardName={selectedWard?.name}
+        states={statesList}
+        lgas={lgasList}
+        wards={wardsList}
+        pollingUnits={pollingUnitsList}
+        onSelectState={(code) => {
+          setSelectedStateCode(code);
+          setSelectedLgaCode("all");
+          setSelectedWardCode("all");
+        }}
+        onSelectLga={(code) => {
+          setSelectedLgaCode(code);
+          setSelectedWardCode("all");
+        }}
+        onSelectWard={(code) => setSelectedWardCode(code)}
+      />
+      <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
+        <div
+          aria-busy={isCoverageTableFetching}
+          className={isCoverageTableFetching && !isCoverageTableLoading ? "opacity-60" : ""}
+        >
+          {isCoverageTableLoading ? (
+            <CoverageTableSkeleton />
+          ) : (
+            <CoverageTable
+              level={currentLevel}
+              states={filteredStates}
+              lgas={filteredLGAs}
+              wards={filteredWards}
+              pollingUnits={filteredPollingUnits}
+              onOpenState={(code) => {
+                setSelectedStateCode(code);
+                setSelectedLgaCode("all");
+                setSelectedWardCode("all");
+              }}
+              onOpenLga={(code) => {
+                setSelectedLgaCode(code);
+                setSelectedWardCode("all");
+              }}
+              onOpenWard={(code) => setSelectedWardCode(code)}
+            />
+          )}
+        </div>
+      </section>
     </div>
   );
 }
