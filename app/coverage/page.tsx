@@ -245,7 +245,7 @@ export default function CoveragePage() {
 
       return {
         code: l.code,
-        stateCode: "stateCode" in l ? String(l.stateCode) : selectedStateCode,
+        stateCode: "inecStateCode" in l ? l.inecStateCode : selectedStateCode,
         name: l.name,
         totalPUs: l.totalPUs,
         gpsPUs: l.gpsPUs,

@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiClient, ApiClientError } from "@/lib/api/client";
-import type { QueueSummaryRow, RecentJob } from "@/app/api/admin/queue/route";
+import type { QueueSummaryRow, RecentJob } from "@/lib/admin/queue";
 
 interface QueueData {
   summary: QueueSummaryRow[];

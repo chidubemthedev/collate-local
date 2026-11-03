@@ -113,37 +113,47 @@ export async function POST(request: Request) {
       )) as Array<{ allowed: boolean }>;
       if (!scopeRows[0]?.allowed) return { error: "not_found", status: 404 as const };
 
-      const ownerRows = (await manager.query<Array<{ allowed: boolean }>>(
-        `
-          SELECT
-            $4::boolean
-            OR (
-              $2::int IS NOT NULL
-              AND EXISTS (
-                SELECT 1
-                FROM membership m
-                JOIN groups g ON g.id = m.group_id
-                WHERE m.person_id = $1
-                  AND m.group_id = $2
-                  AND g.group_type IN ('party', 'campaign')
+      if (body.ownerGroupId !== null) {
+        const ownerRows = (await manager.query<Array<{ id: number }>>(
+          `
+            SELECT owner_group.id
+            FROM groups owner_group
+            WHERE owner_group.id = $2
+              AND owner_group.group_type IN ('party', 'campaign')
+              AND (
+                $3::boolean
+                OR NOT EXISTS (
+                  SELECT 1
+                  FROM membership viewer_membership
+                  WHERE viewer_membership.person_id = $1
+                )
+                OR EXISTS (
+                  SELECT 1
+                  FROM membership viewer_membership
+                  JOIN group_visibility_grant visibility
+                    ON visibility.viewer_group_id = viewer_membership.group_id
+                  WHERE viewer_membership.person_id = $1
+                    AND visibility.owner_group_id = owner_group.id
+                    AND visibility.is_allowed = TRUE
+                )
               )
-            )
-            OR (
-              $3::int IS NOT NULL
-              AND EXISTS (
-                SELECT 1 FROM candidate c
-                WHERE c.id = $3 AND c.person_id = $1
-              )
+            FOR KEY SHARE;
+          `,
+          [auth.context.personId, body.ownerGroupId, auth.context.isAdmin],
+        )) as Array<{ id: number }>;
+        if (!ownerRows[0]) return { error: "invalid_owner", status: 400 as const };
+      } else {
+        const ownerRows = (await manager.query<Array<{ allowed: boolean }>>(
+          `
+            SELECT EXISTS (
+              SELECT 1 FROM candidate c
+              WHERE c.id = $2 AND c.person_id = $1
             ) AS allowed;
-        `,
-        [
-          auth.context.personId,
-          body.ownerGroupId,
-          body.ownerCandidateId,
-          auth.context.isAdmin,
-        ],
-      )) as Array<{ allowed: boolean }>;
-      if (!ownerRows[0]?.allowed) return { error: "forbidden", status: 403 as const };
+          `,
+          [auth.context.personId, body.ownerCandidateId],
+        )) as Array<{ allowed: boolean }>;
+        if (!ownerRows[0]?.allowed) return { error: "forbidden", status: 403 as const };
+      }
 
       const conflicts = (await manager.query<Array<{ exists: boolean }>>(
         `
@@ -197,6 +207,9 @@ export async function POST(request: Request) {
     });
 
     if ("error" in result) {
+      if (result.error === "invalid_owner") {
+        return failure("validation_failed", "Owner group is invalid or not visible to the caller");
+      }
       if (result.error === "not_found") {
         return failure("not_found", "Polling unit not found");
       }
