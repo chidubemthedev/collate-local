@@ -10,6 +10,11 @@ import { BroadcastsFilters } from "@/components/broadcasts/broadcasts-filters";
 import { BroadcastCard } from "@/components/broadcasts/broadcast-card";
 import { BroadcastsTable } from "@/components/broadcasts/broadcasts-table";
 import { BroadcastPreviewModal } from "@/components/broadcasts/broadcast-preview-modal";
+import {
+  BroadcastsKPISummarySkeleton,
+  BroadcastCardSkeleton,
+  BroadcastsTableSkeleton,
+} from "@/components/broadcasts/broadcasts-skeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +38,7 @@ export default function BroadcastsPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedScope, setSelectedScope] = useState<string>("all");
   const [selectedSenderRole, setSelectedSenderRole] = useState<string>("all");
+  const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [previewBroadcast, setPreviewBroadcast] = useState<BroadcastData | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
@@ -137,7 +143,14 @@ export default function BroadcastsPage() {
         }
       }
 
-      // 5. Persona Scoping (if candidate is viewing)
+      // 5. Channel Filter
+      if (selectedChannel !== "all") {
+        if (broadcast.channel.toLowerCase() !== selectedChannel.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 6. Persona Scoping (if candidate is viewing)
       if (isCandidatePersona) {
         if (activePersona.stateCode && broadcast.stateCode) {
           if (broadcast.stateCode !== activePersona.stateCode && !broadcast.targetArea.includes("National")) {
@@ -148,7 +161,7 @@ export default function BroadcastsPage() {
 
       return true;
     });
-  }, [sourceBroadcasts, statusTab, searchQuery, selectedScope, selectedSenderRole, isCandidatePersona, activePersona]);
+  }, [sourceBroadcasts, statusTab, searchQuery, selectedScope, selectedSenderRole, selectedChannel, isCandidatePersona, activePersona]);
 
   // Counts for status tabs
   const statusCounts = useMemo(() => {
@@ -164,13 +177,15 @@ export default function BroadcastsPage() {
     statusTab !== "all" ||
     searchQuery.trim() !== "" ||
     selectedScope !== "all" ||
-    selectedSenderRole !== "all";
+    selectedSenderRole !== "all" ||
+    selectedChannel !== "all";
 
   const handleResetFilters = () => {
     setStatusTab("all");
     setSearchQuery("");
     setSelectedScope("all");
     setSelectedSenderRole("all");
+    setSelectedChannel("all");
   };
 
   const handleOpenPreview = (broadcast: BroadcastData) => {
@@ -258,28 +273,25 @@ export default function BroadcastsPage() {
         </div>
       </div>
 
-      {/* Loading & Error States */}
-      {isLoading && (
-        <div className="flex items-center gap-2 p-3 rounded-xl border border-border bg-muted/30 text-xs text-muted-foreground">
-          <Loader2 className="w-4 h-4 animate-spin text-primary" />
-          <span>Syncing broadcast campaigns with server…</span>
-        </div>
-      )}
-
+      {/* Error State */}
       {isError && (
-        <div className="p-3 rounded-xl border border-destructive/30 bg-destructive/10 text-xs text-destructive flex items-center justify-between gap-2">
+        <div className="p-3.5 rounded-xl border border-destructive/30 bg-destructive/10 text-xs text-destructive flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>Failed to load live broadcasts: {error?.message || "Unknown error"}.</span>
           </div>
-          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-7 text-xs">
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="h-7 text-xs border-destructive/30 hover:bg-destructive/10">
             Retry
           </Button>
         </div>
       )}
 
-      {/* KPI Metrics Summary */}
-      <BroadcastsKPISummary broadcasts={sourceBroadcasts} />
+      {/* KPI Metrics Summary or Skeleton */}
+      {isLoading ? (
+        <BroadcastsKPISummarySkeleton />
+      ) : (
+        <BroadcastsKPISummary broadcasts={sourceBroadcasts} />
+      )}
 
       {/* Filters & Search Toolbar */}
       <BroadcastsFilters
@@ -292,6 +304,8 @@ export default function BroadcastsPage() {
         onScopeChange={setSelectedScope}
         selectedSenderRole={selectedSenderRole}
         onSenderRoleChange={setSelectedSenderRole}
+        selectedChannel={selectedChannel}
+        onChannelChange={setSelectedChannel}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         onReset={handleResetFilters}
@@ -314,8 +328,17 @@ export default function BroadcastsPage() {
         </div>
       )}
 
-      {/* Content Section: Cards vs Table */}
-      {filteredBroadcasts.length === 0 ? (
+      {/* Content Section: Skeletons vs Empty vs Cards vs Table */}
+      {isLoading ? (
+        viewMode === "cards" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <BroadcastCardSkeleton />
+            <BroadcastCardSkeleton />
+          </div>
+        ) : (
+          <BroadcastsTableSkeleton rows={4} />
+        )
+      ) : filteredBroadcasts.length === 0 ? (
         <div className="p-12 text-center border border-dashed border-border rounded-2xl bg-card space-y-3">
           <div className="w-12 h-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto">
             <Inbox className="w-6 h-6" />

@@ -20,6 +20,7 @@ import { StepAudience, AudienceConfig } from "@/components/broadcasts/new/step-a
 import { StepMessage, MessageConfig } from "@/components/broadcasts/new/step-message";
 import { StepSchedule, ScheduleConfig } from "@/components/broadcasts/new/step-schedule";
 import { LivePreview } from "@/components/broadcasts/new/live-preview";
+import { ComposeBroadcastSkeleton } from "@/components/broadcasts/new/new-broadcast-skeletons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -144,12 +145,7 @@ export default function NewBroadcastPage() {
   };
 
   if (isLoadingPermissions) {
-    return (
-      <div className="flex items-center justify-center gap-2 py-24 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Checking broadcast access…
-      </div>
-    );
+    return <ComposeBroadcastSkeleton />;
   }
 
   if (permissionsError) {
@@ -246,8 +242,8 @@ export default function NewBroadcastPage() {
               onClick={() => setCurrentStep(step)}
               className={`flex items-center gap-2.5 rounded-xl border p-3 text-left transition-colors ${
                 currentStep === step
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-muted-foreground"
+                  ? "border-primary bg-primary text-primary-foreground font-semibold"
+                  : "border-border/70 bg-card text-muted-foreground hover:text-foreground hover:border-border"
               }`}
             >
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-background/80 text-xs font-bold text-foreground">
@@ -356,6 +352,7 @@ export default function NewBroadcastPage() {
             schedule={schedule}
             targetAreaLabel={targetAreaLabel}
             totalRecipients={totalRecipients}
+            isLoadingRecipients={previewQuery.isLoading || previewQuery.isFetching}
           />
         </div>
       </div>

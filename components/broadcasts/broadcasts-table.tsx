@@ -29,10 +29,10 @@ export function BroadcastsTable({ broadcasts, onPreview }: BroadcastsTableProps)
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+    <div className="rounded-xl border border-border/70 bg-card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
-          <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase tracking-wider font-semibold text-[11px]">
+          <thead className="bg-muted/50 border-b border-border/70 text-muted-foreground uppercase tracking-wider font-semibold text-[11px]">
             <tr>
               <th className="py-3 px-4">Campaign Title & Target</th>
               <th className="py-3 px-3">Status</th>
