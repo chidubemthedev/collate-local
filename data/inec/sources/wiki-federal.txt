@@ -1,0 +1,1113 @@
+{{Short description|none}}
+This is a list of the 360 constituencies represented in the [[House of Representatives (Nigeria)|House of Representatives]] of the [[Nigeria|Federal Republic of Nigeria]], as at November 2024.
+{{Horizontal TOC}}
+
+== History ==
+The House of Representatives (also called Green Chamber) is the [[Lower house|lower chamber]] of Nigeria's [[Bicameralism|bicameral]] National Assembly.<ref>{{Cite web |date=2019-06-12 |title=Nigeria National Assembly leadership: Ruling APC sweeps all top posts |url=https://www.africanews.com/2019/06/12/security-high-as-nigeria-lawmakers-elect-new-leaders/ |access-date=2024-11-07 |website=Africanews |language=en}}</ref> The Green Chamber has 360 members who are elected in single-member [[Constituency|constituencies]] using the plurality (or [[first-past-the-post]]) system, most recently [[2023 Nigerian House of Representatives election|in 2023]]. Members serve four-year terms.
+
+==[[Abia State]] – 8 seats==
+[[Abia State|Abia state]] is made up of 8 federal [[Electoral district|constituencies]] which covers 17 [[Local government area|local government areas]].
+[[File:2023 Abia Senate pre-election situation.png|thumb|right|Map of Abia State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Abia South]] || [[Aba North/Aba South federal constituency|Aba North/Aba South]] 
+|-
+| [[Abia North]] || [[Arochukwu/Ohafia federal constituency|Arochukwu/Ohafia]] 
+|-
+| [[Abia North]] || [[Bende federal constituency|Bende]] 
+|-
+| [[Abia Central]] || [[Isiala Ngwa North/Isiala Ngwa South federal constituency|Isiala Ngwa North/Isiala Ngwa South]] 
+|-
+| [[Abia North]] || [[Isuikwuato/Umunneochi federal constituency|Isuikwuato/Umunneochi]] 
+|-
+| [[Abia Central]] || [[Obingwa/Ugwunagbo/Osisioma federal constituency|Obingwa/Ugwunagbo/Osisioma]] 
+|-
+| [[Abia South]] || [[Ukwa East/Ukwa West federal constituency|Ukwa East/Ukwa West]] 
+|-
+| [[Abia Central]] || [[Umuahia North/Umuahia South/Ikwuano federal constituency|Umuahia North/Umuahia South/Ikwuano]] 
+|-
+|}
+{{clear}}
+
+==[[Adamawa State]] – 8 seats==
+[[Adamawa State|Adamawa state]] is made up of 8 federal [[Electoral district|constituencies]] which covers 21 [[Local government area|local government areas]].
+[[File:2023 Adamawa Senate pre-election situation.png|thumb|Adamawa State Map]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Adamawa South senatorial district|Adamawa South]] || [[Demsa/Numan/Lamurde]] 
+|-
+| [[Adamawa Central senatorial district|Adamawa Central]] || [[Fufore/Song]] 
+|-
+| [[Adamawa South senatorial district|Adamawa South]] || [[Guyuk/Shelleng]] 
+|-
+| [[Adamawa Central senatorial district|Adamawa Central]] || [[Hong/Gombi]] 
+|-
+| [[Adamawa South senatorial district|Adamawa South]] || [[Jada/Ganye/Mayo Belwa/Toungo]] 
+|-
+| [[Adamawa North senatorial district|Adamawa North]] || [[Michika/Madagali]] 
+|-
+| [[Adamawa North senatorial district|Adamawa North]] || [[Mubi North/Mubi South/Maiha]] 
+|-
+| [[Adamawa Central senatorial district|Adamawa Central]] || [[Yola North/Yola South/Girei]] 
+|-
+|}
+{{clear}}
+
+==[[Akwa Ibom State]] – 10 seats==
+[[Akwa Ibom State|Akwa Ibom]] state is made up of 10 federal [[Electoral district|constituencies]] which covers 31 [[Local government area|local government areas]].
+[[File:2023 Akwa Ibom Senate pre-election situation.png|thumb|Akwa Ibom State Map]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Akwa Ibom North-West senatorial district|Akwa Ibom North West]] || [[Abak/Etim Ekpo/Ika federal constituency|Abak/Etim Ekpo/Ika]] 
+|-
+| [[Akwa Ibom South senatorial district|Akwa Ibom South]] || [[Eket/Onna/Esit Eket/Ibeno federal constituency|Eket/Onna/Esit Eket/Ibeno]] 
+|-
+| [[Akwa Ibom North-East senatorial district|Akwa Ibom North East]] || [[Etinan/Nsit Ibom/Nsit Ubium federal constituency|Etinan/Nsit Ibom/Nsit ubium]] 
+|-
+| [[Akwa Ibom North-West senatorial district|Akwa Ibom North West]] || [[Ikono/Ini]] 
+|-
+| [[Akwa Ibom South senatorial district|Akwa Ibom South]] || [[Ikot Abasi/Mkpat Enin/Eastern Obolo]] 
+|-
+| [[Akwa Ibom North-West senatorial district|Akwa Ibom North West]] || [[Ikot Ekpene/Essien Udim/ Obot Akara]] 
+|-
+| [[Akwa Ibom North-East senatorial district|Akwa Ibom North East]] || [[Itu/Ibiono Ibom]] 
+|-
+| [[Akwa Ibom South senatorial district|Akwa Ibom South]] || [[Oron/Mbo/Okobo/Udung Uko/Urue Offong/Oruko]] 
+|-
+| [[Akwa Ibom North-West senatorial district|Akwa Ibom North West]] || [[Ukanafun/Oruk Anam]] 
+|-
+| [[Akwa Ibom North-East senatorial district|Akwa Ibom North East]] || [[Uyo/Uruan/Nsit Atai/ Ibesikpo Asutan]] 
+|-
+|}
+{{clear}}
+
+==[[Anambra State]] – 11 seats==
+[[Anambra State|Anambra]] state is made up of 11 federal [[Electoral district|constituencies]] which covers 21 [[Local government area|local government areas]].
+[[File:Anambra lga map.gif|thumb|Anambra State Map]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Anambra South senatorial district|Anambra South]] || [[Aguata federal constituency|Aguata]] 
+|-
+| [[Anambra North senatorial district|Anambra North]] || [[Anambra East/West]] 
+|-
+| [[Anambra Central senatorial district|Anambra Central]] || [[Awka North/South]] 
+|-
+| [[Anambra Central senatorial district|Anambra Central]] || [[Idemili North/South]] 
+|-
+| [[Anambra South senatorial district|Anambra South]] || [[Ihiala federal constituency|Ihiala]] 
+|-
+| [[Anambra Central senatorial district|Anambra Central]] || [[Njikoka/Dunukofia/Anaocha]] 
+|-
+| [[Anambra South senatorial district|Anambra South]] || [[Nnewi North/South/Ekwusigo]] 
+|-
+| [[Anambra North senatorial district|Anambra North]] || [[Ogbaru federal constituency|Ogbaru]] 
+|-
+| [[Anambra North senatorial district|Anambra North]] || [[Onitsha North/South]] 
+|-
+| [[Anambra South senatorial district|Anambra South]] || [[Orumba North/South]] 
+|-
+| [[Anambra North senatorial district|Anambra North]] || [[Oyi/Ayamelum]] 
+|-
+|}
+{{clear}}
+
+==[[Bauchi State]] – 12 seats==
+[[Bauchi State|Bauchi state]] is made up of 12 federal [[Electoral district|constituencies]] which covers 20 [[Local government area|local government areas]].
+[[File:2023 Bauchi Senate pre-election situation.png|thumb|Bauchi State Map]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Bauchi South]] || [[Alkaleri/Kirfi]] 
+|-
+| [[Bauchi South]] || [[Bauchi federal constituency|Bauchi]] 
+|-
+| [[Bauchi South]] || [[Bogoro/Dass/Tafawa Balewa]] 
+|-
+| [[Bauchi Central]] || [[Darazo/Gunjuwa]] 
+|-
+| [[Bauchi North]] || [[federal constituency|Gamawa]] 
+|-
+| [[Bauchi North]] || [[Jama'are/Itas-Gadau]] 
+|-
+| [[Bauchi North]] || [[federal constituency|Katagum]] 
+|-
+| [[Bauchi Central]] || [[Misau/Dambam]] 
+|-
+| [[Bauchi Central]] || [[Ningi/Warji]] 
+|-
+| [[Bauchi North]] || [[Shira/Giade]] 
+|-
+| [[Bauchi South]] || [[federal constituency|Toro]] 
+|-
+| [[Bauchi North]] || [[federal constituency|Zaki]] 
+|-
+|}
+{{clear}}
+
+==[[Bayelsa State]] – 5 seats==
+[[Bayelsa State|Bayelsa]] state is made up of 5 federal [[Electoral district|constituencies]] which covers 8 [[Local government area|local government areas]].
+[[File:2023 Bayelsa Senate pre-election situation.png|thumb|right|Map of Bayelsa State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Bayelsa East senatorial district|Bayelsa East]] || [[Brass/Nembe]] 
+|-
+| [[Bayelsa East senatorial district|Bayelsa East]] || [[Ogbia]] 
+|-
+| [[Bayelsa West senatorial district|Bayelsa West]] || [[Sagbama/Ekeremor]] 
+|-
+| [[Bayelsa Central senatorial district|Bayelsa Central]] || [[Southern Ijaw]] 
+|-
+| [[Bayelsa Central senatorial district|Bayelsa Central]] || [[Yenagoa/Kolokuna/Opokuma]] 
+|-
+|}
+{{clear}}
+
+==[[Benue State]] – 11 seats==
+[[Benue State|Benue state]] is made up of 11 federal [[Electoral district|constituencies]] which covers 23 [[Local government area|local government areas]].
+[[File:2023 Benue Senate pre-election situation.png|thumb|Benue State Map]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Benue South senatorial district|Benue South]] || [[Ado/Obadigbo/Okpokwu]] 
+|-
+| [[Benue South senatorial district|Benue South]] || [[Apa/Agatu]] 
+|-
+| [[Benue North-West senatorial district|Benue North West]] || [[Buruku]] 
+|-
+| [[Benue North-West senatorial district|Benue North West]] || [[Gboko/Tarka]] 
+|-
+| [[Benue North-West senatorial district|Benue North West]] || [[Guma/Makurdi]] 
+|-
+| [[Benue North-West senatorial district|Benue North West]] || [[Gwer East/Gwer West]] 
+|-
+| [[Benue North-East senatorial district|Benue North East]] || [[Katsina-Ala/Ukum/Logo]] 
+|-
+| [[Benue North-East senatorial district|Benue North East]] || [[Konshisha/Vandeikya]] 
+|-
+| [[Benue North-East senatorial district|Benue North East]] || [[Kwande/Ushongo]] 
+|-
+| [[Benue South senatorial district|Benue South]] || [[Oju/Obi]] 
+|-
+| [[Benue South senatorial district|Benue South]] || [[Otukpo/Ohimini]] 
+|-
+|}
+{{clear}}
+
+==[[Borno State]] – 10 seats==
+[[Borno State|Borno state]] is made up of 10 federal [[Electoral district|constituencies]] which covers 27 [[Local government area|local government areas]].
+[[File:2023 Borno Senate pre-election situation.png|thumb|Borno State Map]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Borno South]] || [[Askira-Uba/Hawul]] 
+|-
+| [[Borno Central senatorial district|Borno Central]] || [[Bama/Ngala/Kala-Balge]] 
+|-
+| [[Borno South]] || [[Biu/Kwaya-Kusar Shani/Bayo]] 
+|-
+| [[Borno South]] || [[Damboa/Gwoza/Chibok]] 
+|-
+| [[Borno Central senatorial district|Borno Central]] || [[Dikwa/Mafa/Konduga]] 
+|-
+| [[Borno Central senatorial district|Borno Central]] || [[Jere, Nigeria|Jere]] 
+|-
+| [[Borno North]] || [[Kaga/Gubio/Magumeri]] 
+|-
+| [[Borno North]] || [[Kukawa/Mobbar/Abadam/Guzamali]] 
+|-
+| [[Borno Central senatorial district|Borno Central]] || [[Maiduguri Metropolitan]] 
+|-
+| [[Borno North]] || [[Monguno/Nganzai/Marte]] 
+|-
+|}
+{{clear}}
+
+==[[Cross River State]] – 8 seats==
+[[Cross River State|Cross River state]] is made up of 8 federal [[Electoral district|constituencies]] which covers 18 [[Local government area|local government areas]].
+[[File:2023 Cross River Senate pre-election situation.png|thumb|Cross River State Map]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Cross River South senatorial district|Cross River South]] || [[Akamkpa/Biase]] 
+|-
+| [[Cross River Central senatorial district|Cross River Central]] || [[Boki/Ikom]] 
+|-
+| [[Cross River South senatorial district|Cross River South]] || [[Calabar South/Akpabuyo/Bakassi]] 
+|-
+| [[Cross River South senatorial district|Cross River South]] || [[Calabar Municipal/Odukpani]] 
+|-
+| [[Cross River North senatorial district|Cross River North]] || [[Obanliku/Obudu/Bekwarra]] 
+|-
+| [[Cross River Central senatorial district|Cross River Central]] || [[Obubra/Etung]] 
+|-
+| [[Cross River North senatorial district|Cross River North]] || [[Ogoja/Yala]] 
+|-
+| [[Cross River Central senatorial district|Cross River Central]] || [[Yakurr/Abi]] 
+|-
+|}
+{{clear}}
+
+==[[Delta State]] – 10 seats==
+[[Delta State|Delta state]] is made up of 10 federal [[Electoral district|constituencies]] which covers 25 [[Local government area|local government areas]].
+[[File:2023 Delta Senate pre-election situation.png|thumb|Map of Delta State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Delta North senatorial district|Delta North]] || [[Aniocha North/Aniocha South/Oshimili North/Oshimili South]] 
+|-
+| [[Delta South senatorial district|Delta South]] || [[Bomadi/Patani]] 
+|-
+| [[Delta South senatorial district|Delta South]] || [[Burutu]] 
+|-
+| [[Delta Central senatorial district|Delta Central]] || [[Ethiope East/Ethiope West]] 
+|-
+| [[Delta North senatorial district|Delta North]] || [[Ika North East/Ika South]] 
+|-
+| [[Delta South senatorial district|Delta South]] || [[Isoko North/Isoko South]] 
+|-
+| [[Delta North senatorial district|Delta North]] || [[Nkokwa East/Ndokwa West/Ukwuani]] 
+|-
+| [[Delta Central senatorial district|Delta Central]] || [[Okpe/Sapele/Uvwie]] 
+|-
+| [[Delta Central senatorial district|Delta Central]] || [[Ughelli North Ughelli South/Udu|Ughelli North/Ughelli South/Udu]]
+|-
+| [[Delta South senatorial district|Delta South]] || [[Warri North/Warri South/Warri South West]] 
+|-
+|}
+{{clear}}
+
+==[[Ebonyi State]] – 6 seats==
+[[Ebonyi State|Ebonyi state]] is made up of 6 federal [[Electoral district|constituencies]] which covers 13 [[Local government area|local government areas]].
+[[File:2023 Ebonyi Senate pre-election situation.png|thumb|right|Map of Ebonyi State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Ebonyi North]] || [[Abakaliki/Izzi]] 
+|-
+| [[Ebonyi South senatorial district|Ebonyi South]] || [[Afikpo North/Afikpo South]] 
+|-
+| [[Ebonyi North]] || [[Ebonyi/Ohaukwu]] 
+|-
+| [[Ebonyi Central]] || [[Ezza North/Ishielu]] 
+|-
+| [[Ebonyi Central]] || [[Ezza South/Ikwo]] 
+|-
+| [[Ebonyi South senatorial district|Ebonyi South]] || [[Ivo-Ohaozara/Onicha]] 
+|-
+|}
+{{clear}}
+
+==[[Edo State]] – 9 seats==
+[[Edo State|Edo state]] is made up of 9 federal [[Electoral district|constituencies]] which covers 18 [[Local government area|local government areas]].
+[[File:2023 Edo Senate pre-election situation.png|thumb|Edo State Map]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Edo North senatorial district|Edo North]] || [[Akoko-Edo]] 
+|-
+| [[Edo South senatorial district|Edo South]] || [[Egor/Ikpoba-Okha]] 
+|-
+| [[Edo Central senatorial district|Edo Central]] || [[Esan Central/Esan South/Igueben]] 
+|-
+| [[Edo Central senatorial district|Edo Central]] || [[Esan North East/Esan South East]] 
+|-
+| [[Edo North senatorial district|Edo North]] || [[Etsako East/Etsako West/Etsako Central]] 
+|-
+| [[Edo South senatorial district|Edo South]] || [[Oredo]] 
+|-
+| [[Edo South senatorial district|Edo South]] || [[Orhionmwon/Uhunmwonde]] 
+|-
+| [[Edo South senatorial district|Edo South]] || [[Ovia North East/Ovia South West]] 
+|-
+| [[Edo North senatorial district|Edo North]] || [[Owan East/Owan West]] 
+|-
+|}
+{{clear}}
+
+==[[Ekiti State]] – 6 seats==
+[[Ekiti State|Ekiti state]] is made up of 6 federal [[Electoral district|constituencies]] which covers 16 [[Local government area|local government areas]].
+[[File:2023 Ekiti Senate pre-election situation.png|thumb|right|Map of Ekiti State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Ekiti Central]] || [[Ado Ekiti/Irepodun/Ifelodun]] 
+|-
+| [[Ekiti South]] || [[Ekiti South West/Ikere/Orun/Ise]] 
+|-
+| [[Ekiti South]] || [[Emure/Gbonyin/Ekiti East]] 
+|-
+| [[Ekiti North]] || [[Ido/Osi Moba/Ilejeme]] 
+|-
+| [[Ekiti Central]] || [[Ijero/Ekiti West/Efon]] 
+|-
+| [[Ekiti North]] || [[Ikole/Oye]] 
+|-
+|}
+{{clear}}
+
+==[[Enugu State]] – 8 seats==
+[[Enugu State|Enugu state]] is made up of 8 federal [[Electoral district|constituencies]] which covers 17 [[Local government area|local government areas]].
+[[File:2023 Enugu Senate pre-election situation.png|thumb|Enugu State Map]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Enugu West senatorial district|Enugu West]] || [[Aninri/Awgu/Oji River]] 
+|-
+| [[Enugu East senatorial district|Enugu East]] || [[Enugu East/Isi Uzo]] 
+|-
+| [[Enugu East senatorial district|Enugu East]] || [[Enugu North/Enugu South]] 
+|-
+| [[Enugu West senatorial district|Enugu West]] || [[Ezeagu/Udi]] 
+|-
+| [[Enugu North senatorial district|Enugu North]] || [[Igbo-Etiti/Uzo-Uwani]] 
+|-
+| [[Enugu North senatorial district|Enugu North]] || [[Igbo-Eze North/Udenu]] 
+|-
+| [[Enugu East senatorial district|Enugu East]] || [[Nkanu East/Nkanu West]] 
+|-
+| [[Enugu North senatorial district|Enugu North]] || [[Nsukka/Igbo-Eze South]] 
+|-
+|}
+{{clear}}
+
+==[[Gombe State]] – 6 seats==
+[[Gombe State|Gombe state]] is made up of 6 federal [[Electoral district|constituencies]] which covers 11 [[Local government area|local government areas]].
+[[File:2023 Gombe Senate pre-election situation.png|thumb|right|Map of Gombe State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Gombe Central]] || [[Akko, Nigeria|Akko]] 
+|-
+| [[Gombe South]] || [[Balanga/Billiri]] 
+|-
+| [[Gombe North]] || [[Dukku/Nafada]] 
+|-
+| [[Gombe North]] || [[Gombe/Kwami/Funakaye]] 
+|-
+| [[Gombe South]] || [[Kaltungo/Shongom]] 
+|-
+| [[Gombe Central]] || [[Yamaltu/Deba]] 
+|-
+|}
+{{clear}}
+
+==[[Imo State]] – 10 seats==
+[[Imo State|Imo state]] is made up of 10 federal [[Electoral district|constituencies]] which covers 27 [[Local government area|local government areas]].
+[[File:2023 Imo Senate pre-election situation.png|thumb|Imo State Map]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Imo East]] || [[Aboh Mbaise/Ngor Okpala]] 
+|-
+| [[Imo East]] || [[Ahiazu Mbaise/Ezinihitte]] 
+|-
+| [[Imo North]] || [[Ehime Mbano/Ihite-Uboma/Obowo]] 
+|-
+| [[Imo West]] || [[Ideato North/Ideato South]] 
+|-
+| [[Imo East]] || [[Ikeduru/Mbaitoli]] 
+|-
+| [[Imo North]] || [[Isiala Mbano/Okigwe/Onuimo]] 
+|-
+| [[Imo West]] || [[Isu/Njaba/Nkwerre/Nwangele]] 
+|-
+| [[Imo West]] || [[Oguta/Ohaji-Egbema/Oru West]] 
+|-
+| [[Imo West]] || [[Oru East/Orsu/Orlu]] 
+|-
+| [[Imo East]] || [[Owerri Municipal/Owerri North/Owerri West]] 
+|-
+|}
+{{clear}}
+
+==[[Jigawa State]] – 11 seats==
+[[Jigawa State|Jigawa state]] is made up of 11 federal [[Electoral district|constituencies]] which covers 27 [[Local government area|local government areas]].
+[[File:2023 Jigawa Senate pre-election situation.png|thumb|Jigawa State Map]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Jigawa North West]] || [[Babura/Garki]] 
+|-
+| [[Jigawa South West]] || [[Birnin Kudu/Buji]] 
+|-
+| [[Jigawa South West]] || [[Birniwa Guri/Kirikasamma]] 
+|-
+| [[Jigawa South West]] || [[Dutse/Kiyawa]] 
+|-
+| [[Jigawa North West]] || [[Gumel/Maigatari/Sule Tankarkar/Gagarawa]] 
+|-
+| [[Jigawa South West]] || [[Gwaram]] 
+|-
+| [[Jigawa North East]] || [[Hadejia/Kafin Hausa]] 
+|-
+| [[Jigawa South West]] || [[Jahun/Miga]] 
+|-
+| [[Jigawa North West]] || [[Kazaure/Roni/Gwiwa/Yankwashi]] 
+|-
+| [[Jigawa North East]] || [[Mallam Madori/Kaugama]] 
+|-
+| [[Jigawa North West]] || [[Ringim/Taura]] 
+|-
+|}
+{{clear}}
+
+==[[Kaduna State]] – 16 seats==
+[[Kaduna State|Kaduna state]] is made up of 16 federal [[Electoral district|constituencies]] which covers 23 [[Local government area|local government areas]].
+[[File:2023 Kaduna Senate pre-election situation.png|thumb|Kaduna State Map]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Kaduna Central]] || [[Birnin Gwari/Giwa]] 
+|-
+| [[Kaduna Central]] || [[Chikun/Kajuru]] 
+|-
+| [[Kaduna Central]] || [[Igabi]] 
+|-
+| [[Kaduna North (senatorial district)|Kaduna North]] || [[Ikara/Kubau]] 
+|-
+| [[Kaduna South (senatorial district)|Kaduna South]] || [[Jemaa/Sanga]] 
+|-
+| [[Kaduna South (senatorial district)|Kaduna South]] || [[Kachia/Kagarko]] 
+|-
+| [[Kaduna Central]] || [[Kaduna North]] 
+|-
+| [[Kaduna Central]] || [[Kaduna South]] 
+|-
+| [[Kaduna South (senatorial district)|Kaduna South]] || [[Kaura, Nigeria|Kaura]] 
+|-
+| [[Kaduna South (senatorial district)|Kaduna South]] || [[Kauru]] 
+|-
+| [[Kaduna North (senatorial district)|Kaduna North]] || [[Lere, Nigeria|Lere]] 
+|-
+| [[Kaduna North (senatorial district)|Kaduna North]] || [[Makarfi/Kudan]] 
+|-
+| [[Kaduna North (senatorial district)|Kaduna North]] || [[Sabon Gari, Nigeria|Sabon Gari]] 
+|-
+| [[Kaduna North (senatorial district)|Kaduna North]] || [[Soba]] 
+|-
+| [[Kaduna South (senatorial district)|Kaduna South]] || [[Zangon Kataf/Jaba]] 
+|-
+| [[Kaduna North (senatorial district)|Kaduna North]] || [[Zaria]] 
+|-
+|}
+{{clear}}
+
+==[[Kano State]] – 24 seats==
+[[Kano State|Kano state]] is made up of 24 federal [[Electoral district|constituencies]] which covers 44 [[Local government area|local government areas]].
+[[File:2023 Kano Senate pre-election situation.png|thumb|Map of Kano State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Kano South]] || [[Alabasu/Gaya/Ajingi]] 
+|-
+| [[Kano North]] || [[Bagwai/Shanono]] 
+|-
+| [[Kano South]] || [[Bebeji/Kiru]] 
+|-
+| [[Kano North]] || [[Bichi]] 
+|-
+| [[Kano Central]] || [[Dala, Nigeria|Dala]] 
+|-
+| [[Kano North]] || [[Dambatta/Makoda]] 
+|-
+| [[Kano Central]] || [[Dawakin Kudu/Warawa]] 
+|-
+| [[Kano North]] || [[Dawakin Tofa/Tofa/Rimin Gado]] 
+|-
+| [[Kano South]] || [[Doguwa/Tudun Wada]] 
+|-
+| [[Kano Central]] || [[Fagge]] 
+|-
+| [[Kano Central]] || [[Gezawa/Gabasawa]] 
+|-
+| [[Kano Central]] || [[Gwale]] 
+|-
+| [[Kano North]] || [[Gwarzo/Ikabo]] 
+|-
+| [[Kano Central]] || [[Kano Municipal]] 
+|-
+| [[Kano South]] || [[Karaye/Rogo]] 
+|-
+| [[Kano Central]] || [[Kumbotso]] 
+|-
+| [[Kano Central]] || [[Kura/Madobi/Garun Mallam]] 
+|-
+| [[Kano Central]] || [[Minjibir/Ungogo]] 
+|-
+| [[Kano Central]] || [[Nasarawa, Kano State|Nassarawa]] 
+|-
+| [[Kano South]] || [[Rano/Bunkure/Kibiya]] 
+|-
+| [[Kano South]] || [[Sumaila/Takai]] 
+|-
+| [[Kano Central]] || [[Tarauni]] 
+|-
+| [[Kano North]] || [[Tsanyawa/Kunchi]] 
+|-
+| [[Kano South]] || [[Wudil/Garko]] 
+|-
+|}
+{{clear}}
+
+==[[Katsina State]] – 15 seats==
+[[Katsina State|Katsina state]] is made up of 15 federal [[Electoral district|constituencies]] which covers 34 [[Local government area|local government areas]].
+[[File:2023 Katsina Senate pre-election situation.png|thumb|Map of Katsina State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Katsina South]] || [[Bakori/Danja]] 
+|-
+| [[Katsina Central]] || [[Batagarawa/Charanchi/Rimi]] 
+|-
+| [[Katsina Central]] || [[Batsari/Safana/Danmusa]] 
+|-
+| [[Katsina North]] || [[Bindawa/Mani]] 
+|-
+| [[Katsina North]] || [[Daura/Sandamu/Maiadua]] 
+|-
+| [[Katsina Central]] || [[Dutsin-Ma/Kurfi]] 
+|-
+| [[Katsina South]] || [[Faskari/Kankara/Sabuwa]] 
+|-
+| [[Katsina South]] || [[Funtua/Dandume]] 
+|-
+| [[Katsina North]] || [[Ingawa/Kankia/Kusada]] 
+|-
+| [[Katsina Central]] || [[Jibia/Kaita]] 
+|-
+| [[Katsina Central]] || [[Katsina (city)|Katsina]] 
+|-
+| [[Katsina South]] || [[Malumfashi/Kafur]] 
+|-
+| [[Katsina North]] || [[Mashi/Dutsi]] 
+|-
+| [[Katsina South]] || [[Matazu/Musawa]] 
+|-
+| [[Katsina North]] || [[Zango/Baure]] 
+|-
+|}
+{{clear}}
+
+==[[Kebbi State]] – 8 seats==
+[[Kebbi State|Kebbi state]] is made up of 8 federal [[Electoral district|constituencies]] which covers 21 [[Local government area|local government areas]].
+[[File:2023 Kebbi Senate pre-election situation.png|thumb|Map of Kebbi State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Kebbi Central]] || [[Aleiro/Gwandu/Jega]] 
+|-
+| [[Kebbi North]] || [[Arewa/Dandi]] 
+|-
+| [[Kebbi North]] || [[Argungu/Augie]] 
+|-
+| [[Kebbi North]] || [[Bagudo/Suru]] 
+|-
+| [[Kebbi Central]] || [[Bunza/Birnin Kebbi/Kalgo]] 
+|-
+| [[Kebbi South]] || [[Fakai/Sakaba/Wasagu/Danko/Zuru]] 
+|-
+| [[Kebbi Central]] || [[Koko-Besse/Maiyama]] 
+|-
+| [[Kebbi South]] || [[Ngaski/Shanga/Yauri]] 
+|-
+|}
+{{clear}}
+
+==[[Kogi State]] – 9 seats==
+[[Kogi State|Kogi state]] is made up of 9 federal [[Electoral district|constituencies]] which covers 21 [[Local government area|local government areas]].
+[[File:2023 Kogi Senate pre-election situation.png|thumb|Map of Kogi State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Kogi Central senatorial district|Kogi Central]] || [[Adavi/Okehi]] 
+|-
+| [[Kogi Central senatorial district|Kogi Central]] || [[Ajaokuta]] 
+|-
+| [[Kogi East senatorial district|Kogi East]] || [[Ankpa/Omala/Olamaboro]] 
+|-
+| [[Kogi East senatorial district|Kogi East]] || [[Bassa/Dekina]] 
+|-
+| [[Kogi East senatorial district|Kogi East]] || [[Idah/Igalamela Odolu/Ibaji/Ofu]] 
+|-
+| [[Kogi West senatorial district|Kogi West]] || [[Ijumu/Kabba-Bunu]] 
+|-
+| [[Kogi West senatorial district|Kogi West]] || [[Lokoja/Koton Karfe]] 
+|-
+| [[Kogi Central senatorial district|Kogi Central]] || [[Okene/Ogori-Magogo]] 
+|-
+| [[Kogi West senatorial district|Kogi West]] || [[Yagba East/Yagba West/Mopamuro]] 
+|-
+|}
+{{clear}}
+
+==[[Kwara State]] – 6 seats==
+[[Kwara State|Kwara state]] is made up of 6 federal [[Electoral district|constituencies]] which covers 16 [[Local government area|local government areas]].
+[[File:2023 Kwara Senate pre-election situation.png|thumb|right|Map of Kwara State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Kwara North senatorial district|Kwara North]] || [[Baruten/Kaiama]] 
+|-
+| [[Kwara North senatorial district|Kwara North]] || [[Edu/Moro/Pategi]] 
+|-
+| [[Kwara South senatorial district|Kwara South]] || [[Ekiti/Isin/Irepodun/Oke-Ero]] 
+|-
+| [[Kwara South senatorial district|Kwara South]] || [[Ifelodun/Offa/Oyun]] 
+|-
+| [[Kwara Central senatorial district|Kwara Central]] || [[Ilorin East/Ilorin South]] 
+|-
+| [[Kwara Central senatorial district|Kwara Central]] || [[Ilorin West/Asa]] 
+|-
+|}
+{{clear}}
+
+==[[Lagos State]] – 24 seats==
+[[Lagos State|Lagos state]] is made up of 24 federal [[Electoral district|constituencies]] which covers 20 [[Local government area|local government areas]].
+[[File:2023 Lagos Senate pre-election situation.png|thumb|Map of Lagos State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Lagos West senatorial district|Lagos West]] || [[Agege]] 
+|-
+| [[Lagos West senatorial district|Lagos West]] || [[Ajeromi/Ifelodun]] 
+|-
+| [[Lagos West senatorial district|Lagos West]] || [[Alimosho]] 
+|-
+| [[Lagos West senatorial district|Lagos West]] || [[Amuwo-Odofin]] 
+|-
+| [[Lagos Central senatorial district|Lagos Central]] || [[Apapa]] 
+|-
+| [[Lagos West senatorial district|Lagos West]] || [[Badagry]] 
+|-
+| [[Lagos East senatorial district|Lagos East]] || [[Epe, Lagos State|Epe]] 
+|-
+| [[Lagos Central senatorial district|Lagos Central]] || [[Eti-Osa]] 
+|-
+| [[Lagos East senatorial district|Lagos East]] || [[Ibeju Lekki]] 
+|-
+| [[Lagos West senatorial district|Lagos West]] || [[Ifako-Ijaiye]] 
+|-
+| [[Lagos West senatorial district|Lagos West]] || [[Ikeja]] 
+|-
+| [[Lagos East senatorial district|Lagos East]] || [[Ikorodu]] 
+|-
+| [[Lagos East senatorial district|Lagos East]] || [[Kosofe]] 
+|-
+| [[Lagos Central senatorial district|Lagos Central]] || [[Lagos Mainland]] 
+|-
+| [[Lagos Central senatorial district|Lagos Central]] || [[Lagos Island I]] 
+|-
+| [[Lagos Central senatorial district|Lagos Central]] || [[Lagos Island II]] 
+|-
+| [[Lagos West senatorial district|Lagos West]] || [[Mushin I]] 
+|-
+| [[Lagos West senatorial district|Lagos West]] || [[Mushin II]] 
+|-
+| [[Lagos West senatorial district|Lagos West]] || [[Ojo, Lagos|Ojo]] 
+|-
+| [[Lagos West senatorial district|Lagos West]] || [[Oshodi/Isolo I]] 
+|-
+| [[Lagos West senatorial district|Lagos West]] || [[Oshodi/Isolo II]] 
+|-
+| [[Lagos East senatorial district|Lagos East]] || [[Shomolu]] 
+|-
+| [[Lagos Central senatorial district|Lagos Central]] || [[Surulere I]] 
+|-
+| [[Lagos Central senatorial district|Lagos Central]] || [[Surulere II]] 
+|-
+|}
+{{clear}}
+
+==[[Nasarawa State]] – 5 seats==
+[[Nasarawa State|Nasarawa state]] is made up of 5 federal [[Electoral district|constituencies]] which covers 13 [[Local government area|local government areas]].
+[[File:2023 Nasarawa Senate pre-election situation.png|thumb|right|Map of Nasarawa State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Nasarawa North senatorial district|Nasarawa North]] || [[Akwanga/Nassarawa Eggon/Wamba]] 
+|-
+| [[Nasarawa South senatorial district|Nasarawa South]] || [[Awe/Doma/Keana]] 
+|-
+| [[Nasarawa West senatorial district|Nasarawa West]] || [[Keffi/Karu/Kokona]] 
+|-
+| [[Nasarawa South senatorial district|Nasarawa South]] || [[Lafia/Obi]] 
+|-
+| [[Nasarawa West senatorial district|Nasarawa West]] || [[Nassarawa/Toto]] 
+|-
+|}
+{{clear}}
+
+==[[Niger State]] – 10 seats==
+[[Niger State|Niger state]] is made up of 10 federal [[Electoral district|constituencies]] which covers 25 [[Local government area|local government areas]].
+[[File:2023 Niger Senate pre-election situation.png|thumb|Map of Niger State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Niger South senatorial district|Niger South]] || [[Agaie/Lapai]] 
+|-
+| [[Niger North senatorial district|Niger North]] || [[Agwara/Borgu]] 
+|-
+| [[Niger South senatorial district|Niger South]] || [[Bida/Gbako/Katcha]] 
+|-
+| [[Niger East senatorial district|Niger East]] || [[Booso/Paikoro]] 
+|-
+| [[Niger East senatorial district|Niger East]] || [[Chanchaga]] 
+|-
+| [[Niger East senatorial district|Niger East]] || [[Gurara/Suleja/Tapa]] 
+|-
+| [[Niger North senatorial district|Niger North]] || [[Kontagora/Wushishi/Mariga/Mashegu]] 
+|-
+| [[Niger South senatorial district|Niger South]] || [[Lavun/Mokwa/Edati]] 
+|-
+| [[Niger North senatorial district|Niger North]] || [[Magama/Rijau]] 
+|-
+| [[Niger East senatorial district|Niger East]] || [[Shiroro/Rafi/Munya]] 
+|-
+|}
+{{clear}}
+
+==[[Ogun State]] – 9 seats==
+[[Ogun State|Ogun state]] is made up of 9 federal [[Electoral district|constituencies]] which covers 20 [[Local government area|local government areas]].
+[[File:2023 Ogun Senate pre-election situation.png|thumb|Map of Ogun State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Ogun Central]] || [[Abeokuta North/Obafemi-Owode/Odeda]] 
+|-
+| [[Ogun Central]] || [[Abeokuta South]] 
+|-
+| [[Ogun West]] || [[Ado-Odo/Ota]] 
+|-
+| [[Ogun West]] || [[Egbado North/Imeko-Afon]] 
+|-
+| [[Ogun West]] || [[Egbado South/Ipokia]] 
+|-
+| [[Ogun Central]] || [[Ifo/Ewekoro]] 
+|-
+| [[Ogun East]] || [[Ijebu North/Ijebu East/Ogun Waterside]] 
+|-
+| [[Ogun East]] || [[Ijebu Ode/Odogbolu/Ijebu North East]] 
+|-
+| [[Ogun East]] || [[Ikenne/Shagamu/Remo North]] 
+|-
+|}
+{{clear}}
+
+==[[Ondo State]] – 9 seats==
+[[Ondo State|Ondo state]] is made up of 9 federal [[Electoral district|constituencies]] which covers 18 [[Local government area|local government areas]].
+[[File:2023 Ondo Senate pre-election situation.png|thumb|Map of Ondo State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Ondo North]] || [[Akoko North East/Akoko North West]] 
+|-
+| [[Ondo North]] || [[Akoko South East/Akoko South West]] 
+|-
+| [[Ondo Central]] || [[Akure North/Akure South]] 
+|-
+| [[Ondo South]] || [[Eseodo/Ilaje]] 
+|-
+| [[Ondo Central]] || [[Idanre/Ifedore]] 
+|-
+| [[Ondo South]] || [[Ileoluji/Okeigbo/Odigbo]] 
+|-
+| [[Ondo South]] || [[Okitipupa/Irele]] 
+|-
+| [[Ondo Central]] || [[Ondo East/Ondo West]] 
+|-
+| [[Ondo North]] || [[Owo/Ose]] 
+|-
+|}
+{{clear}}
+
+==[[Osun State]] – 9 seats==
+[[Osun State|Osun state]] is made up of 9 federal [[Electoral district|constituencies]] which covers 30 [[Local government area|local government areas]].
+[[File:2023 Osun Senate pre-election situation.png|thumb|Map of Osun State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Osun East]] || [[Atakunmosa East/Atakunmosa West/Ilesha East/Ilesha West]] 
+|-
+| [[Osun West]] || [[Ayedaade/Irewole/Isokan]] 
+|-
+| [[Osun West]] || [[Ayedire/Iwo/Ola-Oluwa]] 
+|-
+| [[Osun Central]] || [[Boluwaduro/Ifedayo/Ila]] 
+|-
+| [[Osun West]] || [[Ede North/Ede South/Egbedore/Ejigbo]] 
+|-
+| [[Osun East]] || [[Ife Central/Ife North/Ife South/Ife East]] 
+|-
+| [[Osun Central]] || [[Irepodun/Olorunda/Osogbo/Orolu]] 
+|-
+| [[Osun East]] || [[Obokun/Oriade]] 
+|-
+| [[Osun Central]] || [[Odo-Otin/Ifelodun/Boripe]] 
+|-
+|}
+{{clear}}
+
+==[[Oyo State]] – 14 seats==
+[[Oyo State|Oyo state]] is made up of 14 federal [[Electoral district|constituencies]] which covers 33 [[Local government area|local government areas]].
+[[File:2023 Oyo Senate pre-election situation.png|thumb|Map of Oyo State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Oyo Central]] || [[Afijio/Atiba/Oyo East/Oyo West]] 
+|-
+| [[Oyo Central]] || [[Akinyele/Lagelu]] 
+|-
+| [[Oyo North]] || [[Atisbo/Saki East/Saki West]] 
+|-
+| [[Oyo Central]] || [[Egbeda/Ona-Ara]] 
+|-
+| [[Oyo South]] || [[Ibadan North East/Ibadan South East]] 
+|-
+| [[Oyo South]] || [[Ibadan North]] 
+|-
+| [[Oyo South]] || [[Ibadan North West/Ibadan South West]] 
+|-
+| [[Oyo South]] || [[Ibarapa Central/Ibarapa North]] 
+|-
+| [[Oyo South]] || [[Ibarapa East/Ido]] 
+|-
+| [[Oyo North]] || [[Irepo/Olurunsogo/Orelope]] 
+|-
+| [[Oyo North]] || [[Iseyin/Kajola/Iwajowa/Itesiwaju]] 
+|-
+| [[Oyo North]] || [[Ogbomoso North/Ogbomoso South/Orire]] 
+|-
+| [[Oyo Central]] || [[Ogo-Oluwa/Surulere]] 
+|-
+| [[Oyo Central]] || [[Oluyole, Nigeria|Oluyole]] 
+|-
+|}
+{{clear}}
+
+==[[Plateau State]] – 8 seats==
+[[Plateau State|Plateau state]] is made up of 8 federal [[Electoral district|constituencies]] which covers 17 [[Local government area|local government areas]].
+[[File:2023 Plateau Senate pre-election situation.png|thumb|Map of Plateau State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Plateau North senatorial district|Plateau North]] || [[Barkin Ladi/Riyom]] 
+|-
+| [[Plateau Central senatorial district|Plateau Central]] || [[Bokkos/Mangu]] 
+|-
+| [[Plateau North senatorial district|Plateau North]] || [[Jos North/Bassa]] 
+|-
+| [[Plateau North senatorial district|Plateau North]] || [[Jos South/Jos East]] 
+|-
+| [[Plateau Central senatorial district|Plateau Central]] || [[Kanke/Pankshin/Kanam]] 
+|-
+| [[Plateau South senatorial district|Plateau South]] || [[Langtang North/Langtang South]] 
+|-
+| [[Plateau South senatorial district|Plateau South]] || [[Mikang/Qua’an/Pan/Shedam]] 
+|-
+| [[Plateau South senatorial district|Plateau South]] || [[Wase, Nigeria|Wase]] 
+|-
+|}
+{{clear}}
+
+==[[Rivers State]] – 13 seats==
+[[Rivers State|Rivers state]] is made up of 13 federal [[Electoral district|constituencies]] which covers 23 [[Local government area|local government areas]].
+[[File:2023 Rivers Senate pre-election situation.png|thumb|Map of Rivers State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Rivers West senatorial district|Rivers West]] || [[Abua/Odua/Ahoada East]] 
+|-
+| [[Rivers West senatorial district|Rivers West]] || [[Ahoada West/Ogba/Egbema/Ndoni]] 
+|-
+| [[Rivers West senatorial district|Rivers West]] || [[Akuku Toru/Asari Toru]] 
+|-
+| [[Rivers South East senatorial district|Rivers South East]] || [[Andoni/Opobo/Nkoro]] 
+|-
+| [[Rivers West senatorial district|Rivers West]] || [[Degema/Bonny]] 
+|-
+| [[Rivers South East senatorial district|Rivers South East]] || [[Eleme/Oyigbo/Tai]] 
+|-
+| [[Rivers East senatorial district|Rivers East]] || [[Etche/Omuma]] 
+|-
+| [[Rivers East senatorial district|Rivers East]] || [[Ikwerre/Emohua]] 
+|-
+| [[Rivers South East senatorial district|Rivers South East]] || [[Khana/Gokana]] 
+|-
+| [[Rivers East senatorial district|Rivers East]] || [[Obio/Akpor]] 
+|-
+| [[Rivers East senatorial district|Rivers East]] || [[Okrika/Ogu/Bolo]] 
+|-
+| [[Rivers East senatorial district|Rivers East]] || [[Port Harcourt (local government area)|Port Harcourt I]] 
+|-
+| [[Rivers East senatorial district|Rivers East]] || [[Port Harcourt (local government area)|Port Harcourt II]] 
+|-
+|}
+{{clear}}
+
+==[[Sokoto State]] – 11 seats==
+[[Sokoto State|Sokoto state]] is made up of 11 federal [[Electoral district|constituencies]] which covers 23 [[Local government area|local government areas]].
+[[File:2023 Sokoto Senate pre-election situation.png|thumb|Sokoto State Map]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Sokoto North senatorial district|Sokoto North]] || [[Binji/Silame]] 
+|-
+| [[Sokoto South senatorial district|Sokoto South]] || [[Dange-Shuni/Bodinga/Tureta]] 
+|-
+| [[Sokoto East]] || [[Goronyo/Gada]] 
+|-
+| [[Sokoto East]] || [[Illela/Gwadabawa]] 
+|-
+| [[Sokoto East]] || [[Isa/Sabon Birni]] 
+|-
+| [[Sokoto South senatorial district|Sokoto South]] || [[Kebbe/Tambuwal]] 
+|-
+| [[Sokoto North senatorial district|Sokoto North]] || [[Kware/Wamakko]] 
+|-
+| [[Sokoto North senatorial district|Sokoto North]] || [[Sokoto North/Sokoto South]] 
+|-
+| [[Sokoto North senatorial district|Sokoto North]] || [[Tangaza/Gudu]] 
+|-
+| [[Sokoto East]] || [[Wurno/Rabah]] 
+|-
+| [[Sokoto South senatorial district|Sokoto South]] || [[Yabo/Shagari]] 
+|-
+|}
+{{clear}}
+
+==[[Taraba State]] – 6 seats==
+[[Taraba State|Taraba state]] is made up of 6 federal [[Electoral district|constituencies]] which covers 17 [[Local government area|local government areas]].
+[[File:2023 Taraba Senate pre-election situation.png|thumb|right|Map of Taraba State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Taraba Central]] || [[Bali/Gassol]] 
+|-
+| [[Taraba North]] || [[Jalingo/Yorro/Zing]] 
+|-
+| [[Taraba North]] || [[Karim Lamido/Lau/Ardo-Kola]] 
+|-
+| [[Taraba Central]] || [[Sardauna/Gashaka/Kurmi]] 
+|-
+| [[Taraba South]] || [[Takuma/Donga/Ussa]] 
+|-
+| [[Taraba South]] || [[Wukari/Ibi]] 
+|-
+|}
+{{clear}}
+
+==[[Yobe State]] – 6 seats==
+[[Yobe State|Yobe state]] is made up of 6 federal [[Electoral district|constituencies]] which covers 17 [[Local government area|local government areas]].
+[[File:2023 Yobe Senate pre-election situation.png|thumb|right|Map of Yobe State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Yobe North]] || [[Bade/Jakusko]] 
+|-
+| [[Yobe East]] || [[Bursari/Geidam/Yunusari]] 
+|-
+| [[Yobe East]] || [[Damaturu/Gujba/Gulani/Tarmuwa]] 
+|-
+| [[Yobe South]] || [[Fika/Fune]] 
+|-
+| [[Yobe North]] || [[Machina/Nguru/Yusufari/Karasuwa]] 
+|-
+| [[Yobe South]] || [[Nangere/Potiskum]] 
+|-
+|}
+{{clear}}
+
+==[[Zamfara State]] – 7 seats==
+[[Zamfara State|Zamfara state]] is made up of 7 federal [[Electoral district|constituencies]] which covers 14 [[Local government area|local government areas]].
+[[File:2023 Zamfara Senate pre-election situation.png|thumb|Map of Zamfara State]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Zamfara West]] || [[Anka/Talata/Mafara]] 
+|-
+| [[Zamfara West]] || [[Bakura/Maradun]] 
+|-
+| [[Zamfara Central]] || [[Bungudu/Maru]] 
+|-
+| [[Zamfara West]] || [[Gunmi/Bukkuyum]] 
+|-
+| [[Zamfara Central]] || [[Gusau/Tsafe]] 
+|-
+| [[Zamfara North]] || [[Kaura Namoda/Birnin Magaji]] 
+|-
+| [[Zamfara North]] || [[Shinkafi/Zurmi]] 
+|-
+|}
+{{clear}}
+
+==[[Federal Capital Territory (Nigeria)|FCT]] – 2 seats==
+The [[Federal Capital Territory (Nigeria)|Federal Capital Territory]] is made up of 2 federal [[Electoral district|constituencies]] which covers 6 [[Local government area|local government areas]].
+[[File:2023 FCT Senate pre-election situation.png|thumb|right|Map of FCT]]
+{| class="wikitable sortable"
+|-
+! Senatorial District !! Constituency 
+|-
+| [[Federal Capital Territory senatorial district|FCT]] || [[Abaji/Kuje/Kwali Gwagwalada]] 
+|-
+| [[Federal Capital Territory senatorial district|FCT]] || [[Abuja Municipal/Bwar]] 
+|-
+|}
+{{clear}}
+
+==See also==
+*[[National Assembly (Nigeria)|National Assembly]]
+*[[Senate of Nigeria]]
+*[[House of Representatives (Nigeria)|House of Representatives]]
+
+==Notes==
+{{Reflist}}
+
+== External links and sources ==
+*[https://nass.gov.ng/about/item/17 Nigeria House of Reps official website]
+*[https://nass.gov.ng/default National Assembly official website]
+
+{{Nigerian federal constituencies}}
+
+[[Category:Politics of Nigeria]]
+[[Category:House of Representatives (Nigeria)]]
