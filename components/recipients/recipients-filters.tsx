@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { useGeographyLgas, useGeographyStates } from "@/lib/hooks/use-geography";
 import { TableToolbar } from "@/components/ui/table-toolbar";
+import { FieldSpinner } from "@/components/ui/field-spinner";
 import {
   Search,
   Plus,
@@ -295,12 +296,19 @@ export function RecipientsFilters({
           <div className="w-[150px]">
             <Select
               value={selectedLga}
-              disabled={!selectedStateId || lgasQuery.isPending || lgasQuery.isError}
+              disabled={!selectedStateId || lgasQuery.isFetching || lgasQuery.isError}
               onValueChange={(v) => v && onLgaChange(v)}
             >
               <SelectTrigger className="h-9 text-xs bg-background">
                 <SelectValue placeholder="LGA">
                   {(val) => {
+                    if (selectedStateId && lgasQuery.isFetching) {
+                      return (
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
+                          <FieldSpinner loading /> Loading LGAs…
+                        </span>
+                      );
+                    }
                     if (!val || val === "all") return "All LGAs";
                     const found = availableLgas.find((l) => l.code === val);
                     return found ? `${found.code} · ${found.name}` : val;
