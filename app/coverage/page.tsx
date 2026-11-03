@@ -496,8 +496,8 @@ export default function CoveragePage() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-        <div>
+      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 w-full">
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
             2027 Coverage Dashboard
           </h1>
@@ -507,7 +507,7 @@ export default function CoveragePage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
           <Link
             href={`/broadcasts/new?target=${encodeURIComponent(levelName)}`}
             className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-8 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
@@ -517,6 +517,10 @@ export default function CoveragePage() {
           </Link>
         </div>
       </div>
+
+      <section className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
+        {coverageFilters}
+      </section>
 
       {/* Top Metric Cards */}
       <div
@@ -540,13 +544,11 @@ export default function CoveragePage() {
           />
         ) : null}
       </div>
-      <section className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
-        {coverageFilters}
-      </section>
       <AtStakeCandidates
         stateId={selectedStateId}
         lgaId={selectedLgaId}
         wardId={selectedWardId}
+        areaName={levelName}
       />
 
       <CoverageMap

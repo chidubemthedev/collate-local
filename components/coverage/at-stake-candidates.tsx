@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Shield, UserCheck } from "lucide-react";
+import { MapPin, Shield, UserCheck } from "lucide-react";
 
 interface AtStakeCandidatesProps {
   stateId: number | null;
   lgaId: number | null;
   wardId: number | null;
+  areaName?: string;
 }
 
 function getOfficeBadgeColor(office: string) {
@@ -38,6 +39,7 @@ export function AtStakeCandidates({
   stateId,
   lgaId,
   wardId,
+  areaName,
 }: AtStakeCandidatesProps) {
   const {
     data,
@@ -59,12 +61,21 @@ export function AtStakeCandidates({
 
   return (
     <div className="space-y-2.5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+        <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-1.5">
             <UserCheck className="w-4 h-4 text-primary" />
             At Stake Here
           </h3>
+          {areaName ? (
+            <Badge
+              variant="outline"
+              className="text-xs px-2 py-0.5 font-medium gap-1 max-w-48"
+            >
+              <MapPin className="w-3 h-3 shrink-0" />
+              <span className="truncate">{areaName}</span>
+            </Badge>
+          ) : null}
           {data ? (
             <Badge
               variant="secondary"
