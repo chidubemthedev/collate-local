@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { STATES_DATA, LGAS_DATA, WARDS_DATA } from "@/lib/data/inec-data";
 import { useGeographyStates, useGeographyLgas, useGeographyWards } from "@/lib/hooks/use-geography";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,31 +70,21 @@ export function AgentsFilters({
   onExportCSV,
 }: AgentsFiltersProps) {
   const { data: apiStates = [] } = useGeographyStates();
-  const statesList = apiStates.length > 0 ? apiStates : STATES_DATA;
+  const statesList = apiStates;
   const foundState = statesList.find(
-    (s) => s.code === selectedState || ("id" in s && String(s.id) === selectedState)
+    (s) => s.code === selectedState || String(s.id) === selectedState
   );
-  const selectedStateId = foundState && "id" in foundState ? (foundState.id as number) : null;
+  const selectedStateId = foundState ? foundState.id : null;
 
   const { data: apiLgas = [] } = useGeographyLgas(selectedStateId);
-  const availableLGAs =
-    selectedState === "all"
-      ? []
-      : apiLgas.length > 0
-      ? apiLgas
-      : LGAS_DATA.filter((l) => l.stateCode === selectedState);
+  const availableLGAs = selectedState === "all" ? [] : apiLgas;
   const foundLga = availableLGAs.find(
-    (l) => l.code === selectedLga || ("id" in l && String(l.id) === selectedLga)
+    (l) => l.code === selectedLga || String(l.id) === selectedLga
   );
-  const selectedLgaId = foundLga && "id" in foundLga ? (foundLga.id as number) : null;
+  const selectedLgaId = foundLga ? foundLga.id : null;
 
   const { data: apiWards = [] } = useGeographyWards(selectedLgaId);
-  const availableWards =
-    selectedLga === "all"
-      ? []
-      : apiWards.length > 0
-      ? apiWards
-      : WARDS_DATA.filter((w) => w.lgaCode === selectedLga);
+  const availableWards = selectedLga === "all" ? [] : apiWards;
 
   const tabs = [
     { id: "all", label: "All Records", count: counts.all, icon: Users },
@@ -242,9 +231,9 @@ export function AgentsFilters({
             <SelectContent>
               <SelectItem value="all">All Sponsors</SelectItem>
               <SelectItem value="Party">Party Official</SelectItem>
-              <SelectItem value="President">Presidency (Obi Peter Gregory)</SelectItem>
-              <SelectItem value="Senate">Senate (Nwoye Tony)</SelectItem>
-              <SelectItem value="House of Reps">Reps (Emeka Idu)</SelectItem>
+              <SelectItem value="President">Presidency</SelectItem>
+              <SelectItem value="Senate">Senate</SelectItem>
+              <SelectItem value="House of Reps">House of Reps</SelectItem>
               <SelectItem value="State Assembly">State Assembly</SelectItem>
             </SelectContent>
           </Select>

@@ -29,10 +29,31 @@ interface BroadcastDeliveryReportPageProps {
 }
 
 export function BroadcastDeliveryReportContent({ id }: { id: string }) {
-  // Find broadcast or default to bc-1
-  const initialBroadcast =
-    BROADCASTS_DATA.find((b) => b.id === id) || BROADCASTS_DATA[0];
+  const found = BROADCASTS_DATA.find((b) => b.id === id);
 
+  if (!found) {
+    return (
+      <div className="max-w-xl mx-auto mt-16 p-6 rounded-xl border border-border bg-card text-center space-y-3">
+        <AlertTriangle className="w-6 h-6 text-amber-600 mx-auto" />
+        <p className="text-sm font-semibold text-foreground">Broadcast not found</p>
+        <p className="text-xs text-muted-foreground">
+          This broadcast does not exist or you do not have access to it.
+        </p>
+        <Link
+          href="/broadcasts"
+          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back to broadcasts
+        </Link>
+      </div>
+    );
+  }
+
+  return <BroadcastDeliveryReportBody initialBroadcast={found} />;
+}
+
+function BroadcastDeliveryReportBody({ initialBroadcast }: { initialBroadcast: BroadcastData }) {
   const [broadcast, setBroadcast] = useState<BroadcastData>(initialBroadcast);
   const [logs, setLogs] = useState<BroadcastRecipientLog[]>(
     initialBroadcast.recipientsList && initialBroadcast.recipientsList.length > 0

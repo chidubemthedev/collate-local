@@ -106,16 +106,12 @@ export default function NewBroadcastPage() {
     const candidatesCount = audience.includeCandidates ? cands.length : 0;
 
     const total = candidatesCount + officialAgentsCount + extraAgentsCount;
-    const telegramReady = Math.round(total * 0.88);
-    const smsFallback = total - telegramReady;
 
     return {
       candidates: candidatesCount,
       officialAgents: officialAgentsCount,
       extraAgents: extraAgentsCount,
       total,
-      telegramReady,
-      smsFallback,
     };
   }, [audience]);
 

@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { StateData, LGAData, WardData, PollingUnitData } from "@/lib/types";
-import { STATES_DATA, LGAS_DATA, WARDS_DATA, POLLING_UNITS_DATA } from "@/lib/data/inec-data";
+import { PollingUnitData } from "@/lib/types";
+import type { StateCoverage, LgaCoverage, WardCoverage } from "@/types/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,13 @@ interface CoverageMapProps {
   stateCode: string;
   lgaCode: string;
   wardCode: string;
+  stateName?: string;
+  lgaName?: string;
+  wardName?: string;
+  states: StateCoverage[];
+  lgas: LgaCoverage[];
+  wards: WardCoverage[];
+  pollingUnits: PollingUnitData[];
   onSelectState: (code: string) => void;
   onSelectLga: (code: string) => void;
   onSelectWard: (code: string) => void;
@@ -23,6 +30,13 @@ export function CoverageMap({
   stateCode,
   lgaCode,
   wardCode,
+  stateName,
+  lgaName,
+  wardName,
+  states,
+  lgas,
+  wards,
+  pollingUnits,
   onSelectState,
   onSelectLga,
   onSelectWard,
@@ -32,15 +46,17 @@ export function CoverageMap({
   const [hoveredItem, setHoveredItem] = useState<{ title: string; subtitle: string; coverage: number; total: number; covered: number; gaps: number } | null>(null);
 
   // Determine current map mode: "national" | "state" | "lga" | "ward"
-  const isWardLevel = wardCode !== "all" && lgaCode === "04-17" && wardCode === "04-17-03";
+  const isWardLevel = wardCode !== "all";
   const isLgaLevel = lgaCode !== "all" && !isWardLevel;
   const isStateLevel = stateCode !== "all" && !isLgaLevel && !isWardLevel;
   const isNational = stateCode === "all";
 
-  // Data subsets
-  const stateLGAs = LGAS_DATA.filter((l) => l.stateCode === stateCode);
-  const lgaWards = WARDS_DATA.filter((w) => w.lgaCode === lgaCode);
-  const wardPUs = POLLING_UNITS_DATA.filter((p) => p.wardCode === wardCode);
+  // Data subsets come from the live API lists passed in by the page
+  const stateLGAs = lgas;
+  const lgaWards = wards;
+  const wardPUs = pollingUnits;
+  const wardCoveredCount = wardPUs.filter((p) => p.hasOfficialAgent).length;
+  const wardCoveragePct = wardPUs.length > 0 ? Math.round((wardCoveredCount / wardPUs.length) * 100) : 0;
 
   const getCoverageColor = (pct: number) => {
     if (pct >= 50) return "bg-emerald-500 text-white";
@@ -71,7 +87,7 @@ export function CoverageMap({
                   ? "LGA Wards Map"
                   : isStateLevel
                   ? "State LGAs Map"
-                  : "National 37 States"}
+                  : `National ${states.length} States`}
               </Badge>
             </CardTitle>
           </div>
@@ -100,11 +116,18 @@ export function CoverageMap({
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs text-muted-foreground pb-1 border-b border-border/40">
               <span className="font-medium text-foreground">
-                Inland Town I (04-17-03) — 19 Polling Units Scatter Plot
+                {wardName ?? wardCode} ({wardCode}) — {wardPUs.length} Polling Units Scatter Plot
               </span>
               <span>Click a node to inspect agent roster</span>
             </div>
 
+            {wardPUs.length === 0 && (
+              <div className="py-10 text-center text-xs text-muted-foreground border border-dashed border-border/60 rounded-lg">
+                No polling units to show for this ward.
+              </div>
+            )}
+
+            {wardPUs.length > 0 && (
             <div className="relative bg-muted/20 border border-border/60 rounded-lg p-4 sm:p-6 min-h-[260px] flex flex-col justify-between">
               {/* Grid background simulation */}
               <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px] rounded-lg opacity-60 pointer-events-none" />
@@ -177,19 +200,18 @@ export function CoverageMap({
               <div className="relative z-10 mt-4 pt-3 border-t border-border/50 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-3">
                   <span className="text-muted-foreground">
-                    Ward Coverage: <strong className="text-foreground">37% (7 of 19 PUs)</strong>
+                    Ward Coverage:{" "}
+                    <strong className="text-foreground">
+                      {wardCoveragePct}% ({wardCoveredCount} of {wardPUs.length} PUs)
+                    </strong>
                   </span>
                   <span className="text-amber-600 dark:text-amber-400 font-medium">
-                    12 Gaps remaining
+                    {wardPUs.length - wardCoveredCount} Gaps remaining
                   </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[10px] bg-background">
-                    Lat: 6.150° N, Lon: 6.791° E
-                  </Badge>
                 </div>
               </div>
             </div>
+            )}
           </div>
         )}
 
@@ -198,11 +220,16 @@ export function CoverageMap({
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs text-muted-foreground pb-1 border-b border-border/40">
               <span className="font-medium text-foreground">
-                Onitsha-North (04-17) — 15 Wards Coverage Heatmap
+                {lgaName ?? lgaCode} ({lgaCode}) — {lgaWards.length} Wards Coverage Heatmap
               </span>
               <span>Click a ward to drill down to Polling Units</span>
             </div>
 
+            {lgaWards.length === 0 && (
+              <div className="py-10 text-center text-xs text-muted-foreground border border-dashed border-border/60 rounded-lg">
+                No wards to show for this LGA.
+              </div>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
               {lgaWards.map((w) => {
                 const isSelected = wardCode === w.code;
@@ -218,7 +245,7 @@ export function CoverageMap({
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono text-muted-foreground font-semibold">
-                        {w.code.split("-")[2]}
+                        {w.code}
                       </span>
                       <Badge
                         variant="secondary"
@@ -248,11 +275,16 @@ export function CoverageMap({
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs text-muted-foreground pb-1 border-b border-border/40">
               <span className="font-medium text-foreground">
-                Anambra State (04) — Local Government Areas
+                {stateName ?? stateCode} ({stateCode}) — Local Government Areas
               </span>
               <span>Click an LGA to drill down</span>
             </div>
 
+            {stateLGAs.length === 0 && (
+              <div className="py-10 text-center text-xs text-muted-foreground border border-dashed border-border/60 rounded-lg">
+                No LGAs to show for this state.
+              </div>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
               {stateLGAs.map((lga) => {
                 const isSelected = lgaCode === lga.code;
@@ -298,13 +330,13 @@ export function CoverageMap({
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs text-muted-foreground pb-1 border-b border-border/40">
               <span className="font-medium text-foreground">
-                National Overview — 36 States & FCT
+                National Overview — {states.length} states
               </span>
               <span>Click any state to drill down</span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-2">
-              {STATES_DATA.map((st) => (
+              {states.map((st) => (
                 <button
                   key={st.code}
                   onClick={() => onSelectState(st.code)}
