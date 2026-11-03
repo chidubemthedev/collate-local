@@ -34,7 +34,11 @@ function getOfficeBadgeColor(office: string) {
   return "bg-muted text-muted-foreground";
 }
 
-export function AtStakeCandidates({ stateId, lgaId, wardId }: AtStakeCandidatesProps) {
+export function AtStakeCandidates({
+  stateId,
+  lgaId,
+  wardId,
+}: AtStakeCandidatesProps) {
   const {
     data,
     isPending,
@@ -62,8 +66,12 @@ export function AtStakeCandidates({ stateId, lgaId, wardId }: AtStakeCandidatesP
             At Stake Here
           </h3>
           {data ? (
-            <Badge variant="secondary" className="text-xs px-2 py-0.5 font-normal">
-              {totalRaces.toLocaleString()} race{totalRaces === 1 ? "" : "s"} at this level
+            <Badge
+              variant="secondary"
+              className="text-xs px-2 py-0.5 font-normal"
+            >
+              {totalRaces.toLocaleString()} race{totalRaces === 1 ? "" : "s"} at
+              this level
             </Badge>
           ) : null}
         </div>
@@ -83,7 +91,9 @@ export function AtStakeCandidates({ stateId, lgaId, wardId }: AtStakeCandidatesP
         </div>
       ) : isError ? (
         <div className="border border-border/60 bg-card rounded-xl p-4 flex items-center justify-between gap-3">
-          <span className="text-sm text-muted-foreground">Couldn&apos;t load candidate coverage.</span>
+          <span className="text-sm text-muted-foreground">
+            Couldn&apos;t load candidate coverage.
+          </span>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             Retry
           </Button>
@@ -119,12 +129,13 @@ export function AtStakeCandidates({ stateId, lgaId, wardId }: AtStakeCandidatesP
               </div>
 
               <div>
-                <div className="font-semibold text-sm text-foreground leading-tight">{cand.name}</div>
+                <div className="font-semibold text-sm text-foreground leading-tight">
+                  {cand.name}
+                </div>
                 {cand.deputyName && (
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
-                    Running mate:{" "}
-                    <span className="text-foreground/90 font-medium">{cand.deputyName}</span>
-                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    & {cand.deputyName}
+                  </p>
                 )}
               </div>
 
@@ -144,7 +155,8 @@ export function AtStakeCandidates({ stateId, lgaId, wardId }: AtStakeCandidatesP
                 />
                 <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                   <span>
-                    {cand.coveredPUs.toLocaleString()} / {cand.totalPUs.toLocaleString()} PUs
+                    {cand.coveredPUs.toLocaleString()} /{" "}
+                    {cand.totalPUs.toLocaleString()} PUs
                   </span>
                   <span className="text-indigo-600 dark:text-indigo-400 font-medium">
                     +{cand.extraAgentsCount.toLocaleString()} extra agents
