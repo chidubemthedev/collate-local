@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CandidateData } from "@/lib/types";
 import { useApp } from "@/lib/context/app-context";
 import {
@@ -22,6 +22,7 @@ import {
   Send,
   Phone,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   User,
 } from "lucide-react";
@@ -35,6 +36,22 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
   const { setPersonaId, activePersona } = useApp();
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  // Auto-reset page when candidate list changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [candidates]);
+
+  const totalItems = candidates.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
+  const endIndex = Math.min(startIndex + PAGE_SIZE, totalItems);
+
+  const paginatedCandidates = candidates.slice(startIndex, endIndex);
 
   const handleOpenCandidate = (cand: CandidateData) => {
     setSelectedCandidate(cand);
@@ -67,7 +84,7 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
   };
 
   return (
-    <div className="border border-border/80 rounded-xl overflow-hidden bg-card shadow-sm">
+    <div className="border border-border/70 rounded-xl overflow-hidden bg-card">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className="bg-muted/40 text-xs">
@@ -89,7 +106,7 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                 </TableCell>
               </TableRow>
             ) : (
-              candidates.map((cand) => {
+              paginatedCandidates.map((cand) => {
                 const personaTarget = getPersonaTarget(cand);
                 const isCurrentActive = personaTarget && activePersona.id === personaTarget;
 
@@ -245,6 +262,49 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Footer */}
+      {totalItems > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 px-3.5 py-2.5 border-t border-border/60 bg-muted/20 text-xs">
+          <div className="text-muted-foreground text-center sm:text-left">
+            Showing <span className="font-semibold text-foreground">{startIndex + 1}</span>–
+            <span className="font-semibold text-foreground">{endIndex}</span> of{" "}
+            <span className="font-semibold text-foreground">{totalItems.toLocaleString()}</span>{" "}
+            candidate ticket{totalItems !== 1 ? "s" : ""}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage <= 1}
+                className="h-7 text-xs px-2.5 gap-1"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                Previous
+              </Button>
+
+              <span className="text-xs px-2 text-muted-foreground font-medium">
+                Page <span className="text-foreground font-semibold">{safeCurrentPage}</span> of{" "}
+                <span className="text-foreground font-semibold">{totalPages}</span>
+              </span>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage >= totalPages}
+                className="h-7 text-xs px-2.5 gap-1"
+              >
+                Next
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       <CandidateDetailModal
         candidate={selectedCandidate}
