@@ -235,3 +235,33 @@ export interface AgentsQueryFilters {
   cursor?: string;
   limit?: number;
 }
+
+// ==========================================
+// Broadcasts
+// ==========================================
+
+export interface AudienceFilter {
+  stateId?: number;
+  lgaId?: number;
+  wardId?: number;
+  politicalUnitId?: number;
+  officeId?: number;
+  ownerGroupId?: number;
+  agentKind?: "official" | "extra" | "all";
+}
+
+export interface AudiencePreview {
+  officialCount: number;
+  extraCount: number;
+}
+
+export interface CreateBroadcastInput {
+  audienceFilter: AudienceFilter;
+  messageText: string;
+  scheduledSendAt?: string;
+}
+
+export interface CreatedBroadcast {
+  id: string;
+  status: "draft" | "scheduled" | "sending" | "completed" | "failed" | "cancelled";
+}

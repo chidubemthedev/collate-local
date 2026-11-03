@@ -47,8 +47,6 @@ interface RecipientsFiltersProps {
   onSourceChange: (source: string) => void;
   onReset: () => void;
   isFiltered: boolean;
-  onOpenAddModal: () => void;
-  onOpenImportModal: () => void;
   onExportCSV: () => void;
 }
 
@@ -68,8 +66,6 @@ export function RecipientsFilters({
   onSourceChange,
   onReset,
   isFiltered,
-  onOpenAddModal,
-  onOpenImportModal,
   onExportCSV,
 }: RecipientsFiltersProps) {
   const availableLgas = LGAS_DATA.filter(
@@ -175,20 +171,22 @@ export function RecipientsFilters({
           <Button
             variant="outline"
             size="sm"
-            onClick={onOpenImportModal}
+            disabled
+            title="Not available yet"
             className="h-9 text-xs font-medium gap-1.5 border-border"
           >
-            <Upload className="w-3.5 h-3.5 text-primary" />
-            <span>Import CSV</span>
+            <Upload className="w-3.5 h-3.5" />
+            <span>Import CSV: Not available yet</span>
           </Button>
 
           <Button
             size="sm"
-            onClick={onOpenAddModal}
-            className="h-9 text-xs font-semibold gap-1.5 bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
+            disabled
+            title="Not available yet"
+            className="h-9 text-xs font-semibold gap-1.5"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Recipient</span>
+            <span>Add Recipient: Not available yet</span>
           </Button>
         </div>
       </div>

@@ -4,30 +4,15 @@ import React, { useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
 import {
-  FileText,
   Sparkles,
-  CheckCircle2,
-  Camera,
-  MapPin,
-  MessageSquare,
   Zap,
-  Info,
 } from "lucide-react";
 
 export interface MessageConfig {
-  title: string;
   body: string;
-  hasAcknowledgeButton: boolean;
-  acknowledgeButtonText: string;
-  hasPhotoUploadButton: boolean;
-  photoUploadButtonText: string;
-  hasGpsButton: boolean;
-  gpsButtonText: string;
 }
 
 interface StepMessageProps {
@@ -39,38 +24,22 @@ const TEMPLATES = [
   {
     id: "gap-alert",
     name: "PU Coverage Gap Alert",
-    title: "Urgent Polling Unit Coverage Gap Alert",
     content: `🚨 *URGENT NDC POLLING UNIT GAP ALERT* 🚨\n\nHello {{recipient_name}},\n\nOur live audit shows that several Polling Units in your area (*{{area_name}}*) have NO official party agent assigned.\n\n⚠️ Please coordinate with your Ward Coordinator immediately to nominate verified agents.\n\nTap [ Confirm Received ] below to log your acknowledgment.`,
-    hasAck: true,
-    hasPhoto: false,
-    hasGps: false,
   },
   {
     id: "accreditation-check",
     name: "06:00 WAT Accreditation Drill",
-    title: "Election-Day Opening & BVAS Check",
     content: `📋 *NDC ELECTION-DAY DIRECTIVE*\n\nTo all NDC Polling Unit Agents:\n1. Arrive at {{pu_code}} ({{pu_name}}) by 06:30 WAT.\n2. Inspect BVAS zero counter before polling starts.\n3. Report any late INEC arrival immediately to the Situation Room.\n\nTap [ Acknowledge & Verify ] below.`,
-    hasAck: true,
-    hasPhoto: false,
-    hasGps: true,
   },
   {
     id: "ec8a-drill",
     name: "EC8A Result Sheet Photo Drill",
-    title: "Form EC8A Result Upload Drill",
     content: `📸 *NATIONAL EC8A RESULT UPLOAD DRILL*\n\nTo all Official Agents:\nWhen voting closes at {{pu_code}}:\n1. Photograph Form EC8A clearly with all four corners visible.\n2. Verify Presiding Officer and Police signatures are legible.\n3. Upload the photo directly via the button below.`,
-    hasAck: false,
-    hasPhoto: true,
-    hasGps: false,
   },
   {
     id: "security-sos",
     name: "Security SOS Protocol",
-    title: "Security Rapid Response & Hotline Channel",
     content: `🛡️ *SECURITY DIRECTIVE & SOS INTERVENTION*\n\nIf you experience intimidation or ballot disruption at {{pu_code}}:\n1. Move to a secure location.\n2. Tap the emergency trigger below to alert the National Legal & Security Rapid Intervention Unit.\n3. National Hotline: 0800-NDC-HELP (0800-632-4357).`,
-    hasAck: true,
-    hasPhoto: true,
-    hasGps: true,
   },
 ];
 
@@ -93,11 +62,7 @@ export function StepMessage({ message, onChange }: StepMessageProps) {
   const handleApplyTemplate = (tmpl: (typeof TEMPLATES)[0]) => {
     onChange({
       ...message,
-      title: tmpl.title,
       body: tmpl.content,
-      hasAcknowledgeButton: tmpl.hasAck,
-      hasPhotoUploadButton: tmpl.hasPhoto,
-      hasGpsButton: tmpl.hasGps,
     });
   };
 
@@ -160,9 +125,6 @@ export function StepMessage({ message, onChange }: StepMessageProps) {
                   <Zap className="w-3 h-3 text-primary shrink-0" />
                   <span className="truncate">{tmpl.name}</span>
                 </div>
-                <div className="text-[10px] text-muted-foreground mt-1 line-clamp-1">
-                  {tmpl.title}
-                </div>
               </button>
             ))}
           </div>
@@ -172,18 +134,6 @@ export function StepMessage({ message, onChange }: StepMessageProps) {
       {/* 2. Message Composer */}
       <Card className="border-border/80 shadow-xs bg-card">
         <CardContent className="p-4 sm:p-5 space-y-4">
-          {/* Campaign Title */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold">Campaign Internal Title</Label>
-            <Input
-              type="text"
-              placeholder="e.g. Election-Eve Briefing & Accreditation Checklist"
-              value={message.title}
-              onChange={(e) => onChange({ ...message, title: e.target.value })}
-              className="h-9 text-xs bg-background"
-            />
-          </div>
-
           {/* Dynamic Variable Chips */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -230,91 +180,26 @@ export function StepMessage({ message, onChange }: StepMessageProps) {
             />
           </div>
 
-          {/* Interactive Bot Action Buttons */}
-          <div className="space-y-2 pt-2 border-t border-border">
+          {/* Unsupported interactive actions */}
+          <div className="space-y-2 border-t border-border pt-2">
             <Label className="text-xs font-semibold flex items-center gap-1.5">
-              <span>Interactive Telegram Inline Action Buttons</span>
-              <Badge variant="outline" className="text-[10px] px-1 py-0 bg-primary/5 text-primary border-primary/20">
-                Boosts Acknowledgment
+              <span>Interactive message actions</span>
+              <Badge variant="outline" className="px-1 py-0 text-[10px]">
+                Not available yet
               </Badge>
             </Label>
-
-            <div className="space-y-2.5 pt-1">
-              {/* 1. Tap OK Button */}
-              <div className="flex items-center gap-3 p-2.5 rounded-lg border border-border bg-muted/20">
-                <Checkbox
-                  checked={message.hasAcknowledgeButton}
-                  onCheckedChange={(checked) =>
-                    onChange({ ...message, hasAcknowledgeButton: !!checked })
-                  }
-                />
-                <div className="flex-1 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <Input
-                    type="text"
-                    value={message.acknowledgeButtonText}
-                    onChange={(e) =>
-                      onChange({ ...message, acknowledgeButtonText: e.target.value })
-                    }
-                    disabled={!message.hasAcknowledgeButton}
-                    placeholder="Button Text: Confirm Received (Tap OK)"
-                    className="h-8 text-xs bg-background max-w-sm"
-                  />
-                  <span className="text-[11px] text-muted-foreground hidden sm:inline">
-                    Logs instant acknowledgment in live delivery dashboard.
+            <div className="grid gap-2 sm:grid-cols-3">
+              {["Acknowledgment", "Photo upload", "GPS location"].map((action) => (
+                <div
+                  key={action}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-muted/20 p-2.5 opacity-70"
+                >
+                  <Checkbox checked={false} disabled aria-label={`${action} not available yet`} />
+                  <span className="text-[11px] text-muted-foreground">
+                    {action} · Not available yet
                   </span>
                 </div>
-              </div>
-
-              {/* 2. Photo Upload Button */}
-              <div className="flex items-center gap-3 p-2.5 rounded-lg border border-border bg-muted/20">
-                <Checkbox
-                  checked={message.hasPhotoUploadButton}
-                  onCheckedChange={(checked) =>
-                    onChange({ ...message, hasPhotoUploadButton: !!checked })
-                  }
-                />
-                <div className="flex-1 flex items-center gap-2">
-                  <Camera className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                  <Input
-                    type="text"
-                    value={message.photoUploadButtonText}
-                    onChange={(e) =>
-                      onChange({ ...message, photoUploadButtonText: e.target.value })
-                    }
-                    disabled={!message.hasPhotoUploadButton}
-                    placeholder="Button Text: 📸 Upload Form EC8A Photo"
-                    className="h-8 text-xs bg-background max-w-sm"
-                  />
-                  <span className="text-[11px] text-muted-foreground hidden sm:inline">
-                    Prompts agent to open camera and submit stamped EC8A result.
-                  </span>
-                </div>
-              </div>
-
-              {/* 3. GPS Location Button */}
-              <div className="flex items-center gap-3 p-2.5 rounded-lg border border-border bg-muted/20">
-                <Checkbox
-                  checked={message.hasGpsButton}
-                  onCheckedChange={(checked) =>
-                    onChange({ ...message, hasGpsButton: !!checked })
-                  }
-                />
-                <div className="flex-1 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <Input
-                    type="text"
-                    value={message.gpsButtonText}
-                    onChange={(e) => onChange({ ...message, gpsButtonText: e.target.value })}
-                    disabled={!message.hasGpsButton}
-                    placeholder="Button Text: 📍 Verify GPS Coordinates"
-                    className="h-8 text-xs bg-background max-w-sm"
-                  />
-                  <span className="text-[11px] text-muted-foreground hidden sm:inline">
-                    Requests real-time polling unit location geo-stamp.
-                  </span>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </CardContent>

@@ -20,14 +20,10 @@ import Link from "next/link";
 
 interface ReportLogsTableProps {
   logs: BroadcastRecipientLog[];
-  onResendSingle: (logId: string) => void;
-  resendingId: string | null;
 }
 
 export function ReportLogsTable({
   logs,
-  onResendSingle,
-  resendingId,
 }: ReportLogsTableProps) {
   if (logs.length === 0) {
     return (
@@ -114,7 +110,6 @@ export function ReportLogsTable({
           <tbody className="divide-y divide-border/60">
             {logs.map((log) => {
               const isFailedOrPending = log.status === "Failed" || log.status === "Pending";
-              const isResendingThis = resendingId === log.id;
 
               return (
                 <tr key={log.id} className="hover:bg-muted/30 transition-colors group">
@@ -170,14 +165,12 @@ export function ReportLogsTable({
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled={isResendingThis}
-                          onClick={() => onResendSingle(log.id)}
-                          className="h-7 px-2.5 text-xs text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 gap-1 font-semibold"
+                          disabled
+                          title="Not available yet"
+                          className="h-7 px-2.5 text-xs gap-1 font-semibold"
                         >
-                          <RotateCw
-                            className={`w-3 h-3 ${isResendingThis ? "animate-spin" : ""}`}
-                          />
-                          <span>Resend</span>
+                          <RotateCw className="w-3 h-3" />
+                          <span>Resend: Not available yet</span>
                         </Button>
                       ) : (
                         <Link

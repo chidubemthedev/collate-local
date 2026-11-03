@@ -27,32 +27,7 @@ import { CHANNEL_GATEWAY_CONFIG } from "@/lib/data/settings-data";
 export function ChannelGatewaySettings() {
   const [config, setConfig] = useState(CHANNEL_GATEWAY_CONFIG);
   const [showToken, setShowToken] = useState(false);
-  const [isPingingWebhook, setIsPingingWebhook] = useState(false);
-  const [webhookPingStatus, setWebhookPingStatus] = useState<string | null>(null);
-  const [testPhoneNumber, setTestPhoneNumber] = useState("+234 803 123 4567");
-  const [isSendingTestSms, setIsSendingTestSms] = useState(false);
-  const [testSmsStatus, setTestSmsStatus] = useState<string | null>(null);
   const [fallbackMinutes, setFallbackMinutes] = useState(config.sms.failoverTimeoutMinutes);
-
-  const handlePingWebhook = () => {
-    setIsPingingWebhook(true);
-    setWebhookPingStatus(null);
-    setTimeout(() => {
-      setIsPingingWebhook(false);
-      setWebhookPingStatus("HTTP 200 OK — Telegram webhook active & responsive (42ms)");
-    }, 800);
-  };
-
-  const handleSendTestSms = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!testPhoneNumber) return;
-    setIsSendingTestSms(true);
-    setTestSmsStatus(null);
-    setTimeout(() => {
-      setIsSendingTestSms(false);
-      setTestSmsStatus(`Dispatched test SMS via NDC-COLLATE DND route to ${testPhoneNumber} (MsgID: #SMS-88192)`);
-    }, 1200);
-  };
 
   return (
     <div className="space-y-6">
@@ -165,22 +140,16 @@ export function ChannelGatewaySettings() {
                   className="h-8 font-mono text-xs bg-slate-50 border-slate-200"
                 />
                 <Button
-                  onClick={handlePingWebhook}
-                  disabled={isPingingWebhook}
+                  disabled
+                  title="Not available yet"
                   variant="outline"
                   size="sm"
-                  className="h-8 px-2.5 text-xs text-blue-700 border-blue-200 hover:bg-blue-50 font-medium shrink-0"
+                  className="h-8 px-2.5 text-xs text-slate-500 border-slate-200 font-medium shrink-0"
                 >
-                  <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isPingingWebhook ? "animate-spin" : ""}`} />
-                  <span>Ping Webhook</span>
+                  <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                  <span>Ping Webhook: Not available yet</span>
                 </Button>
               </div>
-              {webhookPingStatus && (
-                <p className="text-[11px] text-emerald-700 font-medium bg-emerald-50 p-2 rounded border border-emerald-200 flex items-center gap-1.5 animate-in fade-in">
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                  <span>{webhookPingStatus}</span>
-                </p>
-              )}
             </div>
 
             {/* Metrics Footer */}
@@ -272,33 +241,24 @@ export function ChannelGatewaySettings() {
             </div>
 
             {/* Test SMS Simulator */}
-            <form onSubmit={handleSendTestSms} className="space-y-2 pt-1">
+            <div className="space-y-2 pt-1">
               <Label className="text-xs font-semibold text-slate-700">Test SMS Delivery</Label>
               <div className="flex items-center gap-1.5">
                 <Input
-                  value={testPhoneNumber}
-                  onChange={(e) => setTestPhoneNumber(e.target.value)}
-                  placeholder="+234 803 123 4567"
+                  disabled
                   className="h-8 text-xs bg-slate-50 border-slate-200"
-                  required
                 />
                 <Button
-                  type="submit"
-                  disabled={isSendingTestSms}
+                  disabled
+                  title="Not available yet"
                   size="sm"
-                  className="h-8 bg-amber-700 hover:bg-amber-800 text-white text-xs font-medium shrink-0"
+                  className="h-8 text-xs font-medium shrink-0"
                 >
                   <Send className="h-3.5 w-3.5 mr-1" />
-                  <span>{isSendingTestSms ? "Sending..." : "Send Test Ping"}</span>
+                  <span>Not available yet</span>
                 </Button>
               </div>
-              {testSmsStatus && (
-                <p className="text-[11px] text-emerald-800 font-medium bg-emerald-50 p-2 rounded border border-emerald-200 flex items-center gap-1.5 animate-in fade-in">
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                  <span>{testSmsStatus}</span>
-                </p>
-              )}
-            </form>
+            </div>
 
             {/* SMS Provider Note */}
             <div className="p-2.5 rounded bg-slate-50 border border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">

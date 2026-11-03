@@ -2,43 +2,39 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { useApp } from "@/lib/context/app-context";
-import { Eye, ShieldAlert, X, ChevronRight } from "lucide-react";
+import { useSession, usePermissions } from "@/lib/hooks/use-auth";
+import { Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function ViewAsBar() {
   const pathname = usePathname();
-  const { activePersona, setPersonaId } = useApp();
+  const { data: session } = useSession();
+  const { data: permissions } = usePermissions();
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || !session?.authenticated || !permissions) {
     return null;
   }
 
-  // If viewing as default Party National or Admin, don't show the warning banner, just subtle indicator
-  if (activePersona.role === "Party · National") {
-    return null;
-  }
+  const roles = permissions.roles.join(", ") || (permissions.isAdmin ? "Admin" : "Account");
 
   return (
-    <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 sm:px-6 lg:px-8 py-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
-        <Eye className="w-4 h-4 text-amber-600 shrink-0" />
+    <div className="bg-muted/40 border-b border-border px-4 sm:px-6 lg:px-8 py-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Eye className="w-4 h-4 shrink-0" />
         <div>
-          <span className="font-semibold">Scoped View: </span>
-          <span>{activePersona.label}</span>
-          <span className="hidden sm:inline text-muted-foreground ml-1">
-            — {activePersona.description}
-          </span>
+          <span className="font-semibold text-foreground">Current access: </span>
+          <span>{roles}</span>
         </div>
       </div>
       <div className="flex items-center gap-2 ml-auto">
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setPersonaId("persona-party-national")}
-          className="h-6 text-[11px] px-2 border-amber-500/40 hover:bg-amber-500/20 text-amber-900 dark:text-amber-200"
+          disabled
+          title="Not available yet"
+          className="h-6 text-[11px] px-2"
         >
-          Reset to Party National
+          View as · Not available yet
         </Button>
       </div>
     </div>

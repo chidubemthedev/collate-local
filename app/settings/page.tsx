@@ -1,13 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { useApp } from "@/lib/context/app-context";
+import { usePermissions } from "@/lib/hooks/use-auth";
 import { AccessGroup } from "@/lib/types";
 import { ACCESS_GROUPS_DATA } from "@/lib/data/settings-data";
 import { SettingsKPISummary } from "@/components/settings/settings-kpi-summary";
 import { AccessMatrixTable } from "@/components/settings/access-matrix-table";
 import { AccessGroupsManager } from "@/components/settings/access-groups-manager";
-import { CustomGroupModal } from "@/components/settings/custom-group-modal";
 import { ChannelGatewaySettings } from "@/components/settings/channel-gateway-settings";
 import { SecurityPrivacySettings } from "@/components/settings/security-privacy-settings";
 import { Badge } from "@/components/ui/badge";
@@ -20,55 +19,38 @@ import {
   Lock,
   Plus,
   AlertCircle,
-  Sparkles,
 } from "lucide-react";
 
 export default function SettingsPage() {
-  const { activePersona } = useApp();
+  const { data: permissions, error, isError, isLoading, refetch } = usePermissions();
   const [activeTab, setActiveTab] = useState<"matrix" | "custom" | "gateways" | "security">("matrix");
-  const [allGroups, setAllGroups] = useState<AccessGroup[]>(ACCESS_GROUPS_DATA);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<AccessGroup | null>(null);
+  const [allGroups] = useState<AccessGroup[]>(ACCESS_GROUPS_DATA);
 
   const customGroups = allGroups.filter((g) => !g.isSystem);
 
-  const handleCreateGroup = () => {
-    setEditingGroup(null);
-    setIsModalOpen(true);
-  };
+  if (isLoading) {
+    return <p className="p-6 text-sm text-slate-500">Checking access…</p>;
+  }
 
-  const handleEditGroup = (group: AccessGroup) => {
-    setEditingGroup(group);
-    setIsModalOpen(true);
-  };
+  if (isError) {
+    return (
+      <div role="alert" className="p-4 text-sm text-red-800">
+        <p>{error.message}</p>
+        <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
-  const handleSaveGroup = (savedGroup: AccessGroup) => {
-    if (editingGroup) {
-      setAllGroups((prev) =>
-        prev.map((g) => (g.id === savedGroup.id ? savedGroup : g))
-      );
-    } else {
-      setAllGroups((prev) => [...prev, savedGroup]);
-    }
-  };
-
-  const handleDeleteGroup = (groupId: string) => {
-    setAllGroups((prev) => prev.filter((g) => g.id !== groupId));
-  };
-
-  const handleCloneGroup = (group: AccessGroup) => {
-    const cloned: AccessGroup = {
-      ...group,
-      id: `grp-custom-${Date.now()}`,
-      name: `${group.name} (Copy)`,
-      isSystem: false,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    setAllGroups((prev) => [...prev, cloned]);
-  };
-
-  const isPartyOrAdmin =
-    activePersona.role === "Party · National" || activePersona.role === "Admin";
+  if (!permissions?.isAdmin) {
+    return (
+      <div role="alert" className="p-6 text-sm text-amber-900">
+        <AlertCircle className="mr-2 inline h-4 w-4" />
+        Admin access is required to view settings.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -95,30 +77,16 @@ export default function SettingsPage() {
         {/* Action Button */}
         <div className="flex items-center gap-2">
           <Button
-            onClick={handleCreateGroup}
+            disabled
+            title="Not available yet"
             size="sm"
-            className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-medium gap-1.5 shadow-xs"
+            className="text-xs font-medium gap-1.5"
           >
             <Plus className="h-4 w-4" />
-            <span>Create Custom Group</span>
+            <span>Create Custom Group: Not available yet</span>
           </Button>
         </div>
       </div>
-
-      {/* Role Notice for Candidates */}
-      {!isPartyOrAdmin && (
-        <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-lg flex items-start gap-3 text-xs text-amber-900">
-          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-          <div className="space-y-0.5">
-            <span className="font-semibold">
-              Viewing as {activePersona.role} ({activePersona.name}):
-            </span>
-            <p className="text-[11px] text-amber-800 leading-relaxed">
-              Per PRD specifications, Settings & Access Groups configuration is managed exclusively by Party National and Admin leadership. You are viewing simulated system permissions and channel gateway health.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* KPI Metric Summary */}
       <SettingsKPISummary
@@ -171,36 +139,14 @@ export default function SettingsPage() {
 
       {/* Tab Content Panes */}
       <div className="pt-1">
-        {activeTab === "matrix" && (
-          <AccessMatrixTable
-            groups={allGroups}
-            onEditGroup={handleEditGroup}
-            onCreateGroup={handleCreateGroup}
-          />
-        )}
+        {activeTab === "matrix" && <AccessMatrixTable groups={allGroups} />}
 
-        {activeTab === "custom" && (
-          <AccessGroupsManager
-            customGroups={customGroups}
-            onCreateGroup={handleCreateGroup}
-            onEditGroup={handleEditGroup}
-            onDeleteGroup={handleDeleteGroup}
-            onCloneGroup={handleCloneGroup}
-          />
-        )}
+        {activeTab === "custom" && <AccessGroupsManager customGroups={customGroups} />}
 
         {activeTab === "gateways" && <ChannelGatewaySettings />}
 
         {activeTab === "security" && <SecurityPrivacySettings />}
       </div>
-
-      {/* Custom Group Creation / Editing Modal */}
-      <CustomGroupModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveGroup}
-        initialGroup={editingGroup}
-      />
     </div>
   );
 }
