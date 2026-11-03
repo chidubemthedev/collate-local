@@ -56,7 +56,9 @@ export function Sidebar() {
                 v1
               </span>
             </div>
-            <div className="text-[11px] text-muted-foreground">NDC Campaign 2027</div>
+            <div className="text-[11px] text-muted-foreground">
+              NDC Campaign 2027
+            </div>
           </div>
         </div>
       </div>
@@ -80,93 +82,97 @@ export function Sidebar() {
       {/* Navigation Links */}
       <nav className="flex-1 p-3 space-y-5">
         {/* Polling Units Group */}
-        {canManageCoverage && <div>
-          <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
-            Polling Units
+        {canManageCoverage && (
+          <div>
+            <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+              Polling Units
+            </div>
+            <div className="space-y-0.5">
+              <Link
+                href="/coverage"
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  isLinkActive("/coverage")
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                }`}
+              >
+                <MapPin className="w-4 h-4 shrink-0" />
+                <span>Coverage</span>
+              </Link>
+              <Link
+                href="/candidates"
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  isLinkActive("/candidates")
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                }`}
+              >
+                <Users className="w-4 h-4 shrink-0" />
+                <span>Candidates</span>
+              </Link>
+              <Link
+                href="/agents"
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  isLinkActive("/agents")
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                }`}
+              >
+                <UserCheck className="w-4 h-4 shrink-0" />
+                <span>Agents</span>
+              </Link>
+            </div>
           </div>
-          <div className="space-y-0.5">
-            <Link
-              href="/coverage"
-              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                isLinkActive("/coverage")
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <MapPin className="w-4 h-4 shrink-0" />
-              <span>Coverage</span>
-            </Link>
-            <Link
-              href="/candidates"
-              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                isLinkActive("/candidates")
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <Users className="w-4 h-4 shrink-0" />
-              <span>NDC candidates</span>
-            </Link>
-            <Link
-              href="/agents"
-              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                isLinkActive("/agents")
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <UserCheck className="w-4 h-4 shrink-0" />
-              <span>Agents</span>
-            </Link>
-          </div>
-        </div>}
+        )}
 
         {/* Messaging Group */}
-        {canBroadcast && <div>
-          <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
-            Messaging
+        {canBroadcast && (
+          <div>
+            <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+              Messaging
+            </div>
+            <div className="space-y-0.5">
+              <Link
+                href="/broadcasts"
+                className={`flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  isLinkActive("/broadcasts") && pathname !== "/broadcasts/new"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Radio className="w-4 h-4 shrink-0" />
+                  <span>Broadcasts</span>
+                </div>
+              </Link>
+              <Link
+                href="/broadcasts/new"
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  pathname === "/broadcasts/new"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                }`}
+              >
+                <Send className="w-4 h-4 shrink-0" />
+                <span>New broadcast</span>
+              </Link>
+              <Link
+                href="/recipients"
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  isLinkActive("/recipients")
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                }`}
+              >
+                <Contact className="w-4 h-4 shrink-0" />
+                <span>Recipients</span>
+              </Link>
+            </div>
           </div>
-          <div className="space-y-0.5">
-            <Link
-              href="/broadcasts"
-              className={`flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                isLinkActive("/broadcasts") && pathname !== "/broadcasts/new"
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Radio className="w-4 h-4 shrink-0" />
-                <span>Broadcasts</span>
-              </div>
-            </Link>
-            <Link
-              href="/broadcasts/new"
-              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                pathname === "/broadcasts/new"
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <Send className="w-4 h-4 shrink-0" />
-              <span>New broadcast</span>
-            </Link>
-            <Link
-              href="/recipients"
-              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                isLinkActive("/recipients")
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <Contact className="w-4 h-4 shrink-0" />
-              <span>Recipients</span>
-            </Link>
-          </div>
-        </div>}
+        )}
 
         {/* Settings Group (Party and Admin only) */}
-        {isAdmin && (
+        {/* {isAdmin && (
           <div>
             <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
               Settings
@@ -196,7 +202,7 @@ export function Sidebar() {
               </Link>
             </div>
           </div>
-        )}
+        )} */}
       </nav>
 
       {/* User Session Block */}
@@ -207,7 +213,10 @@ export function Sidebar() {
               <div className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
                 <span className="truncate">{session.person.fullName}</span>
                 {session.person.isAdmin && (
-                  <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  <Badge
+                    variant="outline"
+                    className="text-[9px] px-1 py-0 h-3.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                  >
                     Admin
                   </Badge>
                 )}

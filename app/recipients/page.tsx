@@ -48,7 +48,13 @@ export default function RecipientsPage() {
         const matchesGroup = person.group.toLowerCase().includes(query);
         const matchesPhone = person.phoneMasked.toLowerCase().includes(query);
         const matchesSource = person.source.toLowerCase().includes(query);
-        if (!matchesName && !matchesArea && !matchesGroup && !matchesPhone && !matchesSource) {
+        if (
+          !matchesName &&
+          !matchesArea &&
+          !matchesGroup &&
+          !matchesPhone &&
+          !matchesSource
+        ) {
           return false;
         }
       }
@@ -65,18 +71,29 @@ export default function RecipientsPage() {
       }
 
       // 4. State filter
-      if (selectedState !== "all" && person.stateCode && person.stateCode !== selectedState) {
+      if (
+        selectedState !== "all" &&
+        person.stateCode &&
+        person.stateCode !== selectedState
+      ) {
         return false;
       }
 
       // 5. LGA filter
-      if (selectedLga !== "all" && person.lgaCode && person.lgaCode !== selectedLga) {
+      if (
+        selectedLga !== "all" &&
+        person.lgaCode &&
+        person.lgaCode !== selectedLga
+      ) {
         return false;
       }
 
       // 6. Persona Scoping
       if (isCandidatePersona && activePersona.stateCode && person.stateCode) {
-        if (person.stateCode !== activePersona.stateCode && person.area !== "Nigeria") {
+        if (
+          person.stateCode !== activePersona.stateCode &&
+          person.area !== "Nigeria"
+        ) {
           return false;
         }
       }
@@ -99,10 +116,13 @@ export default function RecipientsPage() {
     return {
       all: recipientsList.length,
       telegramConnected: recipientsList.filter(
-        (r) => r.telegramStatus === "Telegram connected"
+        (r) => r.telegramStatus === "Telegram connected",
       ).length,
-      smsOnly: recipientsList.filter((r) => r.telegramStatus === "SMS only").length,
-      notMatched: recipientsList.filter((r) => r.telegramStatus === "Number not matched").length,
+      smsOnly: recipientsList.filter((r) => r.telegramStatus === "SMS only")
+        .length,
+      notMatched: recipientsList.filter(
+        (r) => r.telegramStatus === "Number not matched",
+      ).length,
     };
   }, [recipientsList]);
 
@@ -145,12 +165,18 @@ export default function RecipientsPage() {
       `"${r.source.replace(/"/g, '""')}"`,
     ]);
 
-    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((r) => r.join(",")),
+    ].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `ndc-recipients-registry-${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute(
+      "download",
+      `ndc-recipients-registry-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -162,10 +188,6 @@ export default function RecipientsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2.5">
-              <Users className="w-7 h-7 text-primary" />
-              <span>Recipients & Directory</span>
-            </h1>
             <Badge
               variant="outline"
               className="text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5"
@@ -174,9 +196,14 @@ export default function RecipientsPage() {
               NDPA 2023 Compliant
             </Badge>
           </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2.5 mt-2">
+            <Users className="w-5 h-5 text-primary" />
+            <span>Recipients & Directory</span>
+          </h1>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl">
-            Searchable registry of all NDC candidates, official polling unit agents, and campaign
-            volunteers with Telegram bot and SMS channel readiness.
+            Searchable registry of all NDC candidates, official polling unit
+            agents, and campaign volunteers with Telegram bot and SMS channel
+            readiness.
           </p>
         </div>
 
@@ -190,7 +217,7 @@ export default function RecipientsPage() {
             className="h-10 text-xs font-medium gap-1.5 border-border"
           >
             <Upload className="w-4 h-4" />
-            <span>Import CSV: Not available yet</span>
+            <span>Import CSV: Unavailable</span>
           </Button>
 
           <Button
@@ -200,7 +227,7 @@ export default function RecipientsPage() {
             className="h-10 text-xs font-semibold gap-1.5"
           >
             <UserPlus className="w-4 h-4" />
-            <span>Add Recipient: Not available yet</span>
+            <span>Add Recipient: Unavailable</span>
           </Button>
         </div>
       </div>
@@ -234,10 +261,14 @@ export default function RecipientsPage() {
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <span>
-              Showing personnel registered within <strong>{activePersona.label}</strong> subtree.
+              Showing personnel registered within{" "}
+              <strong>{activePersona.label}</strong> subtree.
             </span>
           </div>
-          <Badge variant="outline" className="bg-background text-amber-700 dark:text-amber-300 border-amber-300 text-[11px]">
+          <Badge
+            variant="outline"
+            className="bg-background text-amber-700 dark:text-amber-300 border-amber-300 text-[11px]"
+          >
             Candidate Scoped
           </Badge>
         </div>
