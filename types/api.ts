@@ -319,5 +319,27 @@ export interface CreateBroadcastInput {
 
 export interface CreatedBroadcast {
   id: string;
-  status: "draft" | "scheduled" | "sending" | "completed" | "failed" | "cancelled";
+  status: BroadcastStatus;
+}
+
+export interface BroadcastsQueryParams {
+  limit?: number;
+  cursor?: string;
+}
+
+export interface BroadcastsPageResponse {
+  items: BroadcastListItem[];
+  nextCursor: string | null;
+}
+
+export type DeliveryListItem = BroadcastDelivery;
+
+export interface DeliveriesQueryParams {
+  limit?: number;
+  cursor?: string;
+}
+
+export interface DeliveriesPageResponse {
+  items: DeliveryListItem[];
+  nextCursor: string | null;
 }

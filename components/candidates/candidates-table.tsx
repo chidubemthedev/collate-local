@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CandidateData } from "@/lib/types";
 import { useApp } from "@/lib/context/app-context";
 import {
@@ -22,6 +22,7 @@ import {
   Send,
   Phone,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   User,
 } from "lucide-react";
@@ -33,8 +34,25 @@ interface CandidatesTableProps {
 
 export function CandidatesTable({ candidates }: CandidatesTableProps) {
   const { setPersonaId, activePersona } = useApp();
-  const [selectedCandidate, setSelectedCandidate] = useState<CandidateData | null>(null);
+  const [selectedCandidate, setSelectedCandidate] =
+    useState<CandidateData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  // Auto-reset page when candidate list changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [candidates]);
+
+  const totalItems = candidates.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
+  const endIndex = Math.min(startIndex + PAGE_SIZE, totalItems);
+
+  const paginatedCandidates = candidates.slice(startIndex, endIndex);
 
   const handleOpenCandidate = (cand: CandidateData) => {
     setSelectedCandidate(cand);
@@ -61,37 +79,55 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
   const getPersonaTarget = (cand: CandidateData) => {
     if (cand.office === "President") return "persona-cand-pres";
     if (cand.office === "House of Reps") return "persona-cand-rep-onitsha";
-    if (cand.office === "State Assembly" && cand.id === "cand-ass-04-onitsha-1") return "persona-cand-ass-onitsha-1";
-    if (cand.office === "State Assembly" && cand.id === "cand-ass-04-onitsha-2") return "persona-cand-ass-onitsha-2";
+    if (cand.office === "State Assembly" && cand.id === "cand-ass-04-onitsha-1")
+      return "persona-cand-ass-onitsha-1";
+    if (cand.office === "State Assembly" && cand.id === "cand-ass-04-onitsha-2")
+      return "persona-cand-ass-onitsha-2";
     return null;
   };
 
   return (
-    <div className="border border-border/80 rounded-xl overflow-hidden bg-card shadow-sm">
+    <div className="border border-border/70 rounded-xl overflow-hidden bg-card">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className="bg-muted/40 text-xs">
             <TableRow>
               <TableHead className="w-28 font-semibold">Office</TableHead>
-              <TableHead className="font-semibold min-w-[220px]">Candidate & Running Mate</TableHead>
-              <TableHead className="font-semibold min-w-[140px]">Constituency / Seat</TableHead>
-              <TableHead className="font-semibold min-w-[180px]">Official Coverage</TableHead>
-              <TableHead className="text-right font-semibold hidden md:table-cell">Extra Agents</TableHead>
-              <TableHead className="font-semibold hidden lg:table-cell">Channel Status</TableHead>
-              <TableHead className="text-right font-semibold w-28">Actions</TableHead>
+              <TableHead className="font-semibold min-w-[220px]">
+                Candidate
+              </TableHead>
+              <TableHead className="font-semibold min-w-[140px]">
+                Constituency / Seat
+              </TableHead>
+              <TableHead className="font-semibold min-w-[180px]">
+                Official Coverage
+              </TableHead>
+              <TableHead className="text-right font-semibold hidden md:table-cell">
+                Extra Agents
+              </TableHead>
+              <TableHead className="font-semibold hidden lg:table-cell">
+                Channel Status
+              </TableHead>
+              <TableHead className="text-right font-semibold w-28">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody className="text-xs">
             {candidates.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-12 text-muted-foreground"
+                >
                   No candidates match your filters.
                 </TableCell>
               </TableRow>
             ) : (
-              candidates.map((cand) => {
+              paginatedCandidates.map((cand) => {
                 const personaTarget = getPersonaTarget(cand);
-                const isCurrentActive = personaTarget && activePersona.id === personaTarget;
+                const isCurrentActive =
+                  personaTarget && activePersona.id === personaTarget;
 
                 if (cand.isOffCycle) {
                   return (
@@ -101,12 +137,17 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                       onClick={() => handleOpenCandidate(cand)}
                     >
                       <TableCell>
-                        <Badge variant="outline" className={getOfficeBadgeColor(cand.office)}>
+                        <Badge
+                          variant="outline"
+                          className={getOfficeBadgeColor(cand.office)}
+                        >
                           {cand.office}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium text-foreground">{cand.name}</div>
+                        <div className="font-medium text-foreground">
+                          {cand.name}
+                        </div>
                         <div className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">
                           {cand.offCycleNote || "Off-cycle state"}
                         </div>
@@ -115,7 +156,10 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                         {cand.seat} State
                       </TableCell>
                       <TableCell colSpan={3}>
-                        <Badge variant="outline" className="text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border-amber-300">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border-amber-300"
+                        >
                           No 2027 Election (Off-Cycle)
                         </Badge>
                       </TableCell>
@@ -145,7 +189,10 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                     onClick={() => handleOpenCandidate(cand)}
                   >
                     <TableCell>
-                      <Badge variant="outline" className={`text-[11px] font-semibold ${getOfficeBadgeColor(cand.office)}`}>
+                      <Badge
+                        variant="outline"
+                        className={`text-[11px] font-semibold ${getOfficeBadgeColor(cand.office)}`}
+                      >
                         {cand.office}
                       </Badge>
                     </TableCell>
@@ -156,14 +203,18 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                       </div>
                       {cand.deputyName && (
                         <div className="text-[11px] text-muted-foreground mt-0.5">
-                          Running mate: <span className="text-foreground/90 font-medium">{cand.deputyName}</span>
+                          & {cand.deputyName}{" "}
                         </div>
                       )}
                     </TableCell>
 
                     <TableCell>
-                      <div className="font-medium text-foreground">{cand.seat}</div>
-                      <div className="text-[10px] text-muted-foreground font-mono">{cand.source}</div>
+                      <div className="font-medium text-foreground">
+                        {cand.seat}
+                      </div>
+                      {/* <div className="text-[10px] text-muted-foreground font-mono">
+                        {cand.source}
+                      </div> */}
                     </TableCell>
 
                     <TableCell>
@@ -174,13 +225,16 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                             {cand.coveragePct}%
                           </span>
                           <span className="text-muted-foreground">
-                            {cand.coveredPUs.toLocaleString()} / {cand.totalPUs.toLocaleString()} PUs
+                            {cand.coveredPUs.toLocaleString()} /{" "}
+                            {cand.totalPUs.toLocaleString()} PUs
                           </span>
                         </div>
                         <div className="w-full bg-emerald-100 dark:bg-emerald-950/40 rounded-full h-1.5 overflow-hidden">
                           <div
                             className="bg-emerald-600 dark:bg-emerald-500 h-1.5 rounded-full"
-                            style={{ width: `${Math.min(100, cand.coveragePct)}%` }}
+                            style={{
+                              width: `${Math.min(100, cand.coveragePct)}%`,
+                            }}
                           />
                         </div>
                       </div>
@@ -198,15 +252,15 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                             cand.telegramStatus === "connected"
                               ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-300"
                               : cand.telegramStatus === "sms_only"
-                              ? "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-300"
-                              : "bg-muted text-muted-foreground"
+                                ? "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-300"
+                                : "bg-muted text-muted-foreground"
                           }`}
                         >
                           {cand.telegramStatus === "connected"
                             ? "Telegram Connected"
                             : cand.telegramStatus === "sms_only"
-                            ? "SMS Only"
-                            : "Not Matched"}
+                              ? "SMS Only"
+                              : "Not Matched"}
                         </Badge>
                         <div className="text-[10px] text-muted-foreground font-mono">
                           {cand.phoneMasked}
@@ -215,7 +269,10 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                     </TableCell>
 
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                      <div
+                        className="flex items-center justify-end gap-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {personaTarget && (
                           <Button
                             variant={isCurrentActive ? "default" : "outline"}
@@ -225,7 +282,9 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                             title="Switch persona to this candidate"
                           >
                             <Eye className="w-2.5 h-2.5" />
-                            <span>{isCurrentActive ? "Active" : "View As"}</span>
+                            <span>
+                              {isCurrentActive ? "Active" : "View As"}
+                            </span>
                           </Button>
                         )}
                         <Button
@@ -245,6 +304,63 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Footer */}
+      {totalItems > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 px-3.5 py-2.5 border-t border-border/60 bg-muted/20 text-xs">
+          <div className="text-muted-foreground text-center sm:text-left">
+            Showing{" "}
+            <span className="font-semibold text-foreground">
+              {startIndex + 1}
+            </span>
+            –<span className="font-semibold text-foreground">{endIndex}</span>{" "}
+            of{" "}
+            <span className="font-semibold text-foreground">
+              {totalItems.toLocaleString()}
+            </span>{" "}
+            candidate ticket{totalItems !== 1 ? "s" : ""}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage <= 1}
+                className="h-7 text-xs px-2.5 gap-1"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                Previous
+              </Button>
+
+              <span className="text-xs px-2 text-muted-foreground font-medium">
+                Page{" "}
+                <span className="text-foreground font-semibold">
+                  {safeCurrentPage}
+                </span>{" "}
+                of{" "}
+                <span className="text-foreground font-semibold">
+                  {totalPages}
+                </span>
+              </span>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={safeCurrentPage >= totalPages}
+                className="h-7 text-xs px-2.5 gap-1"
+              >
+                Next
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       <CandidateDetailModal
         candidate={selectedCandidate}

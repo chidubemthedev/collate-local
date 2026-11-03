@@ -65,7 +65,7 @@ export function CandidatesFilters({
   ];
 
   return (
-    <div className="bg-card border border-border/80 rounded-xl p-3 sm:p-4 shadow-sm space-y-3">
+    <div className="bg-card border border-border/70 rounded-xl p-3 sm:p-4 space-y-3">
       {/* Top Bar: Office Tabs & View Mode */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/60">
         {/* Office Category Pills */}
@@ -76,7 +76,7 @@ export function CandidatesFilters({
               onClick={() => setSelectedOffice(tab.id)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 selectedOffice === tab.id
-                  ? "bg-primary text-primary-foreground shadow-sm"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-muted/70 text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -100,7 +100,7 @@ export function CandidatesFilters({
             onClick={() => setViewMode("table")}
             className={`p-1.5 rounded-md text-xs font-medium transition-all ${
               viewMode === "table"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
             title="Table View"
@@ -111,7 +111,7 @@ export function CandidatesFilters({
             onClick={() => setViewMode("cards")}
             className={`p-1.5 rounded-md text-xs font-medium transition-all ${
               viewMode === "cards"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
             title="Cards View"
@@ -121,11 +121,11 @@ export function CandidatesFilters({
         </div>
       </div>
 
-      {/* Main Filter Controls Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+      {/* Main Filter Controls Grid: Strict 2-col on mobile, 4-col on desktop */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
         {/* State Filter */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="space-y-1 min-w-0 w-full">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
             State
           </label>
           <Select
@@ -134,8 +134,14 @@ export function CandidatesFilters({
               if (val) setSelectedState(val);
             }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background">
-              <SelectValue placeholder="All States" />
+            <SelectTrigger className="h-8.5 text-xs bg-background w-full">
+              <SelectValue placeholder="All States">
+                {(val) => {
+                  if (!val || val === "all") return "All States";
+                  const found = STATES_DATA.find((st) => st.code === val);
+                  return found ? found.name : val;
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All States</SelectItem>
@@ -149,8 +155,8 @@ export function CandidatesFilters({
         </div>
 
         {/* Channel Status Filter */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="space-y-1 min-w-0 w-full">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
             Channel Status
           </label>
           <Select
@@ -159,8 +165,16 @@ export function CandidatesFilters({
               if (val) setSelectedChannel(val);
             }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background">
-              <SelectValue placeholder="All Channels" />
+            <SelectTrigger className="h-8.5 text-xs bg-background w-full">
+              <SelectValue placeholder="All Channels">
+                {(val) => {
+                  if (!val || val === "all") return "All Channels";
+                  if (val === "connected") return "Telegram Connected";
+                  if (val === "sms_only") return "SMS Fallback Only";
+                  if (val === "not_matched") return "Number Not Matched";
+                  return val;
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Channels</SelectItem>
@@ -172,8 +186,8 @@ export function CandidatesFilters({
         </div>
 
         {/* Coverage Tier Filter */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="space-y-1 min-w-0 w-full">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
             Coverage Tier
           </label>
           <Select
@@ -182,8 +196,16 @@ export function CandidatesFilters({
               if (val) setSelectedCoverageTier(val);
             }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background">
-              <SelectValue placeholder="All Tiers" />
+            <SelectTrigger className="h-8.5 text-xs bg-background w-full">
+              <SelectValue placeholder="All Tiers">
+                {(val) => {
+                  if (!val || val === "all") return "All Tiers";
+                  if (val === "high") return "High (≥50%)";
+                  if (val === "medium") return "Medium (30–49%)";
+                  if (val === "critical") return "Critical (<30%)";
+                  return val;
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Tiers</SelectItem>
@@ -195,18 +217,18 @@ export function CandidatesFilters({
         </div>
 
         {/* Search */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="space-y-1 min-w-0 w-full">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
             Search
           </label>
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative w-full">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <Input
               type="text"
               placeholder="Candidate name or seat..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-8.5 text-xs bg-background"
+              className="pl-8 h-8.5 text-xs bg-background w-full"
             />
           </div>
         </div>
@@ -248,7 +270,7 @@ export function CandidatesFilters({
 
           <Link
             href={`/broadcasts/new?group=candidates`}
-            className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-7.5 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
+            className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-7.5 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Message Filtered</span>

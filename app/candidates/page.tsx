@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { CANDIDATES_DATA } from "@/lib/data/candidates-data";
+import { useCandidates } from "@/lib/hooks/use-candidates";
 import { CandidateData, OfficeType } from "@/lib/types";
 import { useApp } from "@/lib/context/app-context";
 import { CandidatesFilters } from "@/components/candidates/candidates-filters";
 import { CandidatesTable } from "@/components/candidates/candidates-table";
 import { CandidatesCards } from "@/components/candidates/candidates-cards";
+import { CandidatesDirectorySkeleton } from "@/components/candidates/candidates-skeletons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,11 +17,14 @@ import {
   Download,
   CheckCircle2,
   Sparkles,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 
 export default function CandidatesPage() {
   const { activePersona } = useApp();
+  const { data: rawCandidates = [], isLoading, error, refetch } = useCandidates();
 
   const [selectedOffice, setSelectedOffice] = useState<string>("all");
   const [selectedState, setSelectedState] = useState<string>("all");
@@ -32,24 +36,24 @@ export default function CandidatesPage() {
   // Dynamic office counts
   const officeCounts = useMemo(() => {
     const counts: Record<string, number> = {
-      all: CANDIDATES_DATA.length,
+      all: rawCandidates.length,
       President: 0,
       Governor: 0,
       Senate: 0,
       "House of Reps": 0,
       "State Assembly": 0,
     };
-    CANDIDATES_DATA.forEach((c) => {
+    rawCandidates.forEach((c) => {
       if (counts[c.office] !== undefined) {
         counts[c.office]++;
       }
     });
     return counts;
-  }, []);
+  }, [rawCandidates]);
 
   // Filter candidates
   const filteredCandidates = useMemo(() => {
-    return CANDIDATES_DATA.filter((cand) => {
+    return rawCandidates.filter((cand) => {
       // Office filter
       if (selectedOffice !== "all" && cand.office !== selectedOffice) {
         return false;
@@ -86,7 +90,7 @@ export default function CandidatesPage() {
 
       return true;
     });
-  }, [selectedOffice, selectedState, selectedChannel, selectedCoverageTier, searchQuery]);
+  }, [rawCandidates, selectedOffice, selectedState, selectedChannel, selectedCoverageTier, searchQuery]);
 
   const handleResetFilters = () => {
     setSelectedOffice("all");
@@ -113,6 +117,26 @@ export default function CandidatesPage() {
     document.body.removeChild(link);
   };
 
+  if (isLoading) {
+    return <CandidatesDirectorySkeleton />;
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-xl mx-auto mt-16 p-6 rounded-xl border border-border bg-card text-center space-y-3">
+        <AlertCircle className="w-6 h-6 text-amber-600 mx-auto" />
+        <p className="text-sm font-semibold text-foreground">Could not load candidate registry</p>
+        <p className="text-xs text-muted-foreground">
+          {error.message || "An unexpected error occurred while fetching candidate tickets."}
+        </p>
+        <Button size="sm" onClick={() => refetch()} className="gap-1.5 text-xs">
+          <RefreshCw className="w-3.5 h-3.5" />
+          <span>Retry</span>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -135,7 +159,7 @@ export default function CandidatesPage() {
         <div className="flex items-center gap-2">
           <Link
             href="/broadcasts/new?group=candidates"
-            className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-8 px-3.5 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
+            className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-8 px-3.5 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Broadcast to Candidates</span>

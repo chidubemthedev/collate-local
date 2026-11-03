@@ -46,7 +46,8 @@ export function MobileNav() {
   const canManageCoverage = permissions?.canManageCoverage === true;
   const canBroadcast = permissions?.canBroadcast === true;
   const isAdmin = permissions?.isAdmin === true;
-  const roleLabel = permissions?.roles.join(", ") || (isAdmin ? "Admin" : "Account");
+  const roleLabel =
+    permissions?.roles.join(", ") || (isAdmin ? "Admin" : "Account");
 
   return (
     <header className="md:hidden sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border">
@@ -84,12 +85,14 @@ export function MobileNav() {
 
           {/* Drawer Menu */}
           <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger render={
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Menu className="w-4 h-4" />
-                <span className="sr-only">Toggle navigation</span>
-              </Button>
-            } />
+            <SheetTrigger
+              render={
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Menu className="w-4 h-4" />
+                  <span className="sr-only">Toggle navigation</span>
+                </Button>
+              }
+            />
             <SheetContent side="left" className="w-[280px] p-0 flex flex-col">
               <SheetHeader className="p-4 border-b border-border flex flex-row items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -112,107 +115,112 @@ export function MobileNav() {
                 <div className="text-[10px] uppercase font-bold text-muted-foreground mb-1">
                   Current access
                 </div>
-                <div className="font-semibold text-foreground">
-                  {roleLabel}
-                </div>
+                <div className="font-semibold text-foreground">{roleLabel}</div>
                 <div className="text-[11px] text-muted-foreground">
-                  {session?.authenticated ? "Signed-in account" : "Not signed in"}
+                  {session?.authenticated
+                    ? "Signed-in account"
+                    : "Not signed in"}
                 </div>
               </div>
 
               {/* Nav links */}
               <nav className="flex-1 overflow-y-auto p-3 space-y-4">
-                {canManageCoverage && <div>
-                  <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Polling Units
+                {canManageCoverage && (
+                  <div>
+                    <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Polling Units
+                    </div>
+                    <div className="space-y-1">
+                      <Link
+                        href="/coverage"
+                        onClick={() => setOpen(false)}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium ${
+                          isLinkActive("/coverage")
+                            ? "bg-emerald-600 text-white"
+                            : "hover:bg-accent"
+                        }`}
+                      >
+                        <MapPin className="w-4 h-4" />
+                        <span>Coverage</span>
+                      </Link>
+                      <Link
+                        href="/candidates"
+                        onClick={() => setOpen(false)}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium ${
+                          isLinkActive("/candidates")
+                            ? "bg-emerald-600 text-white"
+                            : "hover:bg-accent"
+                        }`}
+                      >
+                        <Users className="w-4 h-4" />
+                        <span>Candidates</span>
+                      </Link>
+                      <Link
+                        href="/agents"
+                        onClick={() => setOpen(false)}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium ${
+                          isLinkActive("/agents")
+                            ? "bg-emerald-600 text-white"
+                            : "hover:bg-accent"
+                        }`}
+                      >
+                        <UserCheck className="w-4 h-4" />
+                        <span>Agents</span>
+                      </Link>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <Link
-                      href="/coverage"
-                      onClick={() => setOpen(false)}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium ${
-                        isLinkActive("/coverage")
-                          ? "bg-emerald-600 text-white"
-                          : "hover:bg-accent"
-                      }`}
-                    >
-                      <MapPin className="w-4 h-4" />
-                      <span>Coverage</span>
-                    </Link>
-                    <Link
-                      href="/candidates"
-                      onClick={() => setOpen(false)}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium ${
-                        isLinkActive("/candidates")
-                          ? "bg-emerald-600 text-white"
-                          : "hover:bg-accent"
-                      }`}
-                    >
-                      <Users className="w-4 h-4" />
-                      <span>NDC candidates</span>
-                    </Link>
-                    <Link
-                      href="/agents"
-                      onClick={() => setOpen(false)}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium ${
-                        isLinkActive("/agents")
-                          ? "bg-emerald-600 text-white"
-                          : "hover:bg-accent"
-                      }`}
-                    >
-                      <UserCheck className="w-4 h-4" />
-                      <span>Agents</span>
-                    </Link>
-                  </div>
-                </div>}
+                )}
 
-                {canBroadcast && <div>
-                  <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Messaging
+                {canBroadcast && (
+                  <div>
+                    <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Messaging
+                    </div>
+                    <div className="space-y-1">
+                      <Link
+                        href="/broadcasts"
+                        onClick={() => setOpen(false)}
+                        className={`flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium ${
+                          isLinkActive("/broadcasts") &&
+                          pathname !== "/broadcasts/new"
+                            ? "bg-emerald-600 text-white"
+                            : "hover:bg-accent"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Radio className="w-4 h-4" />
+                          <span>Broadcasts</span>
+                        </div>
+                      </Link>
+                      <Link
+                        href="/broadcasts/new"
+                        onClick={() => setOpen(false)}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium ${
+                          pathname === "/broadcasts/new"
+                            ? "bg-emerald-600 text-white"
+                            : "hover:bg-accent"
+                        }`}
+                      >
+                        <Send className="w-4 h-4" />
+                        <span>New broadcast</span>
+                      </Link>
+                      <Link
+                        href="/recipients"
+                        onClick={() => setOpen(false)}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium ${
+                          isLinkActive("/recipients")
+                            ? "bg-emerald-600 text-white"
+                            : "hover:bg-accent"
+                        }`}
+                      >
+                        <Contact className="w-4 h-4" />
+                        <span>Recipients</span>
+                      </Link>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <Link
-                      href="/broadcasts"
-                      onClick={() => setOpen(false)}
-                      className={`flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium ${
-                        isLinkActive("/broadcasts") && pathname !== "/broadcasts/new"
-                          ? "bg-emerald-600 text-white"
-                          : "hover:bg-accent"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <Radio className="w-4 h-4" />
-                        <span>Broadcasts</span>
-                      </div>
-                    </Link>
-                    <Link
-                      href="/broadcasts/new"
-                      onClick={() => setOpen(false)}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium ${
-                        pathname === "/broadcasts/new"
-                          ? "bg-emerald-600 text-white"
-                          : "hover:bg-accent"
-                      }`}
-                    >
-                      <Send className="w-4 h-4" />
-                      <span>New broadcast</span>
-                    </Link>
-                    <Link
-                      href="/recipients"
-                      onClick={() => setOpen(false)}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium ${
-                        isLinkActive("/recipients")
-                          ? "bg-emerald-600 text-white"
-                          : "hover:bg-accent"
-                      }`}
-                    >
-                      <Contact className="w-4 h-4" />
-                      <span>Recipients</span>
-                    </Link>
-                  </div>
-                </div>}
+                )}
 
-                {isAdmin && (
+                {/* {isAdmin && (
                   <div>
                     <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                       Settings
@@ -244,7 +252,7 @@ export function MobileNav() {
                       <span>Job queues</span>
                     </Link>
                   </div>
-                )}
+                )} */}
               </nav>
 
               <div className="p-3 border-t border-border bg-muted/20 text-[10px] text-muted-foreground">

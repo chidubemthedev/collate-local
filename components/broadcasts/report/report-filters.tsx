@@ -15,7 +15,6 @@ import {
   Search,
   CheckCircle2,
   CheckCheck,
-  Smartphone,
   Clock,
   AlertTriangle,
   RotateCcw,
@@ -26,7 +25,6 @@ interface StatusCounts {
   all: number;
   tappedOk: number;
   delivered: number;
-  deliveredBySms: number;
   pending: number;
   failed: number;
 }
@@ -128,29 +126,6 @@ export function ReportFilters({
           </Badge>
         </button>
 
-        {/* Delivered by SMS */}
-        <button
-          onClick={() => onStatusTabChange("Delivered by SMS")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${
-            statusTab === "Delivered by SMS"
-              ? "bg-purple-600 text-white shadow-xs font-semibold"
-              : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-          }`}
-        >
-          <Smartphone className="w-3.5 h-3.5" />
-          <span>Delivered by SMS</span>
-          <Badge
-            variant="outline"
-            className={`text-[10px] px-1.5 py-0 h-4 border-0 ${
-              statusTab === "Delivered by SMS"
-                ? "bg-white/20 text-white"
-                : "bg-background/80 text-muted-foreground"
-            }`}
-          >
-            {statusCounts.deliveredBySms}
-          </Badge>
-        </button>
-
         {/* Pending */}
         <button
           onClick={() => onStatusTabChange("Pending")}
@@ -217,7 +192,17 @@ export function ReportFilters({
           <div className="w-[180px]">
             <Select value={selectedGroup} onValueChange={(val) => val && onGroupChange(val)}>
               <SelectTrigger className="h-9 text-xs bg-background">
-                <SelectValue placeholder="Filter by Group" />
+                <SelectValue placeholder="Filter by Group">
+                  {(val) => {
+                    if (!val || val === "all") return "All Groups & Roles";
+                    const labels: Record<string, string> = {
+                      candidate: "NDC Candidates",
+                      official: "Official Party Agents",
+                      extra: "Candidate Extra Agents",
+                    };
+                    return labels[val] || val;
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Groups & Roles</SelectItem>
