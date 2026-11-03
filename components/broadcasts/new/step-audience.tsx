@@ -102,7 +102,13 @@ export function StepAudience({
               }}
             >
               <SelectTrigger id="agent-kind" className="h-8.5 w-32 bg-background text-xs">
-                <SelectValue />
+                <SelectValue placeholder="All agents">
+                  {(val) => {
+                    if (val === "official") return "Official";
+                    if (val === "extra") return "Extra";
+                    return "All agents";
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All agents</SelectItem>
@@ -183,7 +189,13 @@ export function StepAudience({
                 disabled={statesQuery.isError}
               >
                 <SelectTrigger id="broadcast-state" className="h-8.5 bg-background text-xs w-full">
-                  <SelectValue placeholder="All states" />
+                  <SelectValue placeholder="All states">
+                    {(val) => {
+                      if (!val || val === "all") return "All states";
+                      const found = statesQuery.data?.find((s) => String(s.id) === String(val) || s.code === val);
+                      return found ? found.name : val;
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All states</SelectItem>
@@ -231,7 +243,13 @@ export function StepAudience({
                 disabled={!audience.stateId || lgasQuery.isError}
               >
                 <SelectTrigger id="broadcast-lga" className="h-8.5 bg-background text-xs w-full">
-                  <SelectValue placeholder="All LGAs" />
+                  <SelectValue placeholder="All LGAs">
+                    {(val) => {
+                      if (!val || val === "all") return "All LGAs";
+                      const found = lgasQuery.data?.find((l) => String(l.id) === String(val) || l.code === val);
+                      return found ? found.name : val;
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All LGAs</SelectItem>
@@ -279,7 +297,13 @@ export function StepAudience({
                 disabled={!audience.lgaId || wardsQuery.isError}
               >
                 <SelectTrigger id="broadcast-ward" className="h-8.5 bg-background text-xs w-full">
-                  <SelectValue placeholder="All wards" />
+                  <SelectValue placeholder="All wards">
+                    {(val) => {
+                      if (!val || val === "all") return "All wards";
+                      const found = wardsQuery.data?.find((w) => String(w.id) === String(val) || w.code === val);
+                      return found ? found.name : val;
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All wards</SelectItem>

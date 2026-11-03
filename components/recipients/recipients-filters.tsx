@@ -210,7 +210,17 @@ export function RecipientsFilters({
           <div className="w-[160px]">
             <Select value={selectedGroup} onValueChange={(v) => v && onGroupChange(v)}>
               <SelectTrigger className="h-9 text-xs bg-background">
-                <SelectValue placeholder="Filter Role" />
+                <SelectValue placeholder="Filter Role">
+                  {(val) => {
+                    if (!val || val === "all") return "All Roles";
+                    const labels: Record<string, string> = {
+                      candidate: "NDC Candidates",
+                      official: "Official Party Agents",
+                      extra: "Candidate Extra Agents",
+                    };
+                    return labels[val] || val;
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
@@ -225,7 +235,13 @@ export function RecipientsFilters({
           <div className="w-[140px]">
             <Select value={selectedState} onValueChange={(v) => v && onStateChange(v)}>
               <SelectTrigger className="h-9 text-xs bg-background">
-                <SelectValue placeholder="State" />
+                <SelectValue placeholder="State">
+                  {(val) => {
+                    if (!val || val === "all") return "All States";
+                    const found = STATES_DATA.find((s) => s.code === val);
+                    return found ? `${found.code} · ${found.name}` : val;
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All States</SelectItem>
@@ -242,7 +258,13 @@ export function RecipientsFilters({
           <div className="w-[150px]">
             <Select value={selectedLga} onValueChange={(v) => v && onLgaChange(v)}>
               <SelectTrigger className="h-9 text-xs bg-background">
-                <SelectValue placeholder="LGA" />
+                <SelectValue placeholder="LGA">
+                  {(val) => {
+                    if (!val || val === "all") return "All LGAs";
+                    const found = availableLgas.find((l) => l.code === val);
+                    return found ? `${found.code} · ${found.name}` : val;
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All LGAs</SelectItem>
