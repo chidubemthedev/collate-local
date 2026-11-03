@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { STATES_DATA, LGAS_DATA, WARDS_DATA } from "@/lib/data/inec-data";
 import { useGeographyStates, useGeographyLgas, useGeographyWards } from "@/lib/hooks/use-geography";
 import { Persona } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -54,33 +53,23 @@ export function CoverageFilters({
 }: CoverageFiltersProps) {
   // Fetch live geography data
   const { data: apiStates = [] } = useGeographyStates();
-  const statesList = apiStates.length > 0 ? apiStates : STATES_DATA;
+  const statesList = apiStates;
   const selectedState = statesList.find(
-    (s) => s.code === stateCode || ("id" in s && String(s.id) === stateCode)
+    (s) => s.code === stateCode || String(s.id) === stateCode
   );
-  const selectedStateId = selectedState && "id" in selectedState ? (selectedState.id as number) : null;
+  const selectedStateId = selectedState ? selectedState.id : null;
 
   const { data: apiLgas = [] } = useGeographyLgas(selectedStateId);
-  const availableLGAs =
-    stateCode === "all"
-      ? []
-      : apiLgas.length > 0
-      ? apiLgas
-      : LGAS_DATA.filter((l) => l.stateCode === stateCode);
+  const availableLGAs = stateCode === "all" ? [] : apiLgas;
   const selectedLga = availableLGAs.find(
-    (l) => l.code === lgaCode || ("id" in l && String(l.id) === lgaCode)
+    (l) => l.code === lgaCode || String(l.id) === lgaCode
   );
-  const selectedLgaId = selectedLga && "id" in selectedLga ? (selectedLga.id as number) : null;
+  const selectedLgaId = selectedLga ? selectedLga.id : null;
 
   const { data: apiWards = [] } = useGeographyWards(selectedLgaId);
-  const availableWards =
-    lgaCode === "all"
-      ? []
-      : apiWards.length > 0
-      ? apiWards
-      : WARDS_DATA.filter((w) => w.lgaCode === lgaCode);
+  const availableWards = lgaCode === "all" ? [] : apiWards;
   const selectedWard = availableWards.find(
-    (w) => w.code === wardCode || ("id" in w && String(w.id) === wardCode)
+    (w) => w.code === wardCode || String(w.id) === wardCode
   );
 
   return (

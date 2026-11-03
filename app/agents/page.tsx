@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/context/app-context";
-import { STATES_DATA, LGAS_DATA, WARDS_DATA } from "@/lib/data/inec-data";
 import { useGeographyStates, useGeographyLgas, useGeographyWards } from "@/lib/hooks/use-geography";
 import { useCoverageSummary, useCoverageGaps } from "@/lib/hooks/use-coverage";
 import { useAgents } from "@/lib/hooks/use-agents";
@@ -42,55 +42,63 @@ export default function AgentsPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   // 1. Resolve numeric geography IDs for API filtering
-  const { data: apiStates = [], isLoading: isLoadingStates } = useGeographyStates();
-  const statesList = useMemo(() => (apiStates.length > 0 ? apiStates : STATES_DATA), [apiStates]);
+  const {
+    data: apiStates = [],
+    isLoading: isLoadingStates,
+    error: statesError,
+    refetch: refetchStates,
+  } = useGeographyStates();
+  const statesList = apiStates;
 
   const selectedState = useMemo(() => {
     return statesList.find(
-      (s) => s.code === selectedStateCode || ("id" in s && String(s.id) === selectedStateCode)
+      (s) => s.code === selectedStateCode || String(s.id) === selectedStateCode
     );
   }, [statesList, selectedStateCode]);
 
   const selectedStateId = useMemo(() => {
-    return selectedState && "id" in selectedState ? (selectedState.id as number) : null;
+    return selectedState ? selectedState.id : null;
   }, [selectedState]);
 
-  const { data: apiLgas = [], isLoading: isLoadingLgas } = useGeographyLgas(selectedStateId);
+  const { data: apiLgas = [], error: lgasError, refetch: refetchLgas } = useGeographyLgas(selectedStateId);
   const lgasList = useMemo(() => {
     if (selectedStateCode === "all") return [];
-    if (apiLgas.length > 0) return apiLgas;
-    return LGAS_DATA.filter((l) => l.stateCode === selectedStateCode);
+    return apiLgas;
   }, [selectedStateCode, apiLgas]);
 
   const selectedLga = useMemo(() => {
     return lgasList.find(
-      (l) => l.code === selectedLgaCode || ("id" in l && String(l.id) === selectedLgaCode)
+      (l) => l.code === selectedLgaCode || String(l.id) === selectedLgaCode
     );
   }, [lgasList, selectedLgaCode]);
 
   const selectedLgaId = useMemo(() => {
-    return selectedLga && "id" in selectedLga ? (selectedLga.id as number) : null;
+    return selectedLga ? selectedLga.id : null;
   }, [selectedLga]);
 
-  const { data: apiWards = [], isLoading: isLoadingWards } = useGeographyWards(selectedLgaId);
+  const { data: apiWards = [], error: wardsError, refetch: refetchWards } = useGeographyWards(selectedLgaId);
   const wardsList = useMemo(() => {
     if (selectedLgaCode === "all") return [];
-    if (apiWards.length > 0) return apiWards;
-    return WARDS_DATA.filter((w) => w.lgaCode === selectedLgaCode);
+    return apiWards;
   }, [selectedLgaCode, apiWards]);
 
   const selectedWard = useMemo(() => {
     return wardsList.find(
-      (w) => w.code === selectedWardCode || ("id" in w && String(w.id) === selectedWardCode)
+      (w) => w.code === selectedWardCode || String(w.id) === selectedWardCode
     );
   }, [wardsList, selectedWardCode]);
 
   const selectedWardId = useMemo(() => {
-    return selectedWard && "id" in selectedWard ? (selectedWard.id as number) : null;
+    return selectedWard ? selectedWard.id : null;
   }, [selectedWard]);
 
   // 2. Fetch live coverage summary for header KPIs and tab counters
-  const { data: summary, isLoading: isLoadingSummary } = useCoverageSummary({
+  const {
+    data: summary,
+    isLoading: isLoadingSummary,
+    error: summaryError,
+    refetch: refetchSummary,
+  } = useCoverageSummary({
     stateId: selectedStateId ?? undefined,
     lgaId: selectedLgaId ?? undefined,
     wardId: selectedWardId ?? undefined,
@@ -108,6 +116,8 @@ export default function AgentsPage() {
     data: agentsData,
     isLoading: isLoadingAgents,
     isFetching: isFetchingAgents,
+    error: agentsError,
+    refetch: refetchAgents,
   } = useAgents(
     {
       stateId: selectedStateId ?? undefined,
@@ -126,6 +136,8 @@ export default function AgentsPage() {
     data: gapsData,
     isLoading: isLoadingGaps,
     isFetching: isFetchingGaps,
+    error: gapsError,
+    refetch: refetchGaps,
   } = useCoverageGaps(
     {
       stateId: selectedStateId ?? undefined,
@@ -137,6 +149,24 @@ export default function AgentsPage() {
       enabled: selectedTypeTab === "gaps" || selectedTypeTab === "all",
     }
   );
+
+  const router = useRouter();
+  const queryErrors = [statesError, lgasError, wardsError, summaryError, agentsError, gapsError].filter(
+    (e): e is NonNullable<typeof e> => Boolean(e)
+  );
+  const isUnauthorized = queryErrors.some((e) => (e as { status?: number }).status === 401);
+  useEffect(() => {
+    if (isUnauthorized) router.replace("/login");
+  }, [isUnauthorized, router]);
+
+  const handleRetry = () => {
+    if (statesError) void refetchStates();
+    if (lgasError) void refetchLgas();
+    if (wardsError) void refetchWards();
+    if (summaryError) void refetchSummary();
+    if (agentsError) void refetchAgents();
+    if (gapsError) void refetchGaps();
+  };
 
   const isSyncing = isFetchingAgents || isFetchingGaps || isLoadingSummary;
 
@@ -164,13 +194,9 @@ export default function AgentsPage() {
             ? "Mobiliser"
             : "Snapper",
           phoneMasked: item.maskedPhone || "—",
-          telegramStatus: "connected",
           puCode: item.pollingUnit.inecPollingUnitCode,
           puName: item.pollingUnit.name || `Polling Unit ${item.pollingUnit.inecPollingUnitCode}`,
           puLocation: `${item.pollingUnit.wardName}, ${item.pollingUnit.lgaName}`,
-          latitude: 0,
-          longitude: 0,
-          hasGPS: true,
           wardCode: selectedWardCode !== "all" ? selectedWardCode : "",
           lgaCode: selectedLgaCode !== "all" ? selectedLgaCode : "",
           stateCode: selectedStateCode !== "all" ? selectedStateCode : "",
@@ -192,12 +218,11 @@ export default function AgentsPage() {
           sponsor: "Party Official (Vacant)",
           role: "Unassigned Official Agent",
           phoneMasked: "—",
-          telegramStatus: "not_matched",
           puCode: gap.code,
           puName: gap.name,
           puLocation: `${gap.ward.name}, ${gap.lga.name}`,
-          latitude: gap.latitude ?? 0,
-          longitude: gap.longitude ?? 0,
+          latitude: gap.latitude,
+          longitude: gap.longitude,
           hasGPS: gap.hasGPS,
           wardCode: gap.ward.code,
           lgaCode: gap.lga.code,
@@ -285,7 +310,7 @@ export default function AgentsPage() {
     csvContent += "PU Code,PU Name,Location,Agent Name,Agent Type,Sponsor/Owner,Role,Phone (Masked),Channel Status\n";
 
     filteredAgents.forEach((a) => {
-      csvContent += `"${a.puCode}","${a.puName}","${a.puLocation}","${a.name}","${a.type}","${a.sponsor}","${a.role}","${a.phoneMasked}","${a.telegramStatus}"\n`;
+      csvContent += `"${a.puCode}","${a.puName}","${a.puLocation}","${a.name}","${a.type}","${a.sponsor}","${a.role}","${a.phoneMasked}","${a.telegramStatus ?? ""}"\n`;
     });
 
     const encodedUri = encodeURI(csvContent);
@@ -296,6 +321,46 @@ export default function AgentsPage() {
     link.click();
     document.body.removeChild(link);
   };
+
+  if (isUnauthorized) {
+    return null;
+  }
+
+  if (queryErrors.length > 0) {
+    return (
+      <div className="max-w-xl mx-auto mt-16 p-6 rounded-xl border border-border bg-card text-center space-y-3">
+        <AlertCircle className="w-6 h-6 text-amber-600 mx-auto" />
+        <p className="text-sm font-semibold text-foreground">Could not load agents data</p>
+        <p className="text-xs text-muted-foreground">
+          {(queryErrors[0] as Error).message || "The server did not respond. Try again."}
+        </p>
+        <Button size="sm" onClick={handleRetry}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (isLoadingStates) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-24 text-xs text-muted-foreground">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        Loading agents…
+      </div>
+    );
+  }
+
+  if (apiStates.length === 0) {
+    return (
+      <div className="max-w-xl mx-auto mt-16 p-6 rounded-xl border border-border bg-card text-center space-y-2">
+        <Users className="w-6 h-6 text-muted-foreground mx-auto" />
+        <p className="text-sm font-semibold text-foreground">No polling units available</p>
+        <p className="text-xs text-muted-foreground">
+          Your account has no geography in scope, so there are no agents to show.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -344,8 +409,6 @@ export default function AgentsPage() {
         extraCount={counts.extra}
         gapsCount={counts.gaps}
         totalPUs={summary?.totalPUs ?? 0}
-        telegramPct={72}
-        smsPct={24}
       />
 
       {/* Filter Bar */}

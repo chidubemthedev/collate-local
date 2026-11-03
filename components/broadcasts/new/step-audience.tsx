@@ -46,8 +46,6 @@ interface StepAudienceProps {
     officialAgents: number;
     extraAgents: number;
     total: number;
-    telegramReady: number;
-    smsFallback: number;
   };
 }
 
@@ -460,7 +458,7 @@ export function StepAudience({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
           <div className="p-2.5 rounded-lg bg-background border border-border">
             <div className="text-[11px] text-muted-foreground">Candidates</div>
             <div className="text-sm font-bold font-mono text-foreground mt-0.5">
@@ -479,13 +477,6 @@ export function StepAudience({
             <div className="text-[11px] text-muted-foreground">Extra Agents</div>
             <div className="text-sm font-bold font-mono text-indigo-600 dark:text-indigo-400 mt-0.5">
               {computedCounts.extraAgents.toLocaleString()}
-            </div>
-          </div>
-
-          <div className="p-2.5 rounded-lg bg-background border border-border">
-            <div className="text-[11px] text-muted-foreground">Telegram Ready</div>
-            <div className="text-sm font-bold font-mono text-blue-600 dark:text-blue-400 mt-0.5">
-              {computedCounts.telegramReady.toLocaleString()} ({computedCounts.smsFallback} SMS fallback)
             </div>
           </div>
         </div>

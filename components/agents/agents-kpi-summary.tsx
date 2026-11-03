@@ -5,15 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ShieldCheck, Users, AlertCircle, MessageSquare, Phone, Info } from "lucide-react";
+import { ShieldCheck, Users, AlertCircle, Phone, Info } from "lucide-react";
 
 interface AgentsKPISummaryProps {
   officialCount: number;
   extraCount: number;
   gapsCount: number;
   totalPUs: number;
-  telegramPct: number;
-  smsPct: number;
 }
 
 export function AgentsKPISummary({
@@ -21,13 +19,11 @@ export function AgentsKPISummary({
   extraCount,
   gapsCount,
   totalPUs,
-  telegramPct,
-  smsPct,
 }: AgentsKPISummaryProps) {
   const officialPct = totalPUs > 0 ? Math.round((officialCount / totalPUs) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
       {/* Official Party Agents */}
       <Card className="bg-card border-border/80 shadow-sm border-emerald-500/30 dark:border-emerald-500/20">
         <CardContent className="p-3.5 space-y-2">
@@ -103,32 +99,6 @@ export function AgentsKPISummary({
             </div>
             <div className="text-[11px] text-amber-700 dark:text-amber-400/90 mt-1 font-medium">
               Polling units with 0 official agents
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Channel Connectivity */}
-      <Card className="bg-card border-border/80 shadow-sm">
-        <CardContent className="p-3.5 space-y-2">
-          <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-            <span className="flex items-center gap-1.5 font-semibold text-blue-700 dark:text-blue-400">
-              <MessageSquare className="w-4 h-4 text-blue-600" />
-              Channel Readiness
-            </span>
-            <span className="text-[10px] font-mono text-muted-foreground">NDPA 2023</span>
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Telegram Connected:</span>
-              <span className="font-bold text-emerald-600 dark:text-emerald-400">{telegramPct}%</span>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">SMS Fallback Only:</span>
-              <span className="font-bold text-blue-600 dark:text-blue-400">{smsPct}%</span>
-            </div>
-            <div className="text-[10px] text-muted-foreground">
-              Numbers masked for agent safety
             </div>
           </div>
         </CardContent>

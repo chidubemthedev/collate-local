@@ -158,18 +158,24 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
                           <div className="font-mono text-[11px] text-foreground">
                             {agent.phoneMasked}
                           </div>
-                          <Badge
-                            variant="outline"
-                            className={`text-[9px] px-1 py-0 h-3.5 ${
-                              agent.telegramStatus === "connected"
-                                ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-300"
+                          {agent.telegramStatus && (
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] px-1 py-0 h-3.5 ${
+                                agent.telegramStatus === "connected"
+                                  ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-300"
+                                  : agent.telegramStatus === "sms_only"
+                                  ? "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-300"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {agent.telegramStatus === "connected"
+                                ? "Telegram"
                                 : agent.telegramStatus === "sms_only"
-                                ? "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-300"
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            {agent.telegramStatus === "connected" ? "Telegram" : "SMS Only"}
-                          </Badge>
+                                ? "SMS Only"
+                                : "Not matched"}
+                            </Badge>
+                          )}
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-[11px]">—</span>
