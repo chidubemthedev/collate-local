@@ -227,7 +227,7 @@ describe("Telegram webhook route", () => {
     }
   });
 
-  it("says nothing when a contact does not match anyone", async () => {
+  it("tells the user to meet their coordinator when a contact does not match anyone", async () => {
     linkMocks.linkChatToPerson.mockResolvedValue({ result: "no_match" });
     const response = await postUpdate(
       messageUpdate({
@@ -245,7 +245,9 @@ describe("Telegram webhook route", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(apiCalls).toHaveLength(0);
+    expect(apiCalls).toHaveLength(1);
+    expect(apiCalls[0].payload.text).toContain("not registered");
+    expect(apiCalls[0].payload.reply_markup).toEqual({ remove_keyboard: true });
   });
 
   it("returns 200 when a handler API call throws", async () => {

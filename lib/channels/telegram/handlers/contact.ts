@@ -1,7 +1,7 @@
 import type { Context } from "grammy";
 import { decideContact } from "../link/decide";
 import { hasAcceptedConsent, linkChatToPerson } from "../link/link";
-import { sendConsentPrompt, sendRegistered } from "./messages";
+import { sendConsentPrompt, sendNotRegistered, sendRegistered } from "./messages";
 
 const CONTACT_RATE_LIMIT = 10;
 const CONTACT_WINDOW_MS = 60 * 60 * 1000;
@@ -42,7 +42,11 @@ export async function handleContact(ctx: Context): Promise<void> {
     e164: decision.e164,
     chatId,
   });
-  if (link.result === "no_match" || link.result === "conflict") {
+  if (link.result === "no_match") {
+    await sendNotRegistered(ctx);
+    return;
+  }
+  if (link.result === "conflict") {
     return;
   }
 

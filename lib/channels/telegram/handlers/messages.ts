@@ -4,6 +4,17 @@ import { SHARE_NUMBER_KEYBOARD } from "./support";
 
 export const REGISTERED_MESSAGE = "You are registered. You will receive messages here.";
 
+export const NOT_REGISTERED_MESSAGE =
+  "Sorry, this number is not registered yet. Please meet your coordinator or the person in charge of agents so they can add you, then come back and send /start.";
+
+export async function sendNotRegistered(ctx: {
+  reply(text: string, options?: { reply_markup?: unknown }): Promise<unknown>;
+}): Promise<void> {
+  await ctx.reply(NOT_REGISTERED_MESSAGE, {
+    reply_markup: { remove_keyboard: true },
+  });
+}
+
 export async function sendShareNumberPrompt(ctx: {
   reply(text: string, options?: { reply_markup?: unknown }): Promise<unknown>;
 }): Promise<void> {
