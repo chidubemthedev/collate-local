@@ -1,7 +1,7 @@
 import type { DataSource } from "typeorm";
 import { maskPhoneNumber } from "@/lib/policy/core/list-agents";
 
-export const CANDIDATE_COVERAGE_MAX_LIMIT = 100;
+export const CANDIDATE_COVERAGE_MAX_LIMIT = 500;
 
 export type CandidateChannelStatus = "connected" | "sms_only" | "not_matched";
 
@@ -83,7 +83,17 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
   const geo = query.geoSql;
 
   const sql = `
-    WITH page AS (
+    WITH unit_totals AS MATERIALIZED (
+      SELECT ppu.political_unit_id AS unit_id, COUNT(*) AS total_pus
+      FROM pu_political_unit ppu
+      JOIN polling_unit pu ON pu.id = ppu.polling_unit_id
+      JOIN ward w ON w.id = pu.ward_id
+      JOIN lga l ON l.id = w.lga_id
+      JOIN state s ON s.id = l.state_id
+      WHERE ${geo}
+      GROUP BY ppu.political_unit_id
+    ),
+    page AS MATERIALIZED (
       SELECT
         c.id,
         c.person_id,
@@ -92,12 +102,14 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
         o.hierarchy_level,
         pun.id AS unit_id,
         pun.political_unit_name AS seat_name,
+        ut.total_pus,
         seat_state.id AS state_id,
         seat_state.inec_state_code
       FROM candidate c
       JOIN seat st ON st.id = c.seat_id
       JOIN office o ON o.id = st.office_id
       JOIN political_unit pun ON pun.id = st.political_unit_id
+      JOIN unit_totals ut ON ut.unit_id = pun.id
       LEFT JOIN LATERAL (
         SELECT s2.id, s2.inec_state_code
         FROM pu_political_unit ppu2
@@ -110,18 +122,21 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
       ) seat_state ON TRUE
       WHERE (${levelParam}::int IS NULL OR (o.hierarchy_level, c.id) > (${levelParam}::int, ${idParam}::int))
         AND (${officeParam}::int IS NULL OR o.id = ${officeParam}::int)
-        AND EXISTS (
-          SELECT 1
-          FROM pu_political_unit ppu
-          JOIN polling_unit pu ON pu.id = ppu.polling_unit_id
-          JOIN ward w ON w.id = pu.ward_id
-          JOIN lga l ON l.id = w.lga_id
-          JOIN state s ON s.id = l.state_id
-          WHERE ppu.political_unit_id = pun.id AND ${geo}
-        )
       ORDER BY o.hierarchy_level, c.id
       LIMIT ${limitParam}::int
+    ),
+    office_counts AS (
+      SELECT o.id, o.office_name, o.hierarchy_level, COUNT(*) AS races
+      FROM candidate c
+      JOIN seat st ON st.id = c.seat_id
+      JOIN office o ON o.id = st.office_id
+      JOIN unit_totals ut ON ut.unit_id = st.political_unit_id
+      GROUP BY o.id, o.office_name, o.hierarchy_level
     )
+    SELECT
+      (
+        SELECT COALESCE(json_agg(r ORDER BY r.hierarchy_level, r.id), '[]'::json)
+        FROM (
     SELECT
       page.id,
       page.office_name,
@@ -160,15 +175,7 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
         ORDER BY mate.id
         LIMIT 1
       ) AS deputy_name,
-      (
-        SELECT COUNT(DISTINCT pu.id)
-        FROM pu_political_unit ppu
-        JOIN polling_unit pu ON pu.id = ppu.polling_unit_id
-        JOIN ward w ON w.id = pu.ward_id
-        JOIN lga l ON l.id = w.lga_id
-        JOIN state s ON s.id = l.state_id
-        WHERE ppu.political_unit_id = page.unit_id AND ${geo}
-      ) AS total_pus,
+      page.total_pus,
       (
         SELECT COUNT(DISTINCT pu.id)
         FROM agent_assignment aa
@@ -193,115 +200,84 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
       ) AS extra_agents
     FROM page
     JOIN person ON person.id = page.person_id
-    ORDER BY page.hierarchy_level, page.id;
+        ) r
+      ) AS rows,
+      (
+        SELECT COALESCE(json_agg(oc ORDER BY oc.hierarchy_level, oc.id), '[]'::json)
+        FROM office_counts oc
+      ) AS offices;
   `;
 
-  return query.dataSource.transaction(async (manager) => {
-    const rows = await manager.query<Row[]>(sql, [
-      ...query.geoParameters,
-      decoded?.level ?? null,
-      decoded?.id ?? null,
-      query.limit + 1,
-      query.officeId,
-    ]);
+  // One round trip fetches the page and the per-office counts. The counts serve both
+  // the filtered total and the office dropdown (which ignores the office filter).
+  const result = await query.dataSource.query<
+    Array<{
+      rows: Row[];
+      offices: Array<{ id: number; office_name: string; hierarchy_level: number; races: string | number }>;
+    }>
+  >(sql, [
+    ...query.geoParameters,
+    decoded?.level ?? null,
+    decoded?.id ?? null,
+    query.limit + 1,
+    query.officeId,
+  ]);
 
-    const pageRows = rows.slice(0, query.limit);
-    const hasMore = rows.length > query.limit;
-    const last = pageRows[pageRows.length - 1];
+  const rows = result[0]?.rows ?? [];
+  const officeOptions: CandidateOfficeOption[] = (result[0]?.offices ?? []).map((row) => ({
+    id: row.id,
+    name: row.office_name,
+    hierarchyLevel: row.hierarchy_level,
+    count: Number(row.races),
+  }));
 
-    await manager.query(
-      `INSERT INTO audit_log (actor_person_id, action_type, target_entity_type, target_entity_id, ip_address)
-       VALUES ($1, $2, $3, $4, $5);`,
-      [
-        query.actorPersonId,
-        "view_candidate_coverage",
-        pageRows.length > 0 ? "candidate" : null,
-        pageRows.length > 0 ? pageRows.map((row) => row.id).join(",").slice(0, 250) : null,
-        query.ipAddress,
-      ],
-    );
+  const pageRows = rows.slice(0, query.limit);
+  const hasMore = rows.length > query.limit;
+  const last = pageRows[pageRows.length - 1];
 
-    const geoParamCount = query.geoParameters.length;
-    const totalOfficeParam = `$${geoParamCount + 1}`;
-    const totalRows = await manager.query<Array<{ total: string }>>(
-      `
-        SELECT COUNT(*) AS total
-        FROM candidate c
-        JOIN seat st ON st.id = c.seat_id
-        WHERE (${totalOfficeParam}::int IS NULL OR st.office_id = ${totalOfficeParam}::int)
-          AND EXISTS (
-          SELECT 1
-          FROM pu_political_unit ppu
-          JOIN polling_unit pu ON pu.id = ppu.polling_unit_id
-          JOIN ward w ON w.id = pu.ward_id
-          JOIN lga l ON l.id = w.lga_id
-          JOIN state s ON s.id = l.state_id
-          WHERE ppu.political_unit_id = st.political_unit_id AND ${geo}
-        );
-      `,
-      [...query.geoParameters, query.officeId],
-    );
+  await query.dataSource.query(
+    `INSERT INTO audit_log (actor_person_id, action_type, target_entity_type, target_entity_id, ip_address)
+     VALUES ($1, $2, $3, $4, $5);`,
+    [
+      query.actorPersonId,
+      "view_candidate_coverage",
+      pageRows.length > 0 ? "candidate" : null,
+      pageRows.length > 0 ? pageRows.map((row) => row.id).join(",").slice(0, 250) : null,
+      query.ipAddress,
+    ],
+  );
 
-    // Office options ignore the office filter so the dropdown keeps every choice available.
-    let offices: CandidateOfficeOption[] | null = null;
-    if (!decoded) {
-      const officeRows = await manager.query<
-        Array<{ id: number; office_name: string; hierarchy_level: number; races: string }>
-      >(
-        `
-          SELECT o.id, o.office_name, o.hierarchy_level, COUNT(*) AS races
-          FROM candidate c
-          JOIN seat st ON st.id = c.seat_id
-          JOIN office o ON o.id = st.office_id
-          WHERE EXISTS (
-            SELECT 1
-            FROM pu_political_unit ppu
-            JOIN polling_unit pu ON pu.id = ppu.polling_unit_id
-            JOIN ward w ON w.id = pu.ward_id
-            JOIN lga l ON l.id = w.lga_id
-            JOIN state s ON s.id = l.state_id
-            WHERE ppu.political_unit_id = st.political_unit_id AND ${geo}
-          )
-          GROUP BY o.id, o.office_name, o.hierarchy_level
-          ORDER BY o.hierarchy_level, o.id;
-        `,
-        query.geoParameters,
-      );
-      offices = officeRows.map((row) => ({
-        id: row.id,
-        name: row.office_name,
-        hierarchyLevel: row.hierarchy_level,
-        count: Number(row.races),
-      }));
-    }
+  const total = officeOptions
+    .filter((office) => query.officeId === null || office.id === query.officeId)
+    .reduce((sum, office) => sum + office.count, 0);
+  const offices: CandidateOfficeOption[] | null = decoded ? null : officeOptions;
 
-    const items = pageRows.map((row): CandidateCoverageItem => {
-      const totalPUs = Number(row.total_pus);
-      const coveredPUs = Number(row.covered_pus);
-      return {
-        id: row.id,
-        office: row.office_name,
-        hierarchyLevel: row.hierarchy_level,
-        seat: row.seat_name,
-        stateId: row.state_id,
-        inecStateCode: row.inec_state_code,
-        name: row.full_name,
-        deputyName: row.deputy_name,
-        maskedPhone: maskPhoneNumber(row.phone_e164),
-        channelStatus: row.has_telegram ? "connected" : row.phone_e164 ? "sms_only" : "not_matched",
-        isOffCycle: row.is_off_cycle,
-        totalPUs,
-        coveredPUs,
-        coveragePct: totalPUs > 0 ? Math.round((coveredPUs / totalPUs) * 100) : 0,
-        extraAgentsCount: Number(row.extra_agents),
-      };
-    });
-
+  const items = pageRows.map((row): CandidateCoverageItem => {
+    const totalPUs = Number(row.total_pus);
+    const coveredPUs = Number(row.covered_pus);
     return {
-      items,
-      nextCursor: hasMore && last ? `${last.hierarchy_level}.${last.id}` : null,
-      total: Number(totalRows[0]?.total ?? 0),
-      offices,
+      id: row.id,
+      office: row.office_name,
+      hierarchyLevel: row.hierarchy_level,
+      seat: row.seat_name,
+      stateId: row.state_id,
+      inecStateCode: row.inec_state_code,
+      name: row.full_name,
+      deputyName: row.deputy_name,
+      maskedPhone: maskPhoneNumber(row.phone_e164),
+      channelStatus: row.has_telegram ? "connected" : row.phone_e164 ? "sms_only" : "not_matched",
+      isOffCycle: row.is_off_cycle,
+      totalPUs,
+      coveredPUs,
+      coveragePct: totalPUs > 0 ? Math.round((coveredPUs / totalPUs) * 100) : 0,
+      extraAgentsCount: Number(row.extra_agents),
     };
   });
+
+  return {
+    items,
+    nextCursor: hasMore && last ? `${last.hierarchy_level}.${last.id}` : null,
+    total,
+    offices,
+  };
 }
