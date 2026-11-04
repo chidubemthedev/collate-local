@@ -7,6 +7,7 @@ import type {
   CandidateCoverage,
   CandidateOfficeOption,
   CoverageSummary,
+  CoverageMapPointsResponse,
   CoverageGap,
   CoverageGapsResponse,
   CreateAssignmentPayload,
@@ -28,6 +29,7 @@ export interface CoverageGapsFilters extends CoverageFilters {
 export const COVERAGE_KEYS = {
   all: ["coverage"] as const,
   summary: (filters: CoverageFilters) => ["coverage", "summary", filters] as const,
+  mapPoints: (filters: CoverageFilters) => ["coverage", "map-points", filters] as const,
   gaps: (filters: CoverageGapsFilters) => ["coverage", "gaps", filters] as const,
 };
 
@@ -51,6 +53,35 @@ export function useCoverageSummary(
       return res.data;
     },
     staleTime: 1000 * 60 * 2,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+/**
+ * Fetch grouped GPS locations and official-agent counts for the current scope.
+ */
+export function useCoverageMapPoints(
+  filters: CoverageFilters = {},
+  options?: { enabled?: boolean },
+) {
+  const cleanFilters: Record<string, number> = {};
+  if (filters.stateId && filters.stateId > 0) cleanFilters.stateId = filters.stateId;
+  if (filters.lgaId && filters.lgaId > 0) cleanFilters.lgaId = filters.lgaId;
+  if (filters.wardId && filters.wardId > 0) cleanFilters.wardId = filters.wardId;
+  if (filters.politicalUnitId && filters.politicalUnitId > 0) {
+    cleanFilters.politicalUnitId = filters.politicalUnitId;
+  }
+
+  return useQuery<CoverageMapPointsResponse, ApiClientError>({
+    queryKey: COVERAGE_KEYS.mapPoints(cleanFilters),
+    queryFn: async () => {
+      const res = await apiClient.get<CoverageMapPointsResponse>(
+        "/api/coverage/map-points",
+        cleanFilters,
+      );
+      return res.data;
+    },
+    staleTime: 1000 * 60 * 3,
     enabled: options?.enabled ?? true,
   });
 }

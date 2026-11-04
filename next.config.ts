@@ -22,6 +22,10 @@ const nextConfig: NextConfig = {
         loaders: ["@tailwindcss/turbopack"],
         as: "*.css",
       },
+      "*.mjs": {
+        condition: { query: "?url" },
+        type: "asset",
+      },
     },
   },
 };
