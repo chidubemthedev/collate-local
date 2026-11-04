@@ -1,5 +1,11 @@
 import dataSource from "../lib/db/data-source";
 import {
+  GEOBOUNDARIES_ADM1_URL,
+  GEOBOUNDARIES_ADM2_URL,
+  buildBoundaries,
+  checkCoordinate,
+} from "../lib/db/seeds/inec-coordinate-validation";
+import {
   makePollingUnitKey,
   parseCoordinateCsv,
   parseCoordinatePair,
@@ -33,8 +39,8 @@ function chunks<T>(items: T[], size: number): T[][] {
   return result;
 }
 
-async function downloadSource(): Promise<string> {
-  const response = await fetch(SOURCE_URL, {
+async function downloadSource(url = SOURCE_URL): Promise<string> {
+  const response = await fetch(url, {
     headers: { "User-Agent": "Collate polling-unit coordinate import" },
     signal: AbortSignal.timeout(60_000),
   });
@@ -95,6 +101,10 @@ async function main(): Promise<void> {
   }
   const apply = args.includes("--apply");
   const sourceRows = parseCoordinateCsv(await downloadSource());
+  const boundaries = buildBoundaries(
+    await downloadSource(GEOBOUNDARIES_ADM1_URL),
+    await downloadSource(GEOBOUNDARIES_ADM2_URL),
+  );
   const sourceByKey = new Map<string, typeof sourceRows>();
   const coordinateCounts = { valid: 0, missing: 0, invalid: 0, outsideBounds: 0 };
 
@@ -134,6 +144,7 @@ async function main(): Promise<void> {
     let unmatchedSourceKeys = 0;
     let ambiguousDatabaseKeys = 0;
     let alreadyHasCoordinates = 0;
+    let rejectedByBoundaries = 0;
 
     for (const [key, rows] of sourceByKey) {
       if (rows.length !== 1) {
@@ -157,6 +168,16 @@ async function main(): Promise<void> {
         alreadyHasCoordinates += 1;
         continue;
       }
+      const boundaryCheck = checkCoordinate(
+        boundaries,
+        matches[0],
+        coordinate.longitude,
+        coordinate.latitude,
+      );
+      if (!boundaryCheck.ok) {
+        rejectedByBoundaries += 1;
+        continue;
+      }
       updates.push({ id: matches[0].id, ...coordinate });
     }
 
@@ -170,6 +191,7 @@ async function main(): Promise<void> {
     console.log(`Skipped ambiguous database keys: ${ambiguousDatabaseKeys}`);
     console.log(`Unmatched source keys: ${unmatchedSourceKeys}`);
     console.log(`Matched rows already holding coordinates: ${alreadyHasCoordinates}`);
+    console.log(`Rejected because the point is outside its state or far from its LGA: ${rejectedByBoundaries}`);
 
     if (!apply) {
       console.log("Dry run only; no database rows were changed. Pass --apply to import.");
