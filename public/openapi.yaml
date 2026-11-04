@@ -812,6 +812,53 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalServerError"
+  /api/coverage/map-points:
+    get:
+      tags: [Coverage]
+      summary: Get grouped polling-unit coordinates
+      description: >-
+        Returns the exact latitude/longitude groups for polling units in the caller's accessible
+        area. Each point includes total and officially covered polling-unit counts; agent or
+        personal data is not included. Coordinate values may be approximate.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/stateFilter"
+        - $ref: "#/components/parameters/lgaFilter"
+        - $ref: "#/components/parameters/wardFilter"
+        - $ref: "#/components/parameters/politicalUnitFilter"
+      responses:
+        "200":
+          description: Coordinate groups for the accessible filtered area.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/CoverageMapPointsResponse"
+              example:
+                status: success
+                data:
+                  points:
+                    - latitude: 6.5244
+                      longitude: 3.3792
+                      totalPUs: 3
+                      coveredPUs: 2
+                    - latitude: 9.0765
+                      longitude: 7.3986
+                      totalPUs: 1
+                      coveredPUs: 0
+        "400":
+          $ref: "#/components/responses/InvalidFilter"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /api/coverage/candidates:
     get:
       tags: [Coverage]
@@ -1845,6 +1892,39 @@ components:
         officialAgentPct:
           type: integer
       required: [totalPUs, coveredPUs, noCoveragePUs, gpsPUs, extraAgentsCount, officialAgentPct]
+    CoverageMapPoint:
+      type: object
+      properties:
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+        totalPUs:
+          type: integer
+          minimum: 1
+        coveredPUs:
+          type: integer
+          minimum: 0
+      required: [latitude, longitude, totalPUs, coveredPUs]
+      example:
+        latitude: 6.5244
+        longitude: 3.3792
+        totalPUs: 3
+        coveredPUs: 2
+    CoverageMapPointsResponse:
+      type: object
+      properties:
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoverageMapPoint"
+      required: [points]
     CandidateCoverage:
       type: object
       properties:

@@ -12,6 +12,7 @@ import {
 } from "@/lib/hooks/use-geography";
 import {
   useCoverageSummary,
+  useCoverageMapPoints,
   useCoverageGaps,
   useCandidateCoverage,
 } from "@/lib/hooks/use-coverage";
@@ -165,6 +166,18 @@ export default function CoveragePage() {
   }, {
     enabled: !isStateDetailEnabled,
   });
+  const coordinatesEnabled =
+    (selectedStateCode === "all" || selectedStateId !== null) &&
+    (selectedLgaCode === "all" || selectedLgaId !== null) &&
+    (selectedWardCode === "all" || selectedWardId !== null);
+  const coordinatePointsQuery = useCoverageMapPoints(
+    {
+      stateId: selectedStateId,
+      lgaId: selectedLgaId,
+      wardId: selectedWardId,
+    },
+    { enabled: coordinatesEnabled },
+  );
   const summaryData = isStateDetailEnabled ? stateDetailQuery.data : coverageSummaryQuery.data;
   const isLoadingSummary = isStateDetailEnabled
     ? stateDetailQuery.isLoading
@@ -584,20 +597,13 @@ export default function CoveragePage() {
         stateName={selectedState?.name}
         lgaName={selectedLga?.name}
         wardName={selectedWard?.name}
-        states={statesList}
-        lgas={lgasList}
-        wards={wardsList}
-        pollingUnits={pollingUnitsList}
-        onSelectState={(code) => {
-          setSelectedStateCode(code);
-          setSelectedLgaCode("all");
-          setSelectedWardCode("all");
+        coordinatePoints={coordinatePointsQuery.data?.points ?? []}
+        coordinatesLoading={coordinatePointsQuery.isLoading || !coordinatesEnabled}
+        coordinatesError={coordinatePointsQuery.error}
+        coordinateViewKey={`${selectedStateCode}-${selectedLgaCode}-${selectedWardCode}`}
+        onRetryCoordinates={() => {
+          void coordinatePointsQuery.refetch();
         }}
-        onSelectLga={(code) => {
-          setSelectedLgaCode(code);
-          setSelectedWardCode("all");
-        }}
-        onSelectWard={(code) => setSelectedWardCode(code)}
       />
       <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
         <div

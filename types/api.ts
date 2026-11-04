@@ -165,6 +165,17 @@ export interface CoverageSummary {
   officialAgentPct: number;
 }
 
+export interface CoverageMapPoint {
+  latitude: number;
+  longitude: number;
+  totalPUs: number;
+  coveredPUs: number;
+}
+
+export interface CoverageMapPointsResponse {
+  points: CoverageMapPoint[];
+}
+
 export interface CandidateCoverage {
   id: number;
   office: string;
