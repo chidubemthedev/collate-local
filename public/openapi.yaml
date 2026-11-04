@@ -889,7 +889,7 @@ paths:
           schema:
             type: integer
             minimum: 1
-            maximum: 100
+            maximum: 500
             default: 50
       responses:
         "200":
