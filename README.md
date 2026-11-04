@@ -31,7 +31,7 @@ A party has to cover about 177,000 polling units across 37 states, 774 LGAs and 
 
 ### What Collate does
 
-- **Coverage dashboard.** Drill down state → LGA → ward → polling unit and see how many units have an official agent, how many have GPS, and where the gaps are.
+- **Coverage dashboard.** Drill down state → LGA → ward → polling unit, see coverage gaps, and plot available polling-unit coordinates on an interactive map.
 - **Agent management.** Assign people to polling units as the official agent (one per unit) or as extra agents (any number). Every change is audited.
 - **Candidate coverage.** See how well each candidate's seat is covered.
 - **Broadcasts.** Preview an audience, write a message, send now or schedule it. Telegram goes first, SMS is the fallback. Delivery is tracked per person, including an "OK" tap from the agent.
@@ -114,6 +114,7 @@ The API and the worker never call each other. The database (including the queue 
 | React | 19.3.0 | Required by Next 16 |
 | TanStack React Query | ^5 | Server-state cache, loading and error states, infinite lists ("Load more") |
 | Tailwind CSS | 4 | Utility styling; compiled through `@tailwindcss/turbopack` |
+| MapLibre GL + `react-map-gl` | ^6 / ^8 | Interactive, clustered coordinate map on the Coverage page |
 | shadcn + `@base-ui/react` | 4.x / 1.x | Accessible unstyled primitives with our own styling (`components/ui`) |
 | `lucide-react` | ^1 | Icons |
 | `class-variance-authority`, `clsx`, `tailwind-merge` | | Variant and class-name helpers used by `components/ui` |
@@ -172,6 +173,7 @@ There is no `middleware`/`proxy` file. Pages that call protected APIs redirect t
 - Lists use `useInfiniteQuery` with `meta.nextCursor` (agents page size 50).
 - Mutations invalidate the related queries. For example, verifying an OTP invalidates the session and permissions queries.
 - **UI state** (filters, dialogs) stays local to each page. The debounced search on `/recipients` is an example.
+- The Coverage page requests grouped coordinate counts from `/api/coverage/map-points` for the selected geography, then renders them in a client-only MapLibre map. It starts focused on Nigeria, limits panning to Nigeria's approximate coordinate bounds, clusters nearby locations, and lets users toggle covered, gap and mixed markers. Mixed markers are smaller and show coverage counts on hover; clicking a location shows its counts without returning agent details. Map controls have larger touch targets, and the map height adapts to mobile viewports. National overview and geography drill-down cards are omitted. OpenStreetMap raster tiles and MapLibre demo glyphs are loaded externally; the attribution is shown on the map. Coordinates may be approximate and are not suitable for navigation without verification.
 
 ### Run the frontend
 
@@ -943,6 +945,7 @@ The full contract (parameters, bodies, response schemas, examples, error respons
 | `GET /api/geography/lgas/{lgaId}/wards` | Session | Wards in an LGA with counts |
 | `GET /api/geography/wards/{wardId}/polling-units` | Session | Polling units and their agents (cursor, audited) |
 | `GET /api/coverage/summary` | Session | Coverage totals for the filtered area |
+| `GET /api/coverage/map-points` | Session | Grouped polling-unit coordinates and official-agent counts (no person data) |
 | `GET /api/coverage/candidates` | Session | Candidates with coverage for their seat (cursor, audited) |
 | `GET /api/coverage/gaps` | Session | Polling units without an official agent (offset) |
 | `POST /api/coverage/assignments` | Session, same origin | Create an agent assignment (audited) |
@@ -1117,7 +1120,14 @@ cp .env.example .env     # then fill in DATABASE_URL, AUTH_SECRET, Telegram valu
 npm run db:migrate                 # apply all migrations
 npm run db:seed                    # offices and group visibility grants
 npm run db:seed:inec               # real INEC geography (idempotent)
+npm run db:seed:inec:coordinates   # dry-run coordinate match report
 npm run db:seed:inec:politics      # political units, seats, NDC candidates (run after db:seed:inec)
+```
+
+The coordinate command downloads the MIT-licensed [INEC polling-unit dataset](https://github.com/mykeels/inec-polling-units) (at a pinned revision; originally sourced from INEC), then matches on normalized state, LGA, ward and polling-unit names. It skips missing or out-of-envelope points, duplicate or ambiguous name matches, and existing coordinates. The source has no polling-unit codes, so matching is deliberately exact and incomplete. In the pinned snapshot, 57,326 rows have no coordinates, 1,505 points are outside the coarse envelope, and more than 92,000 valid rows share a coordinate with another unit. That can mean several units share a site, but it can also mean a geocoding shortcut; these are approximate data, not verified survey locations. The envelope is only a coarse sanity check, not a country-boundary validation. The default is a dry run; pass `-- --apply` to update only rows whose latitude and longitude are both NULL:
+
+```sh
+npm run db:seed:inec:coordinates -- --apply
 ```
 
 | Script | Purpose |
