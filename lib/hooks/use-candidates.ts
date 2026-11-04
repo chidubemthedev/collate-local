@@ -7,8 +7,8 @@ import type { CandidateData } from "@/lib/types";
 
 export const CANDIDATES_QUERY_KEY = ["candidates"] as const;
 
-const PAGE_SIZE = 100;
-const MAX_PAGES = 100;
+const PAGE_SIZE = 500;
+const MAX_PAGES = 20;
 
 function toCandidate(item: CandidateCoverage): CandidateData {
   return {
