@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { requireUser } from "@/lib/auth/current-user";
 import { failure, internalError, success } from "@/lib/api/response";
 import { policyErrorResponse } from "@/lib/policy/http";
@@ -18,6 +19,9 @@ const ALLOWED_FIELDS = new Set([
 ]);
 
 export async function GET(request: Request): Promise<Response> {
+  // Per-request data: keep Next.js from trying to prerender this route at build time.
+  await connection();
+
   try {
     const currentUser = await requireUser();
     const filterValues = Object.fromEntries(new URL(request.url).searchParams.entries());
