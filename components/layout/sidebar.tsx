@@ -49,17 +49,17 @@ export function Sidebar() {
       {/* Brand Header */}
       <div className="p-4 border-b border-border/80 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-emerald-700 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+          <div className="h-8 w-8 rounded-lg bg-emerald-700 text-white font-bold flex items-center justify-center text-[15px] shadow-sm">
             PU
           </div>
           <div>
-            <div className="font-semibold text-sm leading-tight text-foreground flex items-center gap-1.5">
+            <div className="font-semibold text-[15px] leading-tight text-foreground flex items-center gap-1.5">
               PU App
-              <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+              <span className="text-[10.5px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
                 v1
               </span>
             </div>
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-[11.5px] text-muted-foreground">
               NDC Campaign 2027
             </div>
           </div>
@@ -68,15 +68,15 @@ export function Sidebar() {
 
       {/* View As Persona Switcher */}
       <div className="p-3 border-b border-border/60 bg-muted/30">
-        <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
-          <Eye className="w-3 h-3 text-emerald-600" />
+        <div className="text-[10.5px] uppercase tracking-wider font-semibold text-emerald-700 dark:text-emerald-400 mb-1.5 flex items-center gap-1">
+          <Eye className="w-3.5 h-3.5 text-emerald-600" />
           View as
         </div>
         <button
           type="button"
           disabled
           title="Not available yet"
-          className="w-full rounded-md border border-border bg-background p-2 text-left text-xs text-muted-foreground disabled:cursor-not-allowed disabled:opacity-70"
+          className="w-full rounded-md border border-border bg-background p-2 text-left text-[13px] text-muted-foreground disabled:cursor-not-allowed disabled:opacity-70"
         >
           View as · Not available yet
         </button>
@@ -87,13 +87,13 @@ export function Sidebar() {
         {/* Polling Units Group */}
         {canManageCoverage && (
           <div>
-            <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+            <div className="px-2 mb-1.5 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground/80">
               Polling Units
             </div>
             <div className="space-y-0.5">
               <Link
                 href="/coverage"
-                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
                   isLinkActive("/coverage")
                     ? "bg-emerald-600 text-white shadow-xs"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -104,7 +104,7 @@ export function Sidebar() {
               </Link>
               <Link
                 href="/candidates"
-                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
                   isLinkActive("/candidates")
                     ? "bg-emerald-600 text-white shadow-xs"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -115,7 +115,7 @@ export function Sidebar() {
               </Link>
               <Link
                 href="/agents"
-                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
                   isLinkActive("/agents")
                     ? "bg-emerald-600 text-white shadow-xs"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -131,13 +131,13 @@ export function Sidebar() {
         {/* Messaging Group */}
         {canBroadcast && (
           <div>
-            <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+            <div className="px-2 mb-1.5 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground/80">
               Messaging
             </div>
             <div className="space-y-0.5">
               <Link
                 href="/broadcasts"
-                className={`flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`flex items-center justify-between px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
                   isLinkActive("/broadcasts") && pathname !== "/broadcasts/new"
                     ? "bg-emerald-600 text-white shadow-xs"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -150,7 +150,7 @@ export function Sidebar() {
               </Link>
               <Link
                 href="/broadcasts/new"
-                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
                   pathname === "/broadcasts/new"
                     ? "bg-emerald-600 text-white shadow-xs"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -161,7 +161,7 @@ export function Sidebar() {
               </Link>
               <Link
                 href="/recipients"
-                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
                   isLinkActive("/recipients")
                     ? "bg-emerald-600 text-white shadow-xs"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -177,13 +177,13 @@ export function Sidebar() {
         {/* Settings Group (Party and Admin only) */}
         {/* {isAdmin && (
           <div>
-            <div className="px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
+            <div className="px-2 mb-1.5 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground/80">
               Settings
             </div>
             <div className="space-y-0.5">
               <Link
                 href="/settings"
-                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
                   isLinkActive("/settings")
                     ? "bg-emerald-600 text-white shadow-xs"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -194,7 +194,7 @@ export function Sidebar() {
               </Link>
               <Link
                 href="/admin/queue"
-                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
                   isLinkActive("/admin/queue")
                     ? "bg-emerald-600 text-white shadow-xs"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -213,18 +213,18 @@ export function Sidebar() {
         {session?.authenticated && session.person ? (
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">
+              <div className="text-[13px] font-semibold text-foreground truncate flex items-center gap-1.5">
                 <span className="truncate">{session.person.fullName}</span>
                 {session.person.isAdmin && (
                   <Badge
                     variant="outline"
-                    className="text-[9px] px-1 py-0 h-3.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                    className="text-[10px] px-1 py-0 h-4 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
                   >
                     Admin
                   </Badge>
                 )}
               </div>
-              <div className="text-[10px] text-muted-foreground truncate">
+              <div className="text-[10.5px] text-muted-foreground truncate">
                 {session.person.emailAddress}
               </div>
             </div>
@@ -234,15 +234,15 @@ export function Sidebar() {
               title="Sign Out"
               className="p-1.5 rounded-md hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors cursor-pointer"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         ) : (
           <Link
             href="/login"
-            className="flex items-center justify-center gap-2 w-full py-1.5 px-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors shadow-xs"
+            className="flex items-center justify-center gap-2 w-full py-1.5 px-2.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-medium transition-colors shadow-xs"
           >
-            <LogIn className="w-3.5 h-3.5" />
+            <LogIn className="w-4 h-4" />
             Sign in
           </Link>
         )}

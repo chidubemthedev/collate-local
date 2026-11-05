@@ -42,8 +42,8 @@ function titleCase(value: string): string {
 }
 
 const LABEL_CLASS =
-  "text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5";
-const TRIGGER_CLASS = "w-full h-8.5 text-xs bg-background";
+  "text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5";
+const TRIGGER_CLASS = "w-full h-8 text-[11px] bg-background";
 
 interface CoverageFiltersProps {
   stateCode: string;
@@ -301,14 +301,14 @@ export function CoverageFilters({
   return (
     <div className="space-y-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-1.5 text-xs overflow-x-auto py-1 text-muted-foreground scrollbar-none">
+        <div className="flex items-center gap-1.5 text-[11px] overflow-x-auto py-1 text-muted-foreground scrollbar-none">
           <button
             onClick={() => {
               if (!activePersona.stateCode) setStateCode("all");
               setLgaCode("all");
               setWardCode("all");
             }}
-            className="text-sm font-semibold text-foreground hover:text-primary hover:underline flex items-center gap-1 shrink-0"
+            className="text-xs font-semibold text-foreground hover:text-primary hover:underline flex items-center gap-1 shrink-0"
           >
             Nigeria
           </button>
@@ -378,7 +378,7 @@ export function CoverageFilters({
                   placeholder="Unit, ward, LGA or code"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-8.5 text-xs bg-background w-full"
+                  className="pl-8 h-8 text-[11px] bg-background w-full"
                 />
               </div>
             </div>
@@ -410,13 +410,13 @@ export function CoverageFilters({
             {sortField}
           </div>
 
-          <div className="flex flex-wrap items-center justify-start gap-2 text-xs">
+          <div className="flex flex-wrap items-center justify-start gap-2 text-[11px]">
             {FILTER_PILLS.map(({ mode, label }) => (
               <button
                 key={mode}
                 type="button"
                 onClick={() => setFilterMode(mode)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-colors ${
                   filterMode === mode
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-background text-foreground border-border hover:bg-muted"

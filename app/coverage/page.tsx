@@ -551,10 +551,10 @@ export default function CoveragePage() {
       {/* Header Section */}
       <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 w-full">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
             2027 Coverage Dashboard
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
             Official coverage and extra agents by polling unit · {scopeLabel}
           </p>
         </div>
@@ -562,7 +562,7 @@ export default function CoveragePage() {
         <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
           <Link
             href={`/broadcasts/new?target=${encodeURIComponent(levelName)}`}
-            className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-8 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
+            className="inline-flex items-center justify-center rounded-lg text-[11px] font-medium h-8 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Broadcast to this Area</span>

@@ -32,6 +32,13 @@ const TELEGRAM_READY_SQL = `(
   ), FALSE)
 )`;
 
+// Mirrors the worker's SMS fallback: it needs a confirmed phone, otherwise the delivery fails.
+const CONFIRMED_PHONE_SQL = `EXISTS (
+  SELECT 1 FROM phone_number confirmed_phone
+  WHERE confirmed_phone.person_id = person.id
+    AND confirmed_phone.is_confirmed = TRUE
+)`;
+
 export interface AgentListContext {
   ipAddress?: string | null;
 }
@@ -230,7 +237,12 @@ export interface AgentSummary {
   official: number;
   extra: number;
   telegramConnected: number;
+  /** smsOnly + notMatched. */
   notConnected: number;
+  /** Not on Telegram, but has a confirmed number: reached by SMS. */
+  smsOnly: number;
+  /** No confirmed number: gets no messages. */
+  notMatched: number;
 }
 
 export async function summarizeAgents(
@@ -245,7 +257,8 @@ export async function summarizeAgents(
   validateAgentFilters(user, parsedFilters.data);
 
   const entityManager = await resolveManager(manager);
-  const query = entityManager
+  // The scoped, filtered assignments: one row each, with the person and kind.
+  const base = entityManager
     .getRepository(AgentAssignment)
     .createQueryBuilder("assignment")
     .innerJoin("assignment.person", "person")
@@ -253,31 +266,79 @@ export async function summarizeAgents(
     .innerJoin("pollingUnit.ward", "ward")
     .innerJoin("ward.lga", "lga")
     .innerJoin("lga.state", "state")
-    .select("COUNT(*)", "total")
-    .addSelect("COUNT(*) FILTER (WHERE assignment.agentKind = 'official')", "official")
-    .addSelect("COUNT(*) FILTER (WHERE assignment.agentKind = 'extra')", "extra")
-    .addSelect(`COUNT(*) FILTER (WHERE ${TELEGRAM_READY_SQL})`, "telegramConnected")
-    .setParameter("agentConsentVersion", CONSENT_TEXT_VERSION);
+    .select("person.id", "personId")
+    .addSelect("assignment.agentKind", "agentKind");
 
-  getScope(user).apply(query, "pollingUnit.id");
-  getVisibleOwners(user).apply(query, "assignment.ownerGroupId");
-  applyAgentFilters(query, parsedFilters.data);
+  getScope(user).apply(base, "pollingUnit.id");
+  getVisibleOwners(user).apply(base, "assignment.ownerGroupId");
+  applyAgentFilters(base, parsedFilters.data);
 
-  const row = await query.getRawOne<{
-    total: string;
-    official: string;
-    extra: string;
-    telegramConnected: string;
-  }>();
+  const [baseSql, baseParameters] = base.getQueryAndParameters();
+  const consentVersionParam = `$${baseParameters.length + 1}`;
+
+  // Phone and consent status are worked out once per person, as grouped sets, and joined.
+  // Doing them as per-row subqueries (as the list does for its 100-row pages) runs
+  // two or three lookups for every assignment, which is far too slow at national scale.
+  // The rules match TELEGRAM_READY_SQL and CONFIRMED_PHONE_SQL above.
+  const rows = await entityManager.query<Array<{
+    total: number | string;
+    official: number | string;
+    extra: number | string;
+    telegramConnected: number | string;
+    notMatched: number | string;
+  }>>(
+    `
+      WITH base AS (${baseSql}),
+      people AS (
+        SELECT DISTINCT base."personId" AS person_id FROM base
+      ),
+      phone_flags AS (
+        SELECT
+          phone.person_id,
+          BOOL_OR(phone.is_confirmed) AS has_confirmed,
+          BOOL_OR(phone.is_confirmed AND phone.telegram_chat_id IS NOT NULL) AS has_telegram
+        FROM phone_number phone
+        JOIN people ON people.person_id = phone.person_id
+        GROUP BY phone.person_id
+      ),
+      consent_flags AS (
+        SELECT
+          consent_row.person_id,
+          (ARRAY_AGG(consent_row.is_accepted ORDER BY consent_row.created_at DESC, consent_row.id DESC))[1] AS accepted
+        FROM consent consent_row
+        JOIN people ON people.person_id = consent_row.person_id
+        WHERE consent_row.consent_text_version = ${consentVersionParam}
+        GROUP BY consent_row.person_id
+      )
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE base."agentKind" = 'official')::int AS official,
+        COUNT(*) FILTER (WHERE base."agentKind" = 'extra')::int AS extra,
+        COUNT(*) FILTER (
+          WHERE COALESCE(phone_flags.has_telegram, FALSE) AND COALESCE(consent_flags.accepted, FALSE)
+        )::int AS "telegramConnected",
+        COUNT(*) FILTER (WHERE NOT COALESCE(phone_flags.has_confirmed, FALSE))::int AS "notMatched"
+      FROM base
+      LEFT JOIN phone_flags ON phone_flags.person_id = base."personId"
+      LEFT JOIN consent_flags ON consent_flags.person_id = base."personId";
+    `,
+    [...baseParameters, CONSENT_TEXT_VERSION],
+  );
+  const row = rows[0];
   const total = Number(row?.total ?? 0);
   const telegramConnected = Number(row?.telegramConnected ?? 0);
+  const notConnected = Math.max(total - telegramConnected, 0);
+  // Telegram-ready implies a confirmed phone, so everyone unmatched is also not connected.
+  const notMatched = Math.min(Number(row?.notMatched ?? 0), notConnected);
 
   return {
     total,
     official: Number(row?.official ?? 0),
     extra: Number(row?.extra ?? 0),
     telegramConnected,
-    notConnected: Math.max(total - telegramConnected, 0),
+    notConnected,
+    smsOnly: notConnected - notMatched,
+    notMatched,
   };
 }
 
@@ -334,6 +395,10 @@ function applyAgentFilters(
     query.andWhere(TELEGRAM_READY_SQL);
   } else if (filters.channel === "not_connected") {
     query.andWhere(`NOT ${TELEGRAM_READY_SQL}`);
+  } else if (filters.channel === "sms_only") {
+    query.andWhere(`NOT ${TELEGRAM_READY_SQL}`).andWhere(CONFIRMED_PHONE_SQL);
+  } else if (filters.channel === "not_matched") {
+    query.andWhere(`NOT ${CONFIRMED_PHONE_SQL}`);
   }
   if (filters.q !== undefined) {
     // Phones are masked in responses, so search covers names and places only.

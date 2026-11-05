@@ -59,6 +59,8 @@ export function useCoverageSummary(
     },
     staleTime: 1000 * 60 * 2,
     enabled: options?.enabled ?? true,
+    // Keep the last numbers on screen while a filter change loads.
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -103,12 +105,15 @@ export interface CandidateCoveragePage {
 /**
  * Fetch candidates whose seats fall in the current scope, with their coverage.
  */
-export function useCandidateCoverage(filters: CoverageFilters & { officeId?: number | null } = {}) {
-  const cleanFilters: Record<string, number> = {};
+export function useCandidateCoverage(
+  filters: CoverageFilters & { officeId?: number | null; nationalOnly?: boolean } = {},
+) {
+  const cleanFilters: Record<string, number | string> = {};
   if (filters.stateId && filters.stateId > 0) cleanFilters.stateId = filters.stateId;
   if (filters.lgaId && filters.lgaId > 0) cleanFilters.lgaId = filters.lgaId;
   if (filters.wardId && filters.wardId > 0) cleanFilters.wardId = filters.wardId;
   if (filters.officeId && filters.officeId > 0) cleanFilters.officeId = filters.officeId;
+  if (filters.nationalOnly) cleanFilters.nationalOnly = "true";
 
   return useInfiniteQuery<CandidateCoveragePage, ApiClientError>({
     queryKey: [...COVERAGE_KEYS.all, "candidates", cleanFilters] as const,
@@ -154,6 +159,8 @@ export function useCoverageGaps(
     },
     staleTime: 1000 * 60 * 2,
     enabled: options?.enabled ?? true,
+    // Keep the last results on screen while a filter change loads.
+    placeholderData: keepPreviousData,
   });
 }
 

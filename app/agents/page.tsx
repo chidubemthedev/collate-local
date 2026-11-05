@@ -11,26 +11,17 @@ import {
 import { useCoverageSummary, useCoverageGaps } from "@/lib/hooks/use-coverage";
 import { useAgents } from "@/lib/hooks/use-agents";
 import { AgentsKPISummary } from "@/components/agents/agents-kpi-summary";
-import { AgentsFilters } from "@/components/agents/agents-filters";
+import { AgentsFilters, type AgentTypeFilter } from "@/components/agents/agents-filters";
 import { AgentsTable } from "@/components/agents/agents-table";
 import { UnifiedAgentRecord } from "@/components/agents/agent-detail-modal";
 import { AgentsDirectorySkeleton } from "@/components/agents/agents-skeletons";
-import { Badge } from "@/components/ui/badge";
+import { toTitleCase } from "@/components/candidates/candidates-filters";
 import { Button } from "@/components/ui/button";
-import {
-  Users,
-  ShieldCheck,
-  Send,
-  Download,
-  AlertCircle,
-  Loader2,
-  CheckCircle2,
-} from "lucide-react";
+import { Users, Send, AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 export default function AgentsPage() {
   const {
-    activePersona,
     selectedStateCode,
     setSelectedStateCode,
     selectedLgaCode,
@@ -40,12 +31,11 @@ export default function AgentsPage() {
     resetAreaFilters,
   } = useApp();
 
-  const [selectedTypeTab, setSelectedTypeTab] = useState<
-    "all" | "official" | "extra" | "gaps"
-  >("all");
+  // Type = the agent kind stored on the assignment; "all" also lists gaps.
+  const [selectedTypeTab, setSelectedTypeTab] = useState<AgentTypeFilter>("all");
   const [selectedSponsor, setSelectedSponsor] = useState<string>("all");
-  const [selectedRole, setSelectedRole] = useState<string>("all");
-  const [selectedChannel, setSelectedChannel] = useState<string>("all");
+  // The channel filter is not in the current design.
+  const [selectedChannel] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   // 1. Resolve numeric geography IDs for API filtering
@@ -111,6 +101,7 @@ export default function AgentsPage() {
   const {
     data: summary,
     isLoading: isLoadingSummary,
+    isFetching: isFetchingSummary,
     error: summaryError,
     refetch: refetchSummary,
   } = useCoverageSummary({
@@ -118,6 +109,9 @@ export default function AgentsPage() {
     lgaId: selectedLgaId ?? undefined,
     wardId: selectedWardId ?? undefined,
   });
+
+  // Sponsor / owner is an owner group id, applied by the agents API.
+  const ownerGroupId = selectedSponsor === "all" ? undefined : Number(selectedSponsor);
 
   // 3. Fetch live agents list
   const agentKindParam =
@@ -139,10 +133,8 @@ export default function AgentsPage() {
       lgaId: selectedLgaId ?? undefined,
       wardId: selectedWardId ?? undefined,
       agentKind: agentKindParam,
+      ownerGroupId,
       limit: 100,
-    },
-    {
-      enabled: selectedTypeTab !== "gaps",
     },
   );
 
@@ -161,7 +153,8 @@ export default function AgentsPage() {
       limit: 100,
     },
     {
-      enabled: selectedTypeTab === "gaps" || selectedTypeTab === "all",
+      // Gaps are not agents and have no owner: they show only with Any type and Anyone.
+      enabled: selectedTypeTab === "all" && ownerGroupId === undefined,
     },
   );
 
@@ -190,14 +183,14 @@ export default function AgentsPage() {
     if (gapsError) void refetchGaps();
   };
 
-  const isSyncing = isFetchingAgents || isFetchingGaps || isLoadingSummary;
+  const isSyncing = isFetchingAgents || isFetchingGaps || isFetchingSummary;
 
   // 5. Build unified agent records list
   const allAgentRecords = useMemo<UnifiedAgentRecord[]>(() => {
     const list: UnifiedAgentRecord[] = [];
 
     // A. Map agents returned from API
-    if (agentsData?.items && selectedTypeTab !== "gaps") {
+    if (agentsData?.items) {
       for (const item of agentsData.items) {
         const isOfficial = item.agentKind === "official";
         list.push({
@@ -210,13 +203,8 @@ export default function AgentsPage() {
           sponsor:
             item.owner?.displayName ||
             (isOfficial ? "Party Official" : "Candidate Campaign"),
-          role: isOfficial
-            ? "Official Party Agent"
-            : item.slotNumber === 1
-              ? "Protector"
-              : item.slotNumber === 2
-                ? "Mobiliser"
-                : "Snapper",
+          // No role is stored yet (PRD: extras are tagged by owner only), so show the kind.
+          role: isOfficial ? "Official agent" : "Extra agent",
           phoneMasked: item.maskedPhone || "—",
           telegramStatus: item.telegramConnected ? "connected" : undefined,
           puCode: item.pollingUnit.inecPollingUnitCode,
@@ -235,10 +223,7 @@ export default function AgentsPage() {
     }
 
     // B. Map gaps returned from API (unassigned PUs)
-    if (
-      gapsData?.items &&
-      (selectedTypeTab === "gaps" || selectedTypeTab === "all")
-    ) {
+    if (gapsData?.items && selectedTypeTab === "all" && ownerGroupId === undefined) {
       for (const gap of gapsData.items) {
         list.push({
           id: `gap-${gap.id}`,
@@ -272,6 +257,7 @@ export default function AgentsPage() {
     selectedStateCode,
     selectedLgaCode,
     selectedWardCode,
+    ownerGroupId,
   ]);
 
   // Tab counts driven by live coverage summary
@@ -294,39 +280,8 @@ export default function AgentsPage() {
       if (selectedTypeTab === "official" && record.type !== "official")
         return false;
       if (selectedTypeTab === "extra" && record.type !== "extra") return false;
-      if (selectedTypeTab === "gaps" && record.type !== "gap") return false;
 
-      // Sponsor filter
-      if (selectedSponsor !== "all") {
-        if (
-          selectedSponsor === "Party" &&
-          !record.sponsor.toLowerCase().includes("party")
-        )
-          return false;
-        if (
-          selectedSponsor === "President" &&
-          !record.sponsor.toLowerCase().includes("president")
-        )
-          return false;
-        if (
-          selectedSponsor === "Senate" &&
-          !record.sponsor.toLowerCase().includes("senate")
-        )
-          return false;
-        if (
-          selectedSponsor === "House of Reps" &&
-          !record.sponsor.toLowerCase().includes("rep")
-        )
-          return false;
-        if (
-          selectedSponsor === "State Assembly" &&
-          !record.sponsor.toLowerCase().includes("assembly")
-        )
-          return false;
-      }
-
-      // Role filter
-      if (selectedRole !== "all" && record.role !== selectedRole) return false;
+      // Sponsor / owner is applied by the agents API (ownerGroupId).
 
       // Channel filter
       if (
@@ -354,20 +309,20 @@ export default function AgentsPage() {
   }, [
     allAgentRecords,
     selectedTypeTab,
-    selectedSponsor,
-    selectedRole,
     selectedChannel,
     searchQuery,
   ]);
 
-  const handleResetFilters = () => {
-    setSelectedTypeTab("all");
+  const handleClearFilters = () => {
     resetAreaFilters();
     setSelectedSponsor("all");
-    setSelectedRole("all");
-    setSelectedChannel("all");
+    setSelectedTypeTab("all");
     setSearchQuery("");
   };
+
+  const areaName = toTitleCase(
+    selectedWard?.name ?? selectedLga?.name ?? selectedState?.name ?? "Nigeria",
+  );
 
   const handleExportCSV = () => {
     let csvContent = "data:text/csv;charset=utf-8,";
@@ -435,68 +390,47 @@ export default function AgentsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-5 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <Badge
-              variant="outline"
-              className="text-xs px-2 py-0.5 gap-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-300"
-            >
-              <ShieldCheck className="w-3 h-3 text-emerald-600" />1 Official
-              Agent = Covered
-            </Badge>
-            {isSyncing ? (
-              <Badge
-                variant="secondary"
-                className="text-[11px] px-2 py-0.5 gap-1 bg-muted/60 text-muted-foreground"
-              >
-                <Loader2 className="w-3 h-3 animate-spin text-primary" />
-                Live Sync
-              </Badge>
-            ) : (
-              <Badge
-                variant="outline"
-                className="text-[11px] px-2 py-0.5 gap-1 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
-              >
-                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                Connected
-              </Badge>
-            )}
-          </div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-2">
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
             Polling Unit Agents Directory
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Monitor and coordinate official party agents and candidate-sponsored
-            extra agents across polling units.
+          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+            One row per agent record · coverage = one official party agent at the unit
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
+          <Button variant="outline" onClick={handleExportCSV} className="h-8 px-3 text-xs">
+            Export CSV
+          </Button>
           <Link
             href="/broadcasts/new?group=agents"
-            className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-8 px-3.5 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
+            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-medium text-background transition-colors hover:bg-foreground/90"
           >
             <Send className="w-3.5 h-3.5" />
-            <span>Broadcast to Agents</span>
+            <span>Message these agents</span>
           </Link>
         </div>
       </div>
 
       {/* Top Metric Cards */}
-      <AgentsKPISummary
-        officialCount={counts.official}
-        extraCount={counts.extra}
-        gapsCount={counts.gaps}
-        totalPUs={summary?.totalPUs ?? 0}
-      />
+      <div
+        aria-busy={isFetchingSummary}
+        className={`transition-opacity ${isFetchingSummary ? "opacity-60" : ""}`}
+      >
+        <AgentsKPISummary
+          totalPUs={summary?.totalPUs ?? 0}
+          officialCount={counts.official}
+          extraCount={counts.extra}
+          gapsCount={counts.gaps}
+          areaName={areaName}
+        />
+      </div>
 
-      <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
-        <AgentsFilters
-          selectedTypeTab={selectedTypeTab}
-          setSelectedTypeTab={setSelectedTypeTab}
+      <AgentsFilters
           selectedState={selectedStateCode}
           setSelectedState={setSelectedStateCode}
           selectedLga={selectedLgaCode}
@@ -505,18 +439,30 @@ export default function AgentsPage() {
           setSelectedWard={setSelectedWardCode}
           selectedSponsor={selectedSponsor}
           setSelectedSponsor={setSelectedSponsor}
-          selectedRole={selectedRole}
-          setSelectedRole={setSelectedRole}
-          selectedChannel={selectedChannel}
-          setSelectedChannel={setSelectedChannel}
+          selectedType={selectedTypeTab}
+          setSelectedType={setSelectedTypeTab}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           totalFilteredCount={filteredAgents.length}
-          counts={counts}
-          onReset={handleResetFilters}
-          onExportCSV={handleExportCSV}
+          isRefreshing={isSyncing}
+          onClear={handleClearFilters}
         />
-        <AgentsTable agents={filteredAgents} />
+
+      <section
+        aria-busy={isSyncing}
+        className="relative min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4"
+      >
+        <div className={`transition-opacity ${isSyncing ? "pointer-events-none opacity-40" : ""}`}>
+          <AgentsTable agents={filteredAgents} />
+        </div>
+        {isSyncing && (
+          <div role="status" className="absolute inset-0 z-10 flex items-center justify-center">
+            <span className="inline-flex items-center gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-xs text-muted-foreground shadow-sm">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              Loading agents…
+            </span>
+          </div>
+        )}
       </section>
     </div>
   );
