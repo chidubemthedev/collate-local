@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { useGeographyLgas, useGeographyStates, useGeographyWards } from "@/lib/hooks/use-geography";
 import { FieldSpinner } from "@/components/ui/field-spinner";
-import { ActiveFilterChips, type ActiveTableFilter } from "@/components/ui/active-filter-chips";
+import { TableToolbar, type ActiveTableFilter } from "@/components/ui/table-toolbar";
 import { toTitleCase } from "@/components/candidates/candidates-filters";
 
 export type RecipientGroupFilter = "all" | "official" | "extra";
@@ -132,7 +132,9 @@ export function RecipientsFilters({
 
   return (
     <div className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Collapses behind a Filters button on phones, like the Coverage page. */}
+      <TableToolbar inlineMobile activeFilters={activeFilters} onClear={onReset}>
+      <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="min-w-0 space-y-1.5">
           <label className={LABEL_CLASS}>Search</label>
           <Input
@@ -304,8 +306,7 @@ export function RecipientsFilters({
         </div>
 
       </div>
-
-      <ActiveFilterChips filters={activeFilters} onClear={onReset} />
+      </TableToolbar>
     </div>
   );
 }

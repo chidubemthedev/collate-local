@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
-import { faker, en, en_NG, Faker } from "@faker-js/faker";
+import { en, en_NG, Faker } from "@faker-js/faker";
 
 export type DemoStateMeta = {
   stateCode: string;

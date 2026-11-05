@@ -1,7 +1,5 @@
 import type { QueryRunner } from "typeorm";
-import { AgentAssignment, AgentKind } from "../../entities/agent-assignment.entity";
-import { Person } from "../../entities/person.entity";
-import { demoEmail, demoFaker, demoPhone, demoIp, slug, makeDemoName } from "./utils";
+import { demoEmail, demoPhone, makeDemoName } from "./utils";
 
 export async function seedAgents(
   queryRunner: QueryRunner,
@@ -9,19 +7,19 @@ export async function seedAgents(
   stateIds: Record<string, number>,
   politicalUnits: Record<string, number>,
 ): Promise<{ agentCount: number; }> {
-  const stateNames = ["Lagos", "Anambra", "Kano"];
+  // Kept in the signature for the seed runner; this step reads what it needs itself.
+  void stateIds;
+  void politicalUnits;
   const statePollingUnitRows = await queryRunner.query(`
     SELECT id, inec_polling_unit_code, ward_id FROM polling_unit WHERE inec_polling_unit_code LIKE '90-%' OR inec_polling_unit_code LIKE '91-%' OR inec_polling_unit_code LIKE '92-%';
   `) as Array<{ id: number; inec_polling_unit_code: string; ward_id: number }>;
 
   const agentPersons: Array<{ id: string }> = [];
-  const insertedPeople = await queryRunner.query(`SELECT p.id FROM person p WHERE p.email_address LIKE '%@demo.collate.test%' LIMIT 1;`) as Array<{ id: string }>;
 
   const personValues: string[] = [];
   for (let i = 0; i < 430; i += 1) {
     const name = makeDemoName();
     const email = demoEmail(`agent-${i + 1}`);
-    const stateName = stateNames[i % stateNames.length];
     const homePollingUnit = statePollingUnitRows[i % statePollingUnitRows.length];
     personValues.push(`('${email}', '${name.replace("'", "''")}', ${homePollingUnit?.id ?? 1}, NULL, 'unverified')`);
   }

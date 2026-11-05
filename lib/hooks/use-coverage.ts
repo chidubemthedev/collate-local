@@ -8,7 +8,6 @@ import type {
   CandidateOfficeOption,
   CoverageSummary,
   CoverageMapPointsResponse,
-  CoverageGap,
   CoverageGapsResponse,
   CreateAssignmentPayload,
   CreateAssignmentResponse,

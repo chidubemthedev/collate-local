@@ -13,18 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Lock,
-  ShieldCheck,
-  Eye,
-  EyeOff,
-  Copy,
-  AlertTriangle,
-  Download,
-  Key,
-  Globe,
-  FileCheck,
-} from "lucide-react";
+import { Lock, ShieldCheck, Copy, Download, Key } from "lucide-react";
 import { CANDIDATE_ACCESS_LINKS_DATA, AUDIT_LOG_DATA, CHANNEL_GATEWAY_CONFIG } from "@/lib/data/settings-data";
 
 export function SecurityPrivacySettings() {
@@ -130,7 +119,7 @@ export function SecurityPrivacySettings() {
           <div>
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <Key className="h-4 w-4 text-amber-600" />
-              <span>Candidate Personal Access Links (No Password / "View As")</span>
+              <span>Candidate Personal Access Links (No Password / &ldquo;View As&rdquo;)</span>
             </h3>
             <p className="text-xs text-slate-500">
               Each candidate receives a revocable token link scoped to their constituency subtree.

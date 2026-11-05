@@ -14,7 +14,6 @@ import {
 import {
   useCoverageSummary,
   useCoverageMapPoints,
-  useCoverageGaps,
   useCandidateCoverage,
 } from "@/lib/hooks/use-coverage";
 import { StateData, LGAData, WardData, PollingUnitData } from "@/lib/types";
@@ -29,16 +28,7 @@ import {
   CoverageTableSkeleton,
 } from "@/components/coverage/coverage-skeletons";
 import { Button } from "@/components/ui/button";
-import {
-  ShieldCheck,
-  Send,
-  Download,
-  Building,
-  Layers,
-  Sparkles,
-  CheckCircle2,
-  AlertCircle,
-} from "lucide-react";
+import { Send, Building, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
 interface SortableRow {
@@ -96,7 +86,6 @@ export default function CoveragePage() {
   const {
     data: apiStates = [],
     isLoading: isLoadingStates,
-    isFetching: isFetchingStates,
     error: statesError,
     refetch: refetchStates,
   } = useGeographyStates(puFilter);
@@ -394,7 +383,7 @@ export default function CoveragePage() {
     result.sort(compareRows(sortBy));
 
     return result;
-  }, [wardsList, selectedLgaCode, searchQuery, sortBy]);
+  }, [wardsList, selectedLgaCode, selectedStateCode, searchQuery, sortBy]);
 
   // Polling units come only from the live ward polling-units API
   const pollingUnitsList: PollingUnitData[] = useMemo(() => {

@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
@@ -26,8 +25,6 @@ import {
   AlertCircle,
   MapPin,
   ExternalLink,
-  Phone,
-  MessageSquare,
   Send,
   Users,
   UserCheck,

@@ -3,7 +3,7 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Eye, Send, MapPin, Calendar, CheckCircle2 } from "lucide-react";
+import { Eye, Send, MapPin, Calendar } from "lucide-react";
 import { MessageConfig } from "./step-message";
 import { ScheduleConfig } from "./step-schedule";
 

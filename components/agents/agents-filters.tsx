@@ -5,7 +5,7 @@ import { useGeographyStates, useGeographyLgas, useGeographyWards } from "@/lib/h
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FieldSpinner } from "@/components/ui/field-spinner";
-import { ActiveFilterChips, type ActiveTableFilter } from "@/components/ui/active-filter-chips";
+import { TableToolbar, type ActiveTableFilter } from "@/components/ui/table-toolbar";
 import { toTitleCase } from "@/components/candidates/candidates-filters";
 import { useOwnerGroups } from "@/lib/hooks/use-groups";
 import { Button } from "@/components/ui/button";
@@ -148,7 +148,9 @@ export function AgentsFilters({
 
   return (
     <div className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Collapses behind a Filters button on phones, like the Coverage page. */}
+      <TableToolbar inlineMobile activeFilters={activeFilters} onClear={onClear}>
+      <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {/* Search */}
         <div className="min-w-0 space-y-1.5">
           <label className={LABEL_CLASS}>Search</label>
@@ -335,8 +337,7 @@ export function AgentsFilters({
           </Select>
         </div>
       </div>
-
-      <ActiveFilterChips filters={activeFilters} onClear={onClear} />
+      </TableToolbar>
 
       <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground" aria-live="polite">
         {isRefreshing ? (

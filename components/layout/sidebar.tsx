@@ -12,8 +12,6 @@ import {
   Radio,
   Send,
   Contact,
-  ShieldCheck,
-  Layers,
   Eye,
   LogOut,
   LogIn,
@@ -42,7 +40,6 @@ export function Sidebar() {
 
   const canManageCoverage = permissions?.canManageCoverage === true;
   const canBroadcast = permissions?.canBroadcast === true;
-  const isAdmin = permissions?.isAdmin === true;
 
   return (
     <aside className="hidden md:flex w-64 flex-col border-r border-border bg-sidebar text-sidebar-foreground h-screen sticky top-0 overflow-y-auto">
@@ -174,7 +171,8 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Settings Group (Party and Admin only) */}
+        {/* Settings Group (Party and Admin only). To restore it, bring back
+            `const isAdmin = permissions?.isAdmin === true;` and the ShieldCheck and Layers icons. */}
         {/* {isAdmin && (
           <div>
             <div className="px-2 mb-1.5 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground/80">

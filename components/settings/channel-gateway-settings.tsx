@@ -10,22 +10,16 @@ import {
   Bot,
   MessageSquare,
   Zap,
-  CheckCircle2,
   RefreshCw,
-  Copy,
   Eye,
   EyeOff,
   Send,
-  AlertTriangle,
-  Radio,
-  Clock,
   ExternalLink,
-  ShieldCheck,
 } from "lucide-react";
 import { CHANNEL_GATEWAY_CONFIG } from "@/lib/data/settings-data";
 
 export function ChannelGatewaySettings() {
-  const [config, setConfig] = useState(CHANNEL_GATEWAY_CONFIG);
+  const [config] = useState(CHANNEL_GATEWAY_CONFIG);
   const [showToken, setShowToken] = useState(false);
   const [fallbackMinutes, setFallbackMinutes] = useState(config.sms.failoverTimeoutMinutes);
 

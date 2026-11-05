@@ -1,4 +1,4 @@
-import type { ApiResponse, SuccessEnvelope, ErrorEnvelope } from "@/types/api";
+import type { ApiResponse, SuccessEnvelope } from "@/types/api";
 
 export class ApiClientError extends Error {
   code: string;

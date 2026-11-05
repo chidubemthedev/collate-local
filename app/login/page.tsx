@@ -5,18 +5,15 @@ import { useRouter } from "next/navigation";
 import { useSession, useRequestOtp, useVerifyOtp } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import {
   ShieldCheck,
   Mail,
   KeyRound,
   ArrowRight,
-  ArrowLeft,
   Loader2,
   AlertCircle,
   CheckCircle2,
-  Sparkles,
   Info,
 } from "lucide-react";
 

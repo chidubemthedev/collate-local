@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   X,
   User,
-  ShieldCheck,
   ChevronDown,
 } from "lucide-react";
 
@@ -41,15 +40,18 @@ export function AgentAutocomplete({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sync if value changed externally
-  useEffect(() => {
+  // Sync if value changed externally. Adjusting state during render (rather than in an
+  // effect) avoids an extra render pass: https://react.dev/learn/you-might-not-need-an-effect
+  const [syncedValue, setSyncedValue] = useState(value);
+  if (value !== syncedValue) {
+    setSyncedValue(value);
     if (!value) {
       setSelectedAgent(null);
     } else {
       const match = AVAILABLE_AGENTS_POOL.find((a) => a.id === value);
       if (match) setSelectedAgent(match);
     }
-  }, [value]);
+  }
 
   // Click outside listener
   useEffect(() => {

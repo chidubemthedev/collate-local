@@ -1,13 +1,7 @@
 import type { QueryRunner } from "typeorm";
-import { Candidate } from "../../entities/candidate.entity";
-import { Consent } from "../../entities/consent.entity";
-import { Group, GroupType } from "../../entities/group.entity";
-import { Membership } from "../../entities/membership.entity";
-import { MembershipScopeUnit } from "../../entities/membership-scope-unit.entity";
-import { Person } from "../../entities/person.entity";
-import { PhoneNumber } from "../../entities/phone-number.entity";
+import { GroupType } from "../../entities/group.entity";
 import { seedAllowAllGrants } from "../index";
-import { demoEmail, demoFaker, demoPhone, demoToken, makeDemoName, slug } from "./utils";
+import { demoEmail, demoPhone, makeDemoName, slug } from "./utils";
 
 export async function seedGroupsAndPeople(
   queryRunner: QueryRunner,
@@ -33,7 +27,6 @@ export async function seedGroupsAndPeople(
     INSERT INTO groups (group_name, group_type, parent_group_id)
     VALUES ${groupData
       .map((group) => {
-        const parentName = group.parent_group_name;
         return `('${group.group_name.replace("'", "''")}', '${group.group_type}', NULL)`;
       })
       .join(", ")}
@@ -61,7 +54,6 @@ export async function seedGroupsAndPeople(
   ];
 
   const insertedPeople: Array<{ id: string; full_name: string }> = [];
-  let personIndex = 1;
 
   const personValues: string[] = [];
   for (const admin of adminPeople) {
@@ -213,7 +205,7 @@ export async function seedGroupsAndPeople(
   ];
 
   const candidatePersonValues: string[] = [];
-  for (const [name, office, scope] of candidateNames) {
+  for (const [name] of candidateNames) {
     candidatePersonValues.push(`('${demoEmail(slug(name))}', '${name.replace("'", "''")}', NULL, NULL, 'verified')`);
   }
 
@@ -300,7 +292,6 @@ export async function seedGroupsAndPeople(
 
   const consentValues: string[] = [];
   for (const person of insertedPersonRows) {
-    const isAgent = person.full_name.toLowerCase().includes("agent") || false;
     consentValues.push(`('${person.id}', 'v1', true)`);
   }
 

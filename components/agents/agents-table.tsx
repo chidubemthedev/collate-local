@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { UnifiedAgentRecord, AgentDetailModal } from "./agent-detail-modal";
 import {
   Table,
@@ -12,17 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  ShieldCheck,
-  Users,
-  AlertCircle,
-  MapPin,
-  ExternalLink,
-  Send,
-  Eye,
-  UserPlus,
-} from "lucide-react";
-import Link from "next/link";
+import { AlertCircle, MapPin, UserPlus } from "lucide-react";
 
 interface AgentsTableProps {
   agents: UnifiedAgentRecord[];
@@ -32,13 +22,14 @@ interface AgentsTableProps {
 export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
   const [selectedAgent, setSelectedAgent] = useState<UnifiedAgentRecord | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
 
-  // Auto-reset to first page when the agent dataset changes (e.g. filters applied)
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [agents.length]);
+  // Back to the first page when the agent dataset changes (e.g. filters applied).
+  // The page is stored with the dataset size it belongs to, so no reset effect is needed.
+  const [pageState, setPageState] = useState({ key: agents.length, page: 1 });
+  const currentPage = pageState.key === agents.length ? pageState.page : 1;
+  const setCurrentPage = (update: (page: number) => number) =>
+    setPageState({ key: agents.length, page: update(currentPage) });
 
   const totalPages = Math.max(1, Math.ceil(agents.length / PAGE_SIZE));
   const paginatedAgents = useMemo(() => {
