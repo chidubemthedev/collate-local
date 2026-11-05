@@ -35,27 +35,9 @@ const NIGERIA_VIEW_BOUNDS: [[number, number], [number, number]] = [
 ];
 const NIGERIA_MAX_BOUNDS: [number, number, number, number] = [2, 2, 16, 15];
 
-const mapStyle = {
-  version: 8 as const,
-  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-  sources: {
-    openStreetMap: {
-      type: "raster" as const,
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
-      maxzoom: 19,
-    },
-  },
-  layers: [
-    {
-      id: "openStreetMap",
-      type: "raster" as const,
-      source: "openStreetMap",
-    },
-  ],
-};
+// A clean, light vector base map (OpenFreeMap "Positron": free, no API key, no usage limits).
+// It brings its own fonts, including the "Noto Sans Regular" used by the cluster labels.
+const mapStyle = "https://tiles.openfreemap.org/styles/positron";
 
 const clusterLayer: CircleLayerSpecification = {
   id: "coordinate-clusters",

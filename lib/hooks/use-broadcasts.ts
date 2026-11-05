@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiClientError } from "@/lib/api/client";
 import type {
   AudienceFilter,
@@ -121,6 +121,8 @@ export function useAudiencePreview(
     },
     enabled: options?.enabled ?? true,
     retry: false,
+    // Keep the last counts on screen while a filter change loads.
+    placeholderData: keepPreviousData,
   });
 }
 

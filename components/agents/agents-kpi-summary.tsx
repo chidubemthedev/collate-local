@@ -1,101 +1,80 @@
 "use client";
 
 import React from "react";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AnimatedNumber } from "@/components/ui/animated-number";
-import { ShieldCheck, Users, AlertCircle, Phone, Info } from "lucide-react";
 
 interface AgentsKPISummaryProps {
+  totalPUs: number;
   officialCount: number;
   extraCount: number;
   gapsCount: number;
-  totalPUs: number;
+  /** The area the numbers cover, e.g. "Nigeria" or a state name. */
+  areaName: string;
 }
 
+const CARD = "flex h-full flex-col rounded-xl border border-border/60 bg-card p-4";
+const LABEL = "text-[11px] font-medium text-foreground/80";
+const VALUE = "mt-3 flex items-baseline gap-2 text-xl md:text-2xl font-bold tracking-tight";
+const SUFFIX = "text-xs font-normal text-muted-foreground";
+const NOTE = "mt-3 flex flex-wrap items-center gap-1.5 text-[10px] leading-snug text-muted-foreground";
+
 export function AgentsKPISummary({
+  totalPUs,
   officialCount,
   extraCount,
   gapsCount,
-  totalPUs,
+  areaName,
 }: AgentsKPISummaryProps) {
   const officialPct = totalPUs > 0 ? Math.round((officialCount / totalPUs) * 100) : 0;
+  const gapsPct = totalPUs > 0 ? Math.round((gapsCount / totalPUs) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {/* Official Party Agents */}
-      <div className="bg-card border border-border/70 rounded-xl p-3.5 space-y-2 border-emerald-500/30 dark:border-emerald-500/20">
-        <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-          <span className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            Official Party Agents
-          </span>
-          <Tooltip>
-            <TooltipTrigger>
-              <Info className="w-3.5 h-3.5 text-muted-foreground" />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs text-xs">
-              Official rule: Exactly 1 Official Party Agent per PU counts towards the official coverage target.
-            </TooltipContent>
-          </Tooltip>
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className={CARD}>
+        <div className={LABEL}>Polling Units</div>
+        <div className={`${VALUE} text-foreground`}>
+          <AnimatedNumber value={totalPUs} />
         </div>
-        <div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              <AnimatedNumber value={officialCount} />
-            </span>
-            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              <AnimatedNumber value={officialPct} />% Coverage
-            </span>
-          </div>
-          <Progress value={officialPct} className="h-1.5 mt-2 bg-emerald-100 dark:bg-emerald-950/40" />
-          <div className="text-[11px] text-muted-foreground mt-1">
-            1 per PU = 100% official coverage
-          </div>
+        <div className={NOTE}>
+          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold leading-none text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+            INEC
+          </span>
+          <span>in {areaName}</span>
         </div>
       </div>
 
-      {/* Candidate-Sponsored Extra Agents */}
-      <div className="bg-card border border-border/70 rounded-xl p-3.5 space-y-2 border-indigo-500/30 dark:border-indigo-500/20">
-        <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-          <span className="flex items-center gap-1.5 font-semibold text-indigo-700 dark:text-indigo-400">
-            <Users className="w-4 h-4 text-indigo-600" />
-            Candidate Extra Agents
+      <div className={CARD}>
+        <div className={LABEL}>Official Party Agents</div>
+        <div className={VALUE}>
+          <span className="text-emerald-600 dark:text-emerald-400">
+            <AnimatedNumber value={officialCount} />
           </span>
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300">
-            Tagged
-          </Badge>
+          <span className={SUFFIX}>
+            <AnimatedNumber value={officialPct} />% coverage
+          </span>
         </div>
-        <div>
-          <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            <AnimatedNumber value={extraCount} />
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-1">
-            Candidate-sponsored protectors & mobilisers
-          </div>
-        </div>
+        <div className={NOTE}>one per unit = covered</div>
       </div>
 
-      {/* Gaps / Uncovered PUs */}
-      <div className="col-span-2 md:col-span-1 bg-card border border-border/70 rounded-xl p-3.5 space-y-2 border-amber-500/30 dark:border-amber-500/20">
-        <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-          <span className="flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-400">
-            <AlertCircle className="w-4 h-4 text-amber-600" />
-            Coverage Gaps
-          </span>
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-300">
-            Needs Agent
-          </Badge>
+      <div className={CARD}>
+        <div className={LABEL}>Extra Agents</div>
+        <div className={`${VALUE} text-violet-600 dark:text-violet-400`}>
+          <AnimatedNumber value={extraCount} />
         </div>
-        <div>
-          <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+        <div className={NOTE}>support groups and candidates · never coverage</div>
+      </div>
+
+      <div className={CARD}>
+        <div className={LABEL}>Coverage Gaps</div>
+        <div className={VALUE}>
+          <span className="text-amber-800 dark:text-amber-500">
             <AnimatedNumber value={gapsCount} />
-          </div>
-          <div className="text-[11px] text-amber-700 dark:text-amber-400/90 mt-1 font-medium">
-            Polling units with 0 official agents
-          </div>
+          </span>
+          <span className={SUFFIX}>
+            <AnimatedNumber value={gapsPct} />%
+          </span>
         </div>
+        <div className={NOTE}>units with no official agent</div>
       </div>
     </div>
   );

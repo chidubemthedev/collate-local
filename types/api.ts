@@ -272,7 +272,12 @@ export interface AgentSummary {
   official: number;
   extra: number;
   telegramConnected: number;
+  /** smsOnly + notMatched. */
   notConnected: number;
+  /** Not on Telegram, but has a confirmed number: reached by SMS. */
+  smsOnly: number;
+  /** No confirmed number: gets no messages. */
+  notMatched: number;
 }
 
 export interface AgentsSummaryFilters {
@@ -293,7 +298,7 @@ export interface AgentsQueryFilters {
   ownerGroupId?: number;
   ownerCandidateId?: number;
   agentKind?: "official" | "extra";
-  channel?: "telegram" | "not_connected";
+  channel?: "telegram" | "not_connected" | "sms_only" | "not_matched";
   q?: string;
   cursor?: string;
   limit?: number;
@@ -307,6 +312,7 @@ export interface AudienceFilter {
   stateId?: number;
   lgaId?: number;
   wardId?: number;
+  pollingUnitId?: number;
   politicalUnitId?: number;
   officeId?: number;
   ownerGroupId?: number;
@@ -356,6 +362,19 @@ export interface BroadcastDetail extends BroadcastListItem {
   messageText: string;
 }
 
+/** Who a delivery's recipient is, worked out from their current candidate seat or agent assignment. */
+export interface BroadcastDeliveryRecipient {
+  kind: "candidate" | "official_agent" | "extra_agent" | null;
+  officeName: string | null;
+  ownerName: string | null;
+  isRunningMate: boolean;
+  seatName: string | null;
+  stateCode: string | null;
+  pollingUnitCode: string | null;
+  pollingUnitName: string | null;
+  source: string | null;
+}
+
 export interface BroadcastDelivery {
   id: string;
   personId: string;
@@ -368,6 +387,7 @@ export interface BroadcastDelivery {
   tappedOkAt: string | null;
   failedAt: string | null;
   createdAt: string;
+  recipient: BroadcastDeliveryRecipient;
 }
 
 export interface CreateBroadcastInput {

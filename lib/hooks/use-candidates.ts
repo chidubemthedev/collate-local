@@ -18,6 +18,10 @@ export interface CandidatesPage {
 
 export interface CandidatesQueryFilters {
   officeId?: number;
+  /** Seats overlapping this area, even partly. Coverage stays whole-seat. */
+  stateId?: number | null;
+  lgaId?: number | null;
+  wardId?: number | null;
 }
 
 function toCandidate(item: CandidateCoverage): CandidateData {
@@ -44,14 +48,20 @@ function toCandidate(item: CandidateCoverage): CandidateData {
  */
 export function useCandidates(filters: CandidatesQueryFilters = {}) {
   const officeId = filters.officeId;
+  const stateId = filters.stateId ?? null;
+  const lgaId = filters.lgaId ?? null;
+  const wardId = filters.wardId ?? null;
   return useInfiniteQuery<CandidatesPage, ApiClientError>({
-    queryKey: [...CANDIDATES_QUERY_KEY, { officeId: officeId ?? null }],
+    queryKey: [...CANDIDATES_QUERY_KEY, { officeId: officeId ?? null, stateId, lgaId, wardId }],
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) => {
       const res = await apiClient.get<CandidateCoverage[]>("/api/coverage/candidates", {
         limit: CANDIDATES_PAGE_SIZE,
         cursor: pageParam as string | null,
         officeId,
+        overlapStateId: stateId ?? undefined,
+        overlapLgaId: lgaId ?? undefined,
+        overlapWardId: wardId ?? undefined,
       });
       return {
         items: res.data.map(toCandidate),

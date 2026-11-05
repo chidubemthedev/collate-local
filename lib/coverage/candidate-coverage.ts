@@ -47,6 +47,13 @@ export interface CandidateCoverageQuery {
   limit: number;
   cursor: string | null;
   officeId: number | null;
+  /** Only national (country-level) seats, e.g. President when viewing all of Nigeria. */
+  nationalOnly?: boolean;
+  /**
+   * Only seats whose area overlaps this state / LGA / ward, even partly. Unlike the geo filter,
+   * this does not clip coverage: totals still cover the whole seat (within the user's scope).
+   */
+  overlap?: { stateId: number | null; lgaId: number | null; wardId: number | null };
 }
 
 interface Row {
@@ -66,6 +73,72 @@ interface Row {
   extra_agents: string;
 }
 
+/** Seats whose unit has a polling unit in the given state / LGA / ward (all NULL = no filter). */
+function buildOverlapSql(unitColumn: string, stateParam: string, lgaParam: string, wardParam: string): string {
+  return `(
+    (${stateParam}::int IS NULL AND ${lgaParam}::int IS NULL AND ${wardParam}::int IS NULL)
+    OR EXISTS (
+      SELECT 1
+      FROM pu_political_unit ov_ppu
+      JOIN polling_unit ov_pu ON ov_pu.id = ov_ppu.polling_unit_id
+      JOIN ward ov_w ON ov_w.id = ov_pu.ward_id
+      JOIN lga ov_l ON ov_l.id = ov_w.lga_id
+      WHERE ov_ppu.political_unit_id = ${unitColumn}
+        AND (${stateParam}::int IS NULL OR ov_l.state_id = ${stateParam}::int)
+        AND (${lgaParam}::int IS NULL OR ov_l.id = ${lgaParam}::int)
+        AND (${wardParam}::int IS NULL OR ov_w.id = ${wardParam}::int)
+    )
+  )`;
+}
+
+export type CandidateCountQuery = Pick<
+  CandidateCoverageQuery,
+  "dataSource" | "geoSql" | "geoParameters" | "firstFreeParameter" | "officeId" | "nationalOnly" | "overlap"
+>;
+
+/**
+ * How many candidates the list would hold, without working out anyone's coverage.
+ * Same rules as listCandidateCoverage: a seat counts when it has a polling unit in the
+ * user's scope (and, if asked, overlaps the area). Running mates have no seat of their own.
+ */
+export async function countCandidates(query: CandidateCountQuery): Promise<number> {
+  const officeParam = `$${query.firstFreeParameter}`;
+  const nationalParam = `$${query.firstFreeParameter + 1}`;
+  const stateParam = `$${query.firstFreeParameter + 2}`;
+  const lgaParam = `$${query.firstFreeParameter + 3}`;
+  const wardParam = `$${query.firstFreeParameter + 4}`;
+
+  const rows = await query.dataSource.query<Array<{ total: number | string }>>(
+    `
+      SELECT COUNT(*)::int AS total
+      FROM candidate c
+      JOIN seat st ON st.id = c.seat_id
+      JOIN political_unit pun ON pun.id = st.political_unit_id
+      WHERE (${officeParam}::int IS NULL OR st.office_id = ${officeParam}::int)
+        AND (${nationalParam}::boolean IS NOT TRUE OR pun.political_unit_type = 'country')
+        AND EXISTS (
+          SELECT 1
+          FROM pu_political_unit ppu
+          JOIN polling_unit pu ON pu.id = ppu.polling_unit_id
+          JOIN ward w ON w.id = pu.ward_id
+          JOIN lga l ON l.id = w.lga_id
+          JOIN state s ON s.id = l.state_id
+          WHERE ppu.political_unit_id = pun.id AND ${query.geoSql}
+        )
+        AND ${buildOverlapSql("pun.id", stateParam, lgaParam, wardParam)};
+    `,
+    [
+      ...query.geoParameters,
+      query.officeId,
+      query.nationalOnly ?? false,
+      query.overlap?.stateId ?? null,
+      query.overlap?.lgaId ?? null,
+      query.overlap?.wardId ?? null,
+    ],
+  );
+  return Number(rows[0]?.total ?? 0);
+}
+
 export function decodeCandidateCoverageCursor(
   cursor: string,
 ): { level: number; id: number } | null {
@@ -80,7 +153,13 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
   const idParam = `$${query.firstFreeParameter + 1}`;
   const limitParam = `$${query.firstFreeParameter + 2}`;
   const officeParam = `$${query.firstFreeParameter + 3}`;
+  const nationalParam = `$${query.firstFreeParameter + 4}`;
+  const overlapStateParam = `$${query.firstFreeParameter + 5}`;
+  const overlapLgaParam = `$${query.firstFreeParameter + 6}`;
+  const overlapWardParam = `$${query.firstFreeParameter + 7}`;
   const geo = query.geoSql;
+  const overlapSql = (unitColumn: string) =>
+    buildOverlapSql(unitColumn, overlapStateParam, overlapLgaParam, overlapWardParam);
 
   const sql = `
     WITH unit_totals AS MATERIALIZED (
@@ -122,6 +201,8 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
       ) seat_state ON TRUE
       WHERE (${levelParam}::int IS NULL OR (o.hierarchy_level, c.id) > (${levelParam}::int, ${idParam}::int))
         AND (${officeParam}::int IS NULL OR o.id = ${officeParam}::int)
+        AND (${nationalParam}::boolean IS NOT TRUE OR pun.political_unit_type = 'country')
+        AND ${overlapSql("pun.id")}
       ORDER BY o.hierarchy_level, c.id
       LIMIT ${limitParam}::int
     ),
@@ -131,6 +212,9 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
       JOIN seat st ON st.id = c.seat_id
       JOIN office o ON o.id = st.office_id
       JOIN unit_totals ut ON ut.unit_id = st.political_unit_id
+      JOIN political_unit oc_pun ON oc_pun.id = st.political_unit_id
+      WHERE (${nationalParam}::boolean IS NOT TRUE OR oc_pun.political_unit_type = 'country')
+        AND ${overlapSql("oc_pun.id")}
       GROUP BY o.id, o.office_name, o.hierarchy_level
     )
     SELECT
@@ -221,6 +305,10 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
     decoded?.id ?? null,
     query.limit + 1,
     query.officeId,
+    query.nationalOnly ?? false,
+    query.overlap?.stateId ?? null,
+    query.overlap?.lgaId ?? null,
+    query.overlap?.wardId ?? null,
   ]);
 
   const rows = result[0]?.rows ?? [];
