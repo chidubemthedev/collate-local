@@ -13,8 +13,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PUDetailDrawer } from "./pu-detail-drawer";
 import {
   ChevronRight,
@@ -24,12 +22,9 @@ import {
   MapPin,
   ExternalLink,
   Download,
-  Send,
   Eye,
-  Info,
   Building,
 } from "lucide-react";
-import Link from "next/link";
 
 // INEC names come in upper case (e.g. "AKWA IBOM"); show them as "Akwa Ibom", keeping FCT as is.
 function toTitleCase(name: string) {
@@ -62,16 +57,19 @@ export function CoverageTable({
 }: CoverageTableProps) {
   const [selectedPU, setSelectedPU] = useState<PollingUnitData | null>(null);
   const [isPUModalOpen, setIsPUModalOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [showAllStates, setShowAllStates] = useState(false);
   const PAGE_SIZE = 10;
   const STATES_INITIAL_COUNT = 15;
 
-  // Auto-reset page when level or data source changes
-  React.useEffect(() => {
-    setCurrentPage(1);
-    setShowAllStates(false);
-  }, [level, states.length, lgas.length, wards.length, pollingUnits.length]);
+  // Back to page 1 (and the short state list) when the level or data changes. The view is
+  // stored with the data it belongs to, so no reset effect is needed.
+  const viewKey = `${level}|${states.length}|${lgas.length}|${wards.length}|${pollingUnits.length}`;
+  const [viewState, setViewState] = useState({ key: viewKey, page: 1, showAllStates: false });
+  const currentView = viewState.key === viewKey ? viewState : { key: viewKey, page: 1, showAllStates: false };
+  const currentPage = currentView.page;
+  const showAllStates = currentView.showAllStates;
+  const setCurrentPage = (update: (page: number) => number) =>
+    setViewState({ ...currentView, page: update(currentPage) });
+  const setShowAllStates = (value: boolean) => setViewState({ ...currentView, showAllStates: value });
 
   const totalItems =
     level === "national"

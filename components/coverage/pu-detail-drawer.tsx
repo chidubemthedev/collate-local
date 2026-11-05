@@ -6,7 +6,6 @@ import { PollingUnitData } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
@@ -28,13 +27,9 @@ import {
   MapPin,
   ExternalLink,
   Phone,
-  MessageSquare,
   Send,
   UserPlus,
-  UserMinus,
   Users,
-  CheckCircle2,
-  Copy,
   Loader2,
   Trash2,
 } from "lucide-react";

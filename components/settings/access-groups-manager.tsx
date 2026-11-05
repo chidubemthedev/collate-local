@@ -10,15 +10,10 @@ import {
   Users,
   Plus,
   Search,
-  Edit2,
-  Trash2,
-  Copy,
   Send,
   Eye,
   Filter,
   LogIn,
-  ShieldCheck,
-  AlertCircle,
 } from "lucide-react";
 
 interface AccessGroupsManagerProps {

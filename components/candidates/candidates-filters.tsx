@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FieldSpinner } from "@/components/ui/field-spinner";
+import { TableToolbar, type ActiveTableFilter } from "@/components/ui/table-toolbar";
 
 export type CandidateRoleFilter = "all" | "running_mates";
 export type CandidateSortOrder =
@@ -87,6 +88,7 @@ interface CandidatesFiltersProps {
   totalCount: number;
   /** The list is refetching after a filter change. */
   isRefreshing?: boolean;
+  onReset: () => void;
 }
 
 const LABEL_CLASS =
@@ -115,6 +117,7 @@ export function CandidatesFilters({
   setSearchQuery,
   totalCount,
   isRefreshing = false,
+  onReset,
 }: CandidatesFiltersProps) {
   const statesQuery = useGeographyStates();
   const states = statesQuery.data ?? [];
@@ -125,6 +128,66 @@ export function CandidatesFilters({
   const statesBusy = statesQuery.isPending;
   const lgasBusy = selectedStateId !== "all" && lgasQuery.isFetching;
   const wardsBusy = selectedLgaId !== "all" && wardsQuery.isFetching;
+
+  const foundState = states.find((item) => String(item.id) === selectedStateId);
+  const foundLga = lgas.find((item) => String(item.id) === selectedLgaId);
+  const foundWard = wards.find((item) => String(item.id) === selectedWardId);
+
+  // Sort order is not a filter, so it gets no chip.
+  const activeFilters: ActiveTableFilter[] = [
+    ...(searchQuery.trim()
+      ? [{ id: "search", label: `Search: ${searchQuery.trim()}`, onRemove: () => setSearchQuery("") }]
+      : []),
+    ...(selectedStateId !== "all"
+      ? [{
+          id: "state",
+          label: `State: ${foundState ? toTitleCase(foundState.name) : selectedStateId}`,
+          onRemove: () => {
+            setSelectedStateId("all");
+            setSelectedLgaId("all");
+            setSelectedWardId("all");
+          },
+        }]
+      : []),
+    ...(selectedLgaId !== "all"
+      ? [{
+          id: "lga",
+          label: `LGA: ${foundLga ? toTitleCase(foundLga.name) : selectedLgaId}`,
+          onRemove: () => {
+            setSelectedLgaId("all");
+            setSelectedWardId("all");
+          },
+        }]
+      : []),
+    ...(selectedWardId !== "all"
+      ? [{
+          id: "ward",
+          label: `Ward: ${foundWard ? toTitleCase(foundWard.name) : selectedWardId}`,
+          onRemove: () => setSelectedWardId("all"),
+        }]
+      : []),
+    ...(selectedChannel !== "all"
+      ? [{
+          id: "channel",
+          label: `Channel: ${labelFor(CHANNEL_OPTIONS, selectedChannel)}`,
+          onRemove: () => setSelectedChannel("all"),
+        }]
+      : []),
+    ...(selectedCoverageTier !== "all"
+      ? [{
+          id: "tier",
+          label: `Coverage: ${labelFor(COVERAGE_TIER_OPTIONS, selectedCoverageTier)}`,
+          onRemove: () => setSelectedCoverageTier("all"),
+        }]
+      : []),
+    ...(selectedRole !== "all"
+      ? [{
+          id: "role",
+          label: `Role: ${labelFor(ROLE_OPTIONS, selectedRole)}`,
+          onRemove: () => setSelectedRole("all"),
+        }]
+      : []),
+  ];
 
   const officeTabs = [
     { id: "all", label: "All" },
@@ -167,9 +230,10 @@ export function CandidatesFilters({
         </div>
       </div>
 
-      {/* Filter panel */}
+      {/* Filter panel: collapses behind a Filters button on phones, like the Coverage page. */}
       <div className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <TableToolbar inlineMobile activeFilters={activeFilters} onClear={onReset}>
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {/* Search */}
           <div className="min-w-0 space-y-1.5">
             <label className={LABEL_CLASS}>Search</label>
@@ -415,6 +479,7 @@ export function CandidatesFilters({
             </Select>
           </div>
         </div>
+        </TableToolbar>
 
         <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground" aria-live="polite">
           {isRefreshing ? (

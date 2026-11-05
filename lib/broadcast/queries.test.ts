@@ -77,6 +77,202 @@ describe("listBroadcastDeliveries audit", () => {
     });
   });
 
+  describe("listBroadcastDeliveries recipient details", () => {
+    const BROADCAST_ID = "44444444-4444-4444-8444-444444444444";
+    const people = {
+      candidate: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+      runningMate: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2",
+      official: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3",
+      extra: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4",
+      unknown: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa5",
+    };
+
+    function deliveryRow(personId: string, index: number) {
+      return {
+        id: `bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb${index}`,
+        personId,
+        fullName: `Person ${index}`,
+        phoneNumber: null,
+        channel: "telegram",
+        status: "delivered",
+        sentAt: null,
+        deliveredAt: null,
+        tappedOkAt: null,
+        failedAt: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      };
+    }
+
+    function setup(recipientRows: unknown[]) {
+      const rows = [
+        deliveryRow(people.candidate, 1),
+        deliveryRow(people.runningMate, 2),
+        deliveryRow(people.official, 3),
+        deliveryRow(people.extra, 4),
+        deliveryRow(people.unknown, 5),
+        // The same person twice must not be looked up twice.
+        deliveryRow(people.official, 6),
+      ];
+      const queryBuilder = {
+        innerJoin: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        addSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        addOrderBy: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        getOne: vi.fn(async () => ({ id: BROADCAST_ID, broadcastStatus: "completed", createdAt: new Date() })),
+        getRawMany: vi.fn(async () => rows),
+      };
+      const query = vi.fn(async () => recipientRows);
+      const manager = {
+        queryRunner: { isTransactionActive: true },
+        getRepository: (entity: typeof AuditLog | typeof Broadcast) =>
+          entity === AuditLog
+            ? { insert: vi.fn(async () => undefined) }
+            : { createQueryBuilder: () => queryBuilder },
+        query,
+      } as unknown as EntityManager;
+      return { manager, query };
+    }
+
+    it("works out who each recipient is, in one query per page", async () => {
+      const { manager, query } = setup([
+        {
+          personId: people.candidate,
+          officeName: "Senate",
+          seatName: "ANAMBRA NORTH",
+          stateCode: "04",
+          isRunningMate: false,
+          agentKind: null,
+          pollingUnitCode: null,
+          pollingUnitName: null,
+          ownerName: null,
+        },
+        {
+          personId: people.runningMate,
+          officeName: "Governor",
+          seatName: "ANAMBRA",
+          stateCode: "04",
+          isRunningMate: true,
+          agentKind: null,
+          pollingUnitCode: null,
+          pollingUnitName: null,
+          ownerName: null,
+        },
+        {
+          personId: people.official,
+          officeName: null,
+          seatName: null,
+          stateCode: null,
+          isRunningMate: null,
+          agentKind: "official",
+          pollingUnitCode: "04-17-01-002",
+          pollingUnitName: "ALL SAINTS PRIMARY SCHOOL II",
+          ownerName: "NDC Party",
+        },
+        {
+          personId: people.extra,
+          officeName: null,
+          seatName: null,
+          stateCode: null,
+          isRunningMate: null,
+          agentKind: "extra",
+          pollingUnitCode: "04-17-01-024",
+          pollingUnitName: "OPEN SPACE",
+          ownerName: "Mobilisers",
+        },
+        {
+          personId: people.unknown,
+          officeName: null,
+          seatName: null,
+          stateCode: null,
+          isRunningMate: null,
+          agentKind: null,
+          pollingUnitCode: null,
+          pollingUnitName: null,
+          ownerName: null,
+        },
+      ]);
+
+      const page = await listBroadcastDeliveries(user, BROADCAST_ID, { limit: 50 }, manager);
+      const byPerson = new Map(page?.items.map((item) => [item.personId, item.recipient]));
+
+      expect(query).toHaveBeenCalledTimes(1);
+      const [, parameters] = query.mock.calls[0] as unknown as [string, unknown[]];
+      expect(parameters).toEqual([[
+        people.candidate,
+        people.runningMate,
+        people.official,
+        people.extra,
+        people.unknown,
+      ]]);
+
+      expect(byPerson.get(people.candidate)).toEqual({
+        kind: "candidate",
+        officeName: "Senate",
+        ownerName: null,
+        isRunningMate: false,
+        seatName: "ANAMBRA NORTH",
+        stateCode: "04",
+        pollingUnitCode: null,
+        pollingUnitName: null,
+        source: "INEC list",
+      });
+      expect(byPerson.get(people.runningMate)).toMatchObject({
+        kind: "candidate",
+        officeName: "Governor",
+        isRunningMate: true,
+      });
+      expect(byPerson.get(people.official)).toEqual({
+        kind: "official_agent",
+        officeName: null,
+        ownerName: "NDC Party",
+        isRunningMate: false,
+        seatName: null,
+        stateCode: null,
+        pollingUnitCode: "04-17-01-002",
+        pollingUnitName: "ALL SAINTS PRIMARY SCHOOL II",
+        source: null,
+      });
+      expect(byPerson.get(people.extra)).toMatchObject({
+        kind: "extra_agent",
+        ownerName: "Mobilisers",
+        pollingUnitCode: "04-17-01-024",
+      });
+      expect(byPerson.get(people.unknown)).toMatchObject({ kind: null, source: null });
+    });
+
+    it("prefers the candidate seat when a person is both a candidate and an agent", async () => {
+      const { manager } = setup([{
+        personId: people.candidate,
+        officeName: "Senate",
+        seatName: "ANAMBRA NORTH",
+        stateCode: "04",
+        isRunningMate: false,
+        agentKind: "official",
+        pollingUnitCode: "04-17-01-002",
+        pollingUnitName: "ALL SAINTS",
+        ownerName: "NDC Party",
+      }]);
+
+      const page = await listBroadcastDeliveries(user, BROADCAST_ID, { limit: 50 }, manager);
+      const recipient = page?.items.find((item) => item.personId === people.candidate)?.recipient;
+
+      expect(recipient?.kind).toBe("candidate");
+      expect(recipient?.pollingUnitCode).toBeNull();
+    });
+
+    it("gives an empty recipient when the lookup returns nothing for a person", async () => {
+      const { manager } = setup([]);
+
+      const page = await listBroadcastDeliveries(user, BROADCAST_ID, { limit: 50 }, manager);
+
+      expect(page?.items.every((item) => item.recipient.kind === null)).toBe(true);
+    });
+  });
+
   describe("listBroadcasts response fields", () => {
     it("returns sender, audience labels, a trimmed title, and grouped delivery counts", async () => {
       const messageText = `  ${"x".repeat(60)} and more text`;

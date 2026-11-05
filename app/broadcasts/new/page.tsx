@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePermissions, useSession } from "@/lib/hooks/use-auth";
@@ -116,16 +116,27 @@ export default function NewBroadcastPage() {
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
 
+  // The current time, refreshed every 30 seconds, for checking the schedule and the preview clock.
+  // Reading the clock during render is impure, so it lives in state.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+
   const statesQuery = useGeographyStates();
   const lgasQuery = useGeographyLgas(stateId);
   const wardsQuery = useGeographyWards(lgaId);
   const pollingUnitsQuery = useGeographyPollingUnits(wardId);
   const groupsQuery = useOwnerGroups();
 
-  const states = statesQuery.data ?? [];
-  const lgas = stateId === null ? [] : lgasQuery.data ?? [];
-  const wards = lgaId === null ? [] : wardsQuery.data ?? [];
-  const pollingUnits = wardId === null ? [] : pollingUnitsQuery.data ?? [];
+  const states = useMemo(() => statesQuery.data ?? [], [statesQuery.data]);
+  const lgas = useMemo(() => (stateId === null ? [] : lgasQuery.data ?? []), [stateId, lgasQuery.data]);
+  const wards = useMemo(() => (lgaId === null ? [] : wardsQuery.data ?? []), [lgaId, wardsQuery.data]);
+  const pollingUnits = useMemo(
+    () => (wardId === null ? [] : pollingUnitsQuery.data ?? []),
+    [wardId, pollingUnitsQuery.data],
+  );
   const groups = groupsQuery.data ?? [];
 
   const lgasBusy = stateId !== null && lgasQuery.isFetching;
@@ -183,7 +194,6 @@ export default function NewBroadcastPage() {
     if (timing === "now") return { ok: true };
     if (!scheduledDate || !scheduledTime) return { ok: false };
     const at = new Date(`${scheduledDate}T${scheduledTime}`);
-    const now = Date.now();
     if (Number.isNaN(at.getTime()) || at.getTime() <= now) {
       return { ok: false, error: "Pick a time in the future." };
     }
@@ -191,7 +201,7 @@ export default function NewBroadcastPage() {
       return { ok: false, error: `Pick a time within the next ${MAX_SCHEDULE_DAYS} days.` };
     }
     return { ok: true, at };
-  }, [timing, scheduledDate, scheduledTime]);
+  }, [timing, scheduledDate, scheduledTime, now]);
   const timeReady = scheduleCheck.ok;
 
   const canSend = toReady && messageReady && timeReady && !createBroadcast.isPending;
@@ -255,7 +265,7 @@ export default function NewBroadcastPage() {
             hour12: false,
           })}`
         : scheduleCheck.error ?? "Pick a date and time";
-  const bubbleTime = scheduleCheck.at ? formatClock(scheduleCheck.at) : formatClock(new Date());
+  const bubbleTime = scheduleCheck.at ? formatClock(scheduleCheck.at) : formatClock(new Date(now));
 
   const chip = (active: boolean) =>
     `rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${

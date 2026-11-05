@@ -179,6 +179,18 @@ export default function CandidatesPage() {
   ]);
 
   const matchCount = hasLocalFilters ? filteredCandidates.length : apiTotal;
+
+  // Clears the filters; the office tab and sort order stay as they are.
+  const handleResetFilters = () => {
+    setSelectedStateId("all");
+    setSelectedLgaId("all");
+    setSelectedWardId("all");
+    setSelectedChannel("all");
+    setSelectedCoverageTier("all");
+    setSelectedRole("all");
+    setSearchQuery("");
+    setDebouncedSearch("");
+  };
   // A filter, tab or area change refetches while the previous rows stay on screen.
   const isRefreshing = isFetching && !isFetchingNextPage && !isLoading;
   const loadMore = useCallback(() => {
@@ -280,6 +292,7 @@ export default function CandidatesPage() {
         setSearchQuery={setSearchQuery}
         totalCount={matchCount}
         isRefreshing={isRefreshing}
+        onReset={handleResetFilters}
       />
 
       {error && data ? (

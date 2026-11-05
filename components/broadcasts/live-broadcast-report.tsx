@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ActiveFilterChips, type ActiveTableFilter } from "@/components/ui/active-filter-chips";
+import { TableToolbar, type ActiveTableFilter } from "@/components/ui/table-toolbar";
 import { Skeleton, StatCardSkeleton, TableSkeleton } from "@/components/ui/skeleton";
 
 type DeliveryStatusFilter = "all" | BroadcastDelivery["status"];
@@ -291,9 +291,18 @@ function BroadcastReport({ id }: { id: string }) {
         </div>
       </div>
 
-      {/* Filter panel */}
-      <div className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Filter panel: collapses behind a Filters button on phones, like the Coverage page. */}
+      <div className="rounded-xl border border-border/70 bg-card p-4">
+        <TableToolbar
+          inlineMobile
+          activeFilters={activeFilters}
+          onClear={() => {
+            setSearch("");
+            setStatus("all");
+            setGroup("all");
+          }}
+        >
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="min-w-0 space-y-1.5">
             <label className={LABEL_CLASS}>Search</label>
             <Input
@@ -361,15 +370,7 @@ function BroadcastReport({ id }: { id: string }) {
             </Select>
           </div>
         </div>
-
-        <ActiveFilterChips
-          filters={activeFilters}
-          onClear={() => {
-            setSearch("");
-            setStatus("all");
-            setGroup("all");
-          }}
-        />
+        </TableToolbar>
       </div>
 
       {/* Delivery cards */}
