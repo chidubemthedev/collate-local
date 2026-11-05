@@ -103,7 +103,8 @@ describe("agent policy filters and phone masking", () => {
 });
 
 /** A query builder that records its WHERE clauses; enough for listAgents and summarizeAgents. */
-type RecordingBuilder = Record<string, ReturnType<typeof vi.fn>>;
+// Any function is accepted: every member is a vi.fn mock.
+type RecordingBuilder = Record<string, (...args: never[]) => unknown>;
 
 function recordingQueryBuilder(baseSql = "SELECT base_rows", baseParameters: unknown[] = []) {
   const whereClauses: string[] = [];
