@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePermissions, useSession } from "@/lib/hooks/use-auth";
@@ -27,6 +27,22 @@ type Section = "to" | "message" | "time";
 
 const MESSAGE_LIMIT = 1000; // the API's maximum
 const MAX_SCHEDULE_DAYS = 90; // the API's maximum
+
+// The current time, as an external store refreshed every 30 seconds. Reading the clock in
+// render is impure and Next.js rejects it during prerendering, so the build sees 0
+// ("not known yet") and the browser reads the real clock once it subscribes.
+let clockNow = 0;
+function subscribeClock(onChange: () => void): () => void {
+  clockNow = Date.now();
+  onChange();
+  const timer = setInterval(() => {
+    clockNow = Date.now();
+    onChange();
+  }, 30_000);
+  return () => clearInterval(timer);
+}
+const getClockSnapshot = () => clockNow;
+const getServerClockSnapshot = () => 0;
 
 const LABEL_CLASS =
   "flex items-center gap-1.5 truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground";
@@ -116,13 +132,8 @@ export default function NewBroadcastPage() {
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
 
-  // The current time, refreshed every 30 seconds, for checking the schedule and the preview clock.
-  // Reading the clock during render is impure, so it lives in state.
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(timer);
-  }, []);
+  // The current time in ms, or 0 before the browser has read the clock.
+  const now = useSyncExternalStore(subscribeClock, getClockSnapshot, getServerClockSnapshot);
 
   const statesQuery = useGeographyStates();
   const lgasQuery = useGeographyLgas(stateId);
@@ -193,6 +204,8 @@ export default function NewBroadcastPage() {
   const scheduleCheck = useMemo((): { ok: boolean; at?: Date; error?: string } => {
     if (timing === "now") return { ok: true };
     if (!scheduledDate || !scheduledTime) return { ok: false };
+    // The clock is not known yet (first moment after load): wait rather than show an error.
+    if (now === 0) return { ok: false };
     const at = new Date(`${scheduledDate}T${scheduledTime}`);
     if (Number.isNaN(at.getTime()) || at.getTime() <= now) {
       return { ok: false, error: "Pick a time in the future." };
@@ -265,7 +278,11 @@ export default function NewBroadcastPage() {
             hour12: false,
           })}`
         : scheduleCheck.error ?? "Pick a date and time";
-  const bubbleTime = scheduleCheck.at ? formatClock(scheduleCheck.at) : formatClock(new Date(now));
+  const bubbleTime = scheduleCheck.at
+    ? formatClock(scheduleCheck.at)
+    : now > 0
+      ? formatClock(new Date(now))
+      : "";
 
   const chip = (active: boolean) =>
     `rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
