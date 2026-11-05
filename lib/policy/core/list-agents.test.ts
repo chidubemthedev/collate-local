@@ -103,16 +103,19 @@ describe("agent policy filters and phone masking", () => {
 });
 
 /** A query builder that records its WHERE clauses; enough for listAgents and summarizeAgents. */
+type RecordingBuilder = Record<string, ReturnType<typeof vi.fn>>;
+
 function recordingQueryBuilder(baseSql = "SELECT base_rows", baseParameters: unknown[] = []) {
   const whereClauses: string[] = [];
-  const builder = {
+  // Typed up front because andWhere returns the builder itself.
+  const builder: RecordingBuilder = {
     innerJoin: vi.fn().mockReturnThis(),
     leftJoin: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),
     addSelect: vi.fn().mockReturnThis(),
     setParameter: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
-    andWhere: vi.fn(function (this: unknown, clause: unknown) {
+    andWhere: vi.fn((clause: unknown): RecordingBuilder => {
       if (typeof clause === "string") whereClauses.push(clause);
       return builder;
     }),

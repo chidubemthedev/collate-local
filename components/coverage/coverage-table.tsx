@@ -23,7 +23,6 @@ import {
   ExternalLink,
   Download,
   Eye,
-  Building,
 } from "lucide-react";
 
 // INEC names come in upper case (e.g. "AKWA IBOM"); show them as "Akwa Ibom", keeping FCT as is.
@@ -86,7 +85,6 @@ export function CoverageTable({
   const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
   const endIndex = Math.min(startIndex + PAGE_SIZE, totalItems);
 
-  const paginatedStates = states.slice(startIndex, endIndex);
   const paginatedLgas = lgas.slice(startIndex, endIndex);
   const paginatedWards = wards.slice(startIndex, endIndex);
   const paginatedPollingUnits = pollingUnits.slice(startIndex, endIndex);
@@ -276,7 +274,6 @@ export function CoverageTable({
       <div className="flex items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-2">
           <h3 className="text-xs font-semibold text-foreground">
-            {level === "national" && `States Breakdown (${states.length})`}
             {level === "state" && `Local Government Areas (${lgas.length})`}
             {level === "lga" && `Wards (${wards.length})`}
             {level === "ward" && `Polling Units Details (${pollingUnits.length})`}
@@ -301,86 +298,7 @@ export function CoverageTable({
 
       {/* TABLE CONTAINER */}
       <div className="border border-border/60 rounded-xl overflow-hidden bg-card shadow-none">
-        {/* NATIONAL LEVEL TABLE (STATES) */}
-        {level === "national" && (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="sticky top-0 z-10 bg-muted/40 text-[11px]">
-                <TableRow>
-                  <TableHead className="w-16 font-semibold">Code</TableHead>
-                  <TableHead className="font-semibold">State</TableHead>
-                  <TableHead className="text-right font-semibold">Total PUs</TableHead>
-                  <TableHead className="text-right font-semibold hidden md:table-cell">With GPS</TableHead>
-                  <TableHead className="font-semibold min-w-[180px]">Official Coverage</TableHead>
-                  <TableHead className="text-right font-semibold hidden sm:table-cell">Extra Agents</TableHead>
-                  <TableHead className="text-right font-semibold w-24">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody className="text-[11px]">
-                {states.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No states match your search query or filter.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedStates.map((st) => (
-                    <TableRow
-                      key={st.code}
-                      className="hover:bg-muted/30 transition-colors cursor-pointer group"
-                      onClick={() => onOpenState(st.code)}
-                    >
-                      <TableCell className="font-mono text-muted-foreground font-semibold">
-                        {st.code}
-                      </TableCell>
-                      <TableCell className="font-semibold text-foreground">
-                        <div className="flex items-center gap-1.5">
-                          <Building className="w-3.5 h-3.5 text-muted-foreground/70" />
-                          <span>{st.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-mono font-medium">
-                        {st.totalPUs.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-muted-foreground hidden md:table-cell">
-                        {st.gpsPUs.toLocaleString()}{" "}
-                        <span className="text-[10px]">({Math.round((st.gpsPUs / st.totalPUs) * 100)}%)</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="font-bold text-emerald-700 dark:text-emerald-400">
-                              {formatCoverage(st.coveredPUs, st.totalPUs, st.officialAgentPct)}
-                            </span>
-                          </div>
-                          <div className="w-full bg-emerald-100 dark:bg-emerald-950/40 rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className="bg-emerald-600 dark:bg-emerald-500 h-1.5 rounded-full"
-                              style={{ width: `${Math.min(100, st.officialAgentPct)}%` }}
-                            />
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-indigo-600 dark:text-indigo-400 font-semibold hidden sm:table-cell">
-                        +{st.extraAgentsCount.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs font-semibold gap-1 text-primary group-hover:translate-x-0.5 transition-transform"
-                        >
-                          Open
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+        {/* The national level (states) returns its own layout above. */}
 
         {/* STATE LEVEL TABLE (LGAS) */}
         {level === "state" && (
@@ -688,13 +606,7 @@ export function CoverageTable({
               Showing <span className="font-semibold text-foreground">{startIndex + 1}</span>–
               <span className="font-semibold text-foreground">{endIndex}</span> of{" "}
               <span className="font-semibold text-foreground">{totalItems.toLocaleString()}</span>{" "}
-              {level === "national"
-                ? "states"
-                : level === "state"
-                ? "LGAs"
-                : level === "lga"
-                ? "wards"
-                : "polling units"}
+              {level === "state" ? "LGAs" : level === "lga" ? "wards" : "polling units"}
             </div>
 
             {totalPages > 1 && (
