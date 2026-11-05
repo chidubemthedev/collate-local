@@ -2,10 +2,10 @@
 
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
-import { AlertCircle, LoaderCircle, MapPinned } from "lucide-react";
+import { AlertCircle, LoaderCircle } from "lucide-react";
 import type { CoverageMapPoint } from "@/types/api";
 
-const mapHeightClass = "h-[min(55svh,440px)] min-h-[260px] sm:h-[480px]";
+const mapHeightClass = "h-[min(55svh,440px)] min-h-[260px] sm:h-[480px] max-h-[600px]";
 
 const InteractiveCoordinateMap = dynamic(
   () =>
@@ -17,7 +17,7 @@ const InteractiveCoordinateMap = dynamic(
     loading: () => (
       <div
         role="status"
-        className={`flex ${mapHeightClass} items-center justify-center rounded-lg border border-border bg-muted/20 text-xs text-muted-foreground`}
+        className={`flex ${mapHeightClass} items-center justify-center rounded-[10px] bg-[#FAFAFA] text-[12px] text-[#737373]`}
       >
         <LoaderCircle aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
         Loading interactive map…
@@ -32,6 +32,8 @@ interface CoverageCoordinateMapProps {
   error: Error | null;
   viewKey: string;
   onRetry: () => void;
+  /** Area shown, for the chip next to the title. */
+  scope: string;
 }
 
 type MarkerCategory = "covered" | "gap" | "mixed";
@@ -46,19 +48,19 @@ const markerCategories: Array<{
     key: "covered",
     label: "Covered",
     description: "All polling units at this coordinate have an official agent.",
-    colorClass: "bg-emerald-500",
+    colorClass: "bg-[#10b981]",
   },
   {
     key: "gap",
     label: "Gap",
     description: "No polling units at this coordinate have an official agent.",
-    colorClass: "bg-amber-500",
+    colorClass: "bg-[#f59e0b]",
   },
   {
     key: "mixed",
     label: "Mixed",
     description: "Some polling units have an official agent and some do not.",
-    colorClass: "bg-indigo-500",
+    colorClass: "bg-[#6366f1]",
   },
 ];
 
@@ -74,6 +76,7 @@ export function CoverageCoordinateMap({
   error,
   viewKey,
   onRetry,
+  scope,
 }: CoverageCoordinateMapProps) {
   const totalPUs = points.reduce((sum, point) => sum + point.totalPUs, 0);
   const [visibleCategories, setVisibleCategories] = useState<
@@ -89,21 +92,13 @@ export function CoverageCoordinateMap({
   );
 
   return (
-    <div className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4">
+    <figure className="m-0 flex flex-col gap-2 rounded-[14px] border border-[#E5E5E5] bg-white p-3 sm:px-4 sm:py-3.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <MapPinned aria-hidden="true" className="h-4 w-4 text-primary" />
-          <span role="status" aria-live="polite" aria-atomic="true">
-            {isLoading
-              ? "Loading available coordinates…"
-              : `${totalPUs.toLocaleString()} polling units at ${points.length.toLocaleString()} mapped locations`}
-          </span>
-        </div>
-        <div
-          role="group"
-          aria-label="Toggle map marker categories"
-          className="flex flex-wrap items-center gap-1.5"
-        >
+        <figcaption className="flex flex-wrap items-center gap-2">
+          <span className="text-[15px] font-bold text-[#0A0A0A]">Geographic Coverage Visualizer</span>
+          <span className="rounded-full border border-[#E5E5E5] px-2 py-px text-[12px] text-[#0A0A0A]">{scope}</span>
+        </figcaption>
+        <div role="group" aria-label="Toggle map marker categories" className="flex flex-wrap gap-1.5">
           {markerCategories.map((category) => {
             const isVisible = visibleCategories[category.key];
             return (
@@ -119,29 +114,32 @@ export function CoverageCoordinateMap({
                     [category.key]: !current[category.key],
                   }))
                 }
-                className={`flex min-h-11 items-center gap-1.5 rounded-full border px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
-                  isVisible
-                    ? "border-border bg-background text-foreground"
-                    : "border-transparent text-muted-foreground opacity-50"
+                className={`inline-flex min-h-[26px] items-center gap-1.5 rounded-full border border-[#E5E5E5] bg-white px-2.5 text-[12px] text-[#525252] transition-opacity ${
+                  isVisible ? "" : "opacity-45 line-through"
                 }`}
               >
-                <span className={`h-2.5 w-2.5 rounded-full ${category.colorClass}`} />
+                <span className={`h-2.5 w-2.5 flex-none rounded-full ${category.colorClass}`} />
                 {category.label}
               </button>
             );
           })}
         </div>
       </div>
+      <span role="status" aria-live="polite" aria-atomic="true" className="text-[12px] text-[#737373]">
+        {isLoading
+          ? "Loading available coordinates…"
+          : `Showing ${totalPUs.toLocaleString()} polling units at ${points.length.toLocaleString()} mapped locations, coloured by official coverage`}
+      </span>
 
       {error ? (
-        <div role="alert" className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border px-4 text-center">
+        <div role="alert" className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-[10px] bg-[#FAFAFA] px-4 text-center">
           <AlertCircle aria-hidden="true" className="h-5 w-5 text-amber-600" />
-          <p className="text-sm font-medium">Could not load map coordinates</p>
-          <p className="text-xs text-muted-foreground">{error.message}</p>
+          <p className="text-[13px] font-semibold">Could not load map coordinates</p>
+          <p className="text-[12px] text-[#737373]">{error.message}</p>
           <button
             type="button"
             onClick={onRetry}
-            className="min-h-11 rounded-md border border-border px-4 py-2 text-xs font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            className="inline-flex min-h-8 items-center rounded-[10px] border border-[#E5E5E5] bg-white px-3 text-[12px] font-medium text-[#0A0A0A] hover:bg-[#FAFAFA]"
           >
             Try again
           </button>
@@ -149,7 +147,7 @@ export function CoverageCoordinateMap({
       ) : isLoading ? (
         <div
           role="status"
-          className={`flex ${mapHeightClass} items-center justify-center rounded-lg border border-border bg-muted/20 text-xs text-muted-foreground`}
+          className={`flex ${mapHeightClass} items-center justify-center rounded-[10px] bg-[#FAFAFA] text-[12px] text-[#737373]`}
         >
           <LoaderCircle aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
           Loading coordinate data…
@@ -162,26 +160,26 @@ export function CoverageCoordinateMap({
             viewKey={viewKey}
           />
           {points.length === 0 && (
-            <div role="status" className="rounded-lg border border-dashed border-border px-4 py-3 text-center">
-              <p className="text-sm font-medium">No polling-unit coordinates were returned for this area</p>
-              <p className="mt-1 text-xs text-muted-foreground">
+            <div role="status" className="rounded-[10px] border border-dashed border-[#E5E5E5] px-4 py-3 text-center">
+              <p className="text-[13px] font-semibold">No polling-unit coordinates were returned for this area</p>
+              <p className="mt-1 text-[12px] text-[#737373]">
                 The map is centered on Nigeria. Coordinate markers appear when this area has
                 latitude and longitude data.
               </p>
             </div>
           )}
           {points.length > 0 && visiblePoints.length === 0 && (
-            <div role="status" className="rounded-lg border border-dashed border-border px-4 py-3 text-center text-sm text-muted-foreground">
+            <div role="status" className="rounded-[10px] border border-dashed border-[#E5E5E5] px-4 py-3 text-center text-[13px] text-[#737373]">
               All marker categories are hidden. Turn one back on to show map locations.
             </div>
           )}
         </>
       )}
-      <p className="text-[10px] leading-relaxed text-muted-foreground">
+      <p className="m-0 text-[12px] text-[#737373]">
         The map is limited to Nigeria&apos;s approximate coordinate bounds. Multiple polling units
         may share one mapped location. Coordinates are approximate; verify a location before
         relying on it for directions. Map © OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors.
       </p>
-    </div>
+    </figure>
   );
 }

@@ -14,14 +14,13 @@ import { useAudiencePreview, useCreateBroadcast } from "@/lib/hooks/use-broadcas
 import { useOwnerGroups } from "@/lib/hooks/use-groups";
 import { ApiClientError } from "@/lib/api/client";
 import type { AudienceFilter, CreateBroadcastInput } from "@/types/api";
-import { ComposeBroadcastSkeleton } from "@/components/broadcasts/new/new-broadcast-skeletons";
 import { toTitleCase } from "@/components/candidates/candidates-filters";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { WF, PageHeader, LoadingBox } from "@/components/ui/wf";
 import { Textarea } from "@/components/ui/textarea";
 import { FieldSpinner } from "@/components/ui/field-spinner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, ArrowLeft, Check, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 type Section = "to" | "message" | "time";
 
@@ -44,9 +43,8 @@ function subscribeClock(onChange: () => void): () => void {
 const getClockSnapshot = () => clockNow;
 const getServerClockSnapshot = () => 0;
 
-const LABEL_CLASS =
-  "flex items-center gap-1.5 truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground";
-const TRIGGER_CLASS = "h-8 w-full bg-background text-xs data-[disabled]:bg-muted data-[disabled]:opacity-70";
+const LABEL_CLASS = `${WF.label} flex items-center gap-1.5 truncate`;
+const TRIGGER_CLASS = "w-full";
 
 function getApiErrorMessage(error: unknown): string {
   if (error instanceof ApiClientError) {
@@ -79,30 +77,34 @@ function SectionCard({
 }) {
   return (
     <div
-      className={`rounded-2xl border bg-card p-4 sm:p-5 transition-colors ${
-        open ? "border-foreground/40" : "border-border/70"
+      className={`flex flex-col rounded-[14px] border bg-white p-3.5 sm:px-[18px] sm:py-4 ${
+        open ? "border-[#A3A3A3]" : "border-[#E5E5E5]"
       }`}
     >
-      <div className="flex items-start gap-3">
-        <span
-          className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
-            ready ? "bg-emerald-600 text-white" : "border-2 border-border bg-background"
-          }`}
-          aria-label={ready ? "Ready" : "Not ready yet"}
-        >
-          {ready && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+      <div className="flex items-start justify-between gap-3">
+        <span className="flex min-w-0 items-start gap-3">
+          <span
+            aria-label={ready ? "Ready" : "Not ready yet"}
+            className={`box-border flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full text-[12px] font-bold ${
+              ready ? "bg-[#22A06B] text-white" : "border-2 border-[#D4D4D4] bg-white text-transparent"
+            }`}
+          >
+            ✓
+          </span>
+          <span className="flex min-w-0 flex-col gap-[3px]">
+            <span className="text-[15px] font-bold text-[#0A0A0A]">{title}</span>
+            <span className="line-clamp-2 text-[13px] text-[#525252]">{summary}</span>
+          </span>
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-foreground">{title}</div>
-          <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{summary}</div>
-        </div>
         {onToggle && (
-          <Button variant="outline" size="sm" className="h-8 shrink-0 px-3 text-xs" onClick={onToggle}>
-            {open ? "Done" : "Edit"}
-          </Button>
+          <button type="button" aria-expanded={open} className={WF.btnOutline} onClick={onToggle}>
+            {open ? "Done" : ready ? "Edit" : "Add"}
+          </button>
         )}
       </div>
-      {open && children && <div className="mt-4 space-y-4 border-t border-border/60 pt-4">{children}</div>}
+      {open && children && (
+        <div className="mt-3.5 flex flex-col gap-3 border-t border-[#F0F0F0] pt-3.5">{children}</div>
+      )}
     </div>
   );
 }
@@ -232,14 +234,19 @@ export default function NewBroadcastPage() {
   };
 
   if (isLoadingPermissions) {
-    return <ComposeBroadcastSkeleton />;
+    return (
+      <div className="flex flex-col gap-4">
+        <PageHeader title="New broadcast" subtitle="Loading…" />
+        <LoadingBox>Loading…</LoadingBox>
+      </div>
+    );
   }
 
   if (permissionsError) {
     return (
-      <div role="alert" className="mx-auto mt-12 max-w-xl space-y-3 rounded-xl border border-border p-6 text-center">
-        <p className="text-sm text-destructive">{getApiErrorMessage(permissionsError)}</p>
-        <Link href="/login" className="text-xs text-primary hover:underline">
+      <div role="alert" className={`${WF.card} mx-auto mt-12 max-w-xl space-y-3 p-6 text-center`}>
+        <p className="text-[13px] text-[#B42318]">{getApiErrorMessage(permissionsError)}</p>
+        <Link href="/login" className="text-[12px] font-semibold text-[#0A0A0A] underline">
           Return to sign in
         </Link>
       </div>
@@ -248,9 +255,9 @@ export default function NewBroadcastPage() {
 
   if (!permissions?.canBroadcast) {
     return (
-      <div role="alert" className="mx-auto mt-12 max-w-xl rounded-xl border border-border p-6 text-center">
-        <p className="text-sm font-semibold">Broadcast access required</p>
-        <p className="mt-1 text-xs text-muted-foreground">
+      <div role="alert" className={`${WF.card} mx-auto mt-12 max-w-xl p-6 text-center`}>
+        <p className="text-[14px] font-semibold">Broadcast access required</p>
+        <p className="mt-1 text-[12px] text-[#737373]">
           Your account does not have permission to create broadcasts.
         </p>
       </div>
@@ -285,32 +292,18 @@ export default function NewBroadcastPage() {
       : "";
 
   const chip = (active: boolean) =>
-    `rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-      active
-        ? "border-foreground bg-foreground text-background"
-        : "border-border bg-background text-foreground hover:bg-muted"
+    `min-h-[30px] rounded-full border px-3 text-[12px] font-semibold transition-colors ${
+      active ? "border-[#171717] bg-[#171717] text-[#FAFAFA]" : "border-[#E5E5E5] bg-white text-[#0A0A0A] hover:bg-[#FAFAFA]"
     }`;
+  const fromName = session?.person?.fullName ?? "You";
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
-      <div className="space-y-2">
-        <Link
-          href="/broadcasts"
-          className="-ml-2 inline-flex h-7 items-center rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />Broadcasts
-        </Link>
-        <div>
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">New broadcast</h1>
-          <p className="mt-0.5 text-[11px] sm:text-xs text-muted-foreground">
-            Fill in each part; it ticks green when it is ready to send
-          </p>
-        </div>
-      </div>
+    <div className="flex w-full min-w-0 flex-col gap-3 text-[#0A0A0A] sm:gap-4">
+      <PageHeader title="New broadcast" subtitle="Fill in each part; it ticks green when it is ready to send" />
 
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
         {/* Form */}
-        <div className="space-y-3">
+        <section aria-label="Broadcast checklist" className="flex min-w-0 flex-1 flex-col gap-3">
           <SectionCard
             title="To"
             summary={toSummary}
@@ -318,9 +311,9 @@ export default function NewBroadcastPage() {
             open={openSection === "to"}
             onToggle={() => toggle("to")}
           >
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <div className={LABEL_CLASS}>Who</div>
-              <div className="flex flex-wrap gap-2">
+              <div role="group" aria-label="Who" className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
                   aria-pressed={includeOfficial}
@@ -338,11 +331,11 @@ export default function NewBroadcastPage() {
                   Extra agents
                 </button>
               </div>
-              {!hasWho && <p className="text-[11px] text-destructive">Pick at least one.</p>}
+              {!hasWho && <p className="m-0 text-[12px] text-[#B42318]">Pick at least one.</p>}
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="min-w-0 space-y-1.5">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] sm:items-end">
+              <div className="flex min-w-0 flex-col gap-1">
                 <label className={LABEL_CLASS}>
                   State
                   <FieldSpinner loading={statesQuery.isPending} />
@@ -377,7 +370,7 @@ export default function NewBroadcastPage() {
                 </Select>
               </div>
 
-              <div className="min-w-0 space-y-1.5">
+              <div className="flex min-w-0 flex-col gap-1">
                 <label className={LABEL_CLASS}>
                   LGA
                   <FieldSpinner loading={lgasBusy} />
@@ -411,7 +404,7 @@ export default function NewBroadcastPage() {
                 </Select>
               </div>
 
-              <div className="min-w-0 space-y-1.5">
+              <div className="flex min-w-0 flex-col gap-1">
                 <label className={LABEL_CLASS}>
                   Ward
                   <FieldSpinner loading={wardsBusy} />
@@ -444,7 +437,7 @@ export default function NewBroadcastPage() {
                 </Select>
               </div>
 
-              <div className="min-w-0 space-y-1.5">
+              <div className="flex min-w-0 flex-col gap-1">
                 <label className={LABEL_CLASS}>
                   Polling units
                   <FieldSpinner loading={pollingUnitsBusy} />
@@ -475,7 +468,7 @@ export default function NewBroadcastPage() {
               </div>
 
               <div
-                className="min-w-0 space-y-1.5"
+                className="flex min-w-0 flex-col gap-1"
                 title={ownerFilterAvailable ? undefined : "Pick only Extra agents to filter by owner"}
               >
                 <label className={LABEL_CLASS}>
@@ -505,34 +498,32 @@ export default function NewBroadcastPage() {
                   </SelectContent>
                 </Select>
                 {!ownerFilterAvailable && includeExtra && (
-                  <p className="text-[10px] text-muted-foreground">Pick only Extra agents to filter by owner.</p>
+                  <p className="m-0 text-[11px] text-[#737373]">Pick only Extra agents to filter by owner.</p>
                 )}
               </div>
             </div>
 
-            <p className="text-[11px] text-muted-foreground">
+            <p className="m-0 text-[12px] text-[#737373]">
               An area message reaches every agent at the polling units in it.
             </p>
             {previewQuery.isError && (
-              <div role="alert" className="flex items-center gap-2 text-xs text-destructive">
+              <div role="alert" className="flex items-center gap-2 text-[12px] text-[#B42318]">
                 <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                 <span>{getApiErrorMessage(previewQuery.error)}</span>
-                <Button
+                <button
                   type="button"
-                  variant="link"
-                  size="sm"
-                  className="h-auto p-0"
+                  className="border-0 bg-transparent p-0 font-semibold underline"
                   onClick={() => void previewQuery.refetch()}
                 >
                   Retry
-                </Button>
+                </button>
               </div>
             )}
           </SectionCard>
 
           <SectionCard
             title="From"
-            summary={`${session?.person?.fullName ?? "You"} · Telegram with SMS fallback`}
+            summary={`${fromName} · Telegram + SMS fallback`}
             ready
             open={false}
           />
@@ -544,7 +535,7 @@ export default function NewBroadcastPage() {
             open={openSection === "message"}
             onToggle={() => toggle("message")}
           >
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1">
               <label htmlFor="broadcast-message" className={LABEL_CLASS}>Message</label>
               <Textarea
                 id="broadcast-message"
@@ -553,9 +544,9 @@ export default function NewBroadcastPage() {
                 rows={6}
                 maxLength={MESSAGE_LIMIT}
                 placeholder="Write what agents will read. An OK button is added for them to tap."
-                className="bg-background text-sm"
+                className="rounded-[8px] border-[#E5E5E5] bg-white p-2.5 text-[13px] leading-[1.5] text-[#0A0A0A]"
               />
-              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <div className="flex items-center justify-between text-[12px] text-[#737373]">
                 <span>Sent exactly as written; names are not filled in.</span>
                 <span className="tabular-nums">
                   {messageText.length.toLocaleString()} / {MESSAGE_LIMIT.toLocaleString()}
@@ -571,7 +562,7 @@ export default function NewBroadcastPage() {
             open={openSection === "time"}
             onToggle={() => toggle("time")}
           >
-            <div className="flex flex-wrap gap-2">
+            <div role="radiogroup" aria-label="When" className="flex flex-wrap gap-1.5">
               <button type="button" aria-pressed={timing === "now"} onClick={() => setTiming("now")} className={chip(timing === "now")}>
                 Send now
               </button>
@@ -585,36 +576,34 @@ export default function NewBroadcastPage() {
               </button>
             </div>
             {timing === "scheduled" && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
+              <div className="flex flex-wrap gap-2.5">
+                <div className="flex min-w-[160px] flex-1 flex-col gap-1">
                   <label htmlFor="schedule-date" className={LABEL_CLASS}>Date</label>
                   <Input
                     id="schedule-date"
                     type="date"
                     value={scheduledDate}
                     onChange={(event) => setScheduledDate(event.target.value)}
-                    className="h-8 bg-background text-xs"
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="flex min-w-[120px] flex-1 flex-col gap-1">
                   <label htmlFor="schedule-time" className={LABEL_CLASS}>Time</label>
                   <Input
                     id="schedule-time"
                     type="time"
                     value={scheduledTime}
                     onChange={(event) => setScheduledTime(event.target.value)}
-                    className="h-8 bg-background text-xs"
                   />
                 </div>
                 {scheduleCheck.error && (
-                  <p role="alert" className="text-[11px] text-destructive sm:col-span-2">{scheduleCheck.error}</p>
+                  <p role="alert" className="m-0 w-full text-[12px] text-[#B42318]">{scheduleCheck.error}</p>
                 )}
               </div>
             )}
           </SectionCard>
 
           {createBroadcast.isError && (
-            <div role="alert" className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+            <div role="alert" className="flex items-start gap-2 rounded-[10px] border border-[#F5C2C0] bg-[#FDECEC] p-3 text-[13px] text-[#B42318]">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
                 <p className="font-semibold">Could not send the broadcast.</p>
@@ -623,12 +612,14 @@ export default function NewBroadcastPage() {
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/70 bg-card p-4">
-            <Button
+          <div className={`${WF.card} flex flex-wrap items-center gap-2.5 px-4 py-3.5`}>
+            <button
               type="button"
               disabled={!canSend}
               onClick={handleSend}
-              className="h-9 gap-1.5 bg-foreground px-4 text-xs font-semibold text-background hover:bg-foreground/90"
+              className={`inline-flex min-h-9 items-center gap-1.5 rounded-[10px] px-4 text-[13px] font-semibold ${
+                canSend || createBroadcast.isPending ? "bg-[#171717] text-[#FAFAFA]" : "cursor-not-allowed bg-[#E5E5E5] text-[#8A8A8A]"
+              }`}
             >
               {createBroadcast.isPending ? (
                 <>
@@ -640,61 +631,65 @@ export default function NewBroadcastPage() {
               ) : (
                 `Send to ${peopleLabel}`
               )}
-            </Button>
-            <span className="text-[11px] text-muted-foreground">
+            </button>
+            <span className="text-[12px] text-[#737373]">
               {canSend || createBroadcast.isPending
                 ? "Messages can't be unsent."
                 : "Finish every part above to send."}
             </span>
           </div>
-        </div>
+        </section>
 
         {/* Side panel */}
-        <div className="space-y-3 lg:sticky lg:top-4">
+        <aside aria-label="Preview" className="flex flex-col gap-3 lg:sticky lg:top-4 lg:w-[340px] lg:flex-none">
           <div
             aria-busy={previewLoading}
-            className={`rounded-2xl border border-border/70 bg-card p-4 transition-opacity ${previewLoading ? "opacity-60" : ""}`}
+            className={`${WF.card} flex flex-col gap-2 p-3.5 transition-opacity ${previewLoading ? "opacity-60" : ""}`}
           >
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold text-foreground">Audience</div>
-              {previewLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
-            </div>
-            <div className="mt-2 text-2xl font-bold tracking-tight text-foreground tabular-nums">
+            <span className="flex items-center justify-between gap-2">
+              <span className="text-[13px] font-bold">Audience</span>
+              {previewLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#737373]" /> : null}
+            </span>
+            <span className="text-[24px] leading-8 font-bold tabular-nums">
               {hasWho && previewQuery.data === undefined ? "—" : peopleLabel}
-            </div>
-            <dl className="mt-3 space-y-1.5 text-xs">
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">Official agents</dt>
-                <dd className="font-semibold tabular-nums text-foreground">{officialCount.toLocaleString()}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">Extra agents</dt>
-                <dd className="font-semibold tabular-nums text-foreground">{extraCount.toLocaleString()}</dd>
-              </div>
-            </dl>
-            <p className="mt-3 text-[11px] text-muted-foreground">{areaLabel}</p>
+            </span>
+            <span className="flex justify-between gap-1.5 text-[13px]">
+              <span className="text-[#525252]">Official agents</span>
+              <span className="font-semibold tabular-nums">{officialCount.toLocaleString()}</span>
+            </span>
+            <span className="flex justify-between gap-1.5 text-[13px]">
+              <span className="text-[#525252]">Extra agents</span>
+              <span className="font-semibold tabular-nums">{extraCount.toLocaleString()}</span>
+            </span>
+            <span className="text-[12px] text-[#737373]">{areaLabel}</span>
           </div>
 
-          <div className="space-y-3 rounded-2xl bg-muted/70 p-3">
-            <div className="text-[11px] font-semibold text-muted-foreground">What agents see · Telegram</div>
-            <div className="rounded-xl bg-background p-3">
-              <p className={`whitespace-pre-wrap break-words text-xs ${trimmedMessage ? "text-foreground" : "italic text-muted-foreground"}`}>
-                {trimmedMessage || "Your message will appear here."}
-              </p>
-              <div className="mt-1.5 text-right text-[10px] text-muted-foreground">{bubbleTime}</div>
+          <div className="flex flex-col gap-2 rounded-[14px] bg-[#EEF1F4] p-3.5">
+            <span className="flex justify-between gap-2 text-[12px] font-bold text-[#525252]">
+              <span>What recipients see · Telegram</span>
+            </span>
+            <div className="flex flex-col gap-1.5 rounded-[14px] bg-white px-3 py-2.5">
+              <span className="text-[12px] font-bold text-[#2F9E63]">{fromName}</span>
+              <span
+                className={`text-[13px] leading-[1.5] break-words whitespace-pre-wrap ${trimmedMessage ? "" : "text-[#A3A3A3]"}`}
+              >
+                {trimmedMessage || "Your message"}
+              </span>
+              <span className="self-end text-[11px] text-[#A3A3A3]">{bubbleTime}</span>
             </div>
-            <div className="rounded-xl bg-background py-2 text-center text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            <div className="flex min-h-9 items-center justify-center rounded-[10px] bg-white text-[13px] font-bold text-[#2F9E63]">
               OK
             </div>
-
-            <div className="pt-1 text-[11px] font-semibold text-muted-foreground">SMS fallback</div>
-            <div className="rounded-xl bg-background p-3">
-              <p className={`whitespace-pre-wrap break-words text-xs ${trimmedMessage ? "text-foreground" : "italic text-muted-foreground"}`}>
-                {trimmedMessage || "Your message will appear here."}
-              </p>
+            <span className="mt-1 text-[12px] font-bold text-[#525252]">SMS fallback</span>
+            <div
+              className={`rounded-[14px] bg-white px-3 py-2.5 text-[13px] leading-[1.5] break-words whitespace-pre-wrap ${
+                trimmedMessage ? "text-[#0A0A0A]" : "text-[#A3A3A3]"
+              }`}
+            >
+              {trimmedMessage || "Your message"}
             </div>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );

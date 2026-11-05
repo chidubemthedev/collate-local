@@ -6,11 +6,11 @@ import {
   useGeographyLgas,
   useGeographyWards,
 } from "@/lib/hooks/use-geography";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FieldSpinner } from "@/components/ui/field-spinner";
 import { TableToolbar, type ActiveTableFilter } from "@/components/ui/table-toolbar";
+import { WF, Field, FILTER_GRID } from "@/components/ui/wf";
 
 export type CandidateRoleFilter = "all" | "running_mates";
 export type CandidateSortOrder =
@@ -91,9 +91,18 @@ interface CandidatesFiltersProps {
   onReset: () => void;
 }
 
-const LABEL_CLASS =
-  "flex items-center gap-1.5 truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground";
-const TRIGGER_CLASS = "h-8 w-full bg-background text-xs data-[disabled]:bg-muted data-[disabled]:opacity-70";
+const TRIGGER_CLASS = "w-full";
+
+function RetryLine({ what, onRetry }: { what: string; onRetry: () => void }) {
+  return (
+    <div role="alert" className="flex items-center gap-2 text-[12px] text-[#B42318]">
+      <span>Could not load {what}.</span>
+      <button type="button" className="border-0 bg-transparent p-0 font-semibold underline" onClick={onRetry}>
+        Retry
+      </button>
+    </div>
+  );
+}
 
 export function CandidatesFilters({
   selectedOffice,
@@ -199,59 +208,73 @@ export function CandidatesFilters({
   ];
 
   return (
-    <div className="space-y-4">
-      {/* Office tabs */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-xl bg-muted/70 p-1 scrollbar-none">
-          {officeTabs.map((tab) => {
-            const active = selectedOffice === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setSelectedOffice(tab.id)}
-                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs transition-colors ${
-                  active
-                    ? "bg-background font-semibold text-foreground shadow-sm"
-                    : "font-medium text-muted-foreground hover:text-foreground"
-                }`}
+    <div className="flex flex-col gap-3 sm:gap-4">
+      <div
+        role="tablist"
+        aria-label="Office"
+        className="flex max-w-full gap-1 self-start overflow-x-auto rounded-[10px] bg-[#F4F4F5] p-[3px]"
+      >
+        {officeTabs.map((tab) => {
+          const active = selectedOffice === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setSelectedOffice(tab.id)}
+              className={`inline-flex min-h-[30px] flex-none items-center gap-1.5 rounded-[8px] border-0 px-3 text-[13px] ${
+                active
+                  ? "bg-white font-semibold text-[#0A0A0A] shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+                  : "bg-transparent font-medium text-[#525252]"
+              }`}
+            >
+              {tab.label}
+              <span
+                className={`rounded-full px-1.5 text-[11px] font-semibold tabular-nums transition-opacity ${
+                  active ? "bg-[#171717] text-[#FAFAFA]" : "bg-[#E5E5E5] text-[#525252]"
+                } ${isRefreshing ? "opacity-50" : ""}`}
               >
-                <span>{tab.label}</span>
-                <span
-                  className={`rounded-full px-1.5 py-px text-[10px] font-medium tabular-nums transition-opacity ${
-                    active ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
-                  } ${isRefreshing ? "opacity-50" : ""}`}
-                >
-                  {(officeCounts[tab.id] ?? 0).toLocaleString()}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                {(officeCounts[tab.id] ?? 0).toLocaleString()}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Filter panel: collapses behind a Filters button on phones, like the Coverage page. */}
-      <div className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
-        <TableToolbar inlineMobile activeFilters={activeFilters} onClear={onReset}>
-        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Search */}
-          <div className="min-w-0 space-y-1.5">
-            <label className={LABEL_CLASS}>Search</label>
+      {/* Filter panel: collapses behind a Filters bar on phones. */}
+      <section aria-label="Filters" className={`${WF.card} p-3 sm:px-4 sm:py-3.5`}>
+        <TableToolbar
+          activeFilters={activeFilters}
+          onClear={onReset}
+          summary={activeFilters.length ? "Filtered" : "None set"}
+          meta={
+            <span className="inline-flex items-center gap-1.5 text-[12px] text-[#737373]" aria-live="polite">
+              {isRefreshing ? (
+                <>
+                  <FieldSpinner loading />
+                  Updating results…
+                </>
+              ) : (
+                <>
+                  {totalCount.toLocaleString()} candidate{totalCount === 1 ? "" : "s"} match
+                  {totalCount === 1 ? "es" : ""}
+                </>
+              )}
+            </span>
+          }
+        >
+        <div className={FILTER_GRID}>
+          <Field label="Search">
             <Input
               type="text"
               placeholder="Candidate or constituency"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 w-full bg-background text-xs"
             />
-          </div>
+          </Field>
 
-          {/* State */}
-          <div className="min-w-0 space-y-1.5">
-            <label className={LABEL_CLASS}>
-              State
-              <FieldSpinner loading={statesBusy} />
-            </label>
+          <Field label="State" extra={<FieldSpinner loading={statesBusy} />}>
             <Select
               value={selectedStateId}
               disabled={statesBusy || statesQuery.isError}
@@ -282,27 +305,11 @@ export function CandidatesFilters({
               </SelectContent>
             </Select>
             {statesQuery.isError && (
-              <div role="alert" className="flex items-center gap-2 text-xs text-destructive">
-                <span>Could not load states.</span>
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  className="h-auto p-0"
-                  onClick={() => void statesQuery.refetch()}
-                >
-                  Retry
-                </Button>
-              </div>
+              <RetryLine what="states" onRetry={() => void statesQuery.refetch()} />
             )}
-          </div>
+          </Field>
 
-          {/* LGA */}
-          <div className="min-w-0 space-y-1.5">
-            <label className={LABEL_CLASS}>
-              LGA (seat overlaps)
-              <FieldSpinner loading={lgasBusy} />
-            </label>
+          <Field label="LGA (seat overlaps)" extra={<FieldSpinner loading={lgasBusy} />}>
             <Select
               value={selectedLgaId}
               disabled={selectedStateId === "all" || lgasBusy || lgasQuery.isError}
@@ -332,21 +339,11 @@ export function CandidatesFilters({
               </SelectContent>
             </Select>
             {selectedStateId !== "all" && lgasQuery.isError && (
-              <div role="alert" className="flex items-center gap-2 text-xs text-destructive">
-                <span>Could not load LGAs.</span>
-                <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={() => void lgasQuery.refetch()}>
-                  Retry
-                </Button>
-              </div>
+              <RetryLine what="LGAs" onRetry={() => void lgasQuery.refetch()} />
             )}
-          </div>
+          </Field>
 
-          {/* Ward */}
-          <div className="min-w-0 space-y-1.5">
-            <label className={LABEL_CLASS}>
-              Ward (seat overlaps)
-              <FieldSpinner loading={wardsBusy} />
-            </label>
+          <Field label="Ward (seat overlaps)" extra={<FieldSpinner loading={wardsBusy} />}>
             <Select
               value={selectedWardId}
               disabled={selectedLgaId === "all" || wardsBusy || wardsQuery.isError}
@@ -374,18 +371,11 @@ export function CandidatesFilters({
               </SelectContent>
             </Select>
             {selectedLgaId !== "all" && wardsQuery.isError && (
-              <div role="alert" className="flex items-center gap-2 text-xs text-destructive">
-                <span>Could not load wards.</span>
-                <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={() => void wardsQuery.refetch()}>
-                  Retry
-                </Button>
-              </div>
+              <RetryLine what="wards" onRetry={() => void wardsQuery.refetch()} />
             )}
-          </div>
+          </Field>
 
-          {/* Channel status */}
-          <div className="min-w-0 space-y-1.5">
-            <label className={LABEL_CLASS}>Channel status</label>
+          <Field label="Channel status">
             <Select
               value={selectedChannel}
               onValueChange={(val) => {
@@ -405,11 +395,9 @@ export function CandidatesFilters({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
 
-          {/* Coverage tier */}
-          <div className="min-w-0 space-y-1.5">
-            <label className={LABEL_CLASS}>Coverage tier</label>
+          <Field label="Coverage tier">
             <Select
               value={selectedCoverageTier}
               onValueChange={(val) => {
@@ -429,11 +417,9 @@ export function CandidatesFilters({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
 
-          {/* Role */}
-          <div className="min-w-0 space-y-1.5">
-            <label className={LABEL_CLASS}>Role</label>
+          <Field label="Role">
             <Select
               value={selectedRole}
               onValueChange={(val) => {
@@ -453,11 +439,9 @@ export function CandidatesFilters({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
 
-          {/* Sort order */}
-          <div className="min-w-0 space-y-1.5">
-            <label className={LABEL_CLASS}>Sort order</label>
+          <Field label="Sort order">
             <Select
               value={sortOrder}
               onValueChange={(val) => {
@@ -477,24 +461,10 @@ export function CandidatesFilters({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
         </div>
         </TableToolbar>
-
-        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground" aria-live="polite">
-          {isRefreshing ? (
-            <>
-              <FieldSpinner loading />
-              Updating results…
-            </>
-          ) : (
-            <>
-              {totalCount.toLocaleString()} candidate{totalCount === 1 ? "" : "s"} match
-              {totalCount === 1 ? "es" : ""}
-            </>
-          )}
-        </p>
-      </div>
+      </section>
     </div>
   );
 }

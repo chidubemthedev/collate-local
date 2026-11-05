@@ -9,14 +9,15 @@ import {
   type TelegramStatusFilter,
 } from "@/components/recipients/recipients-filters";
 import { RecipientsTable } from "@/components/recipients/recipients-table";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { WF, PageHeader, LoadingBox, CenterSpinner } from "@/components/ui/wf";
 import { apiClient } from "@/lib/api/client";
 import { useAgentsInfinite, useAgentSummary } from "@/lib/hooks/use-agents";
 import type { AgentsQueryFilters, AgentsSummaryFilters, CandidateCoverage } from "@/types/api";
 
 const SEARCH_DEBOUNCE_MS = 300;
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
 
 function toId(value: string): number | undefined {
   return value === "all" ? undefined : Number(value);
@@ -118,29 +119,30 @@ export default function RecipientsPage() {
     (summaryQuery.isFetching && !summaryQuery.isPending) ||
     (candidatesQuery.isFetching && !candidatesQuery.isPending);
 
+  const notYet = (label: string, dark = false) => (
+    <Tooltip>
+      <TooltipTrigger render={<span tabIndex={0} className="inline-flex cursor-not-allowed" />}>
+        <button type="button" disabled className={dark ? WF.btnDark : WF.btnOutline}>
+          {label}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>Not available yet</TooltipContent>
+    </Tooltip>
+  );
+
   return (
-    <div className="space-y-5 max-w-7xl mx-auto">
-      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">Recipients &amp; Directory</h1>
-          <p className="mt-0.5 text-[11px] sm:text-xs text-muted-foreground">
-            The registered list: only people on it can receive messages
-          </p>
-        </div>
-        {/* Neither action has an API yet. */}
-        <div className="flex shrink-0 items-center gap-2">
-          <Button variant="outline" disabled title="Not available yet" className="h-8 px-3 text-xs">
-            Import CSV
-          </Button>
-          <Button
-            disabled
-            title="Not available yet"
-            className="h-8 bg-foreground px-3 text-xs text-background hover:bg-foreground/90"
-          >
-            Add person
-          </Button>
-        </div>
-      </div>
+    <div className="flex w-full min-w-0 flex-col gap-3.5 text-[#0A0A0A] sm:gap-4">
+      <PageHeader
+        title="Recipients & Directory"
+        subtitle="The registered list: only people on it can receive messages"
+        actions={
+          <>
+            {/* Neither action has an API yet. */}
+            {notYet("Import CSV")}
+            {notYet("Add person", true)}
+          </>
+        }
+      />
 
       <RecipientsFilters
         searchQuery={searchQuery}
@@ -167,71 +169,56 @@ export default function RecipientsPage() {
         onRetry={() => void summaryQuery.refetch()}
       />
 
-      <section
-        aria-busy={listRefreshing}
-        className="relative min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4"
-      >
-        <div className={`transition-opacity ${listRefreshing ? "pointer-events-none opacity-40" : ""}`}>
-          <RecipientsTable
-            recipients={pageRows}
-            isLoading={agentsQuery.isPending}
-            isError={agentsQuery.isError && recipients.length === 0}
-            onRetry={() => void agentsQuery.refetch()}
-          />
-        </div>
-        {listRefreshing && (
-          <div role="status" className="absolute inset-0 z-10 flex items-center justify-center">
-            <span className="inline-flex items-center gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-xs text-muted-foreground shadow-sm">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              Loading recipients…
+      {agentsQuery.isPending ? (
+        <LoadingBox>Loading recipients…</LoadingBox>
+      ) : (
+        <section aria-busy={listRefreshing} className="relative min-w-0">
+          <CenterSpinner show={listRefreshing} />
+          <div className={`transition-opacity ${listRefreshing ? "pointer-events-none opacity-40" : ""}`}>
+            <RecipientsTable
+              recipients={pageRows}
+              isLoading={false}
+              isError={agentsQuery.isError && recipients.length === 0}
+              onRetry={() => void agentsQuery.refetch()}
+            />
+          </div>
+        </section>
+      )}
+
+      {totalItems > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-[12px] text-[#737373]">
+            Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, totalItems)} of {totalItems.toLocaleString()}
+            {hasMore ? "+" : ""} {totalItems === 1 ? "person" : "people"}. * Phone numbers are masked; Telegram shows whether
+            the person has linked the bot.
+          </span>
+          {totalPages > 1 || hasMore ? (
+            <span className="flex items-center gap-1.5">
+              <button
+                type="button"
+                className={WF.btnOutline}
+                onClick={() => setPage(Math.max(1, safePage - 1))}
+                disabled={safePage <= 1}
+              >
+                Previous
+              </button>
+              <span className="px-1 text-[12px] text-[#737373]">
+                Page {safePage} of {totalPages}
+                {hasMore ? "+" : ""}
+              </span>
+              <button
+                type="button"
+                className={WF.btnOutline}
+                onClick={() => setPage(Math.min(totalPages, safePage + 1))}
+                disabled={safePage >= totalPages}
+              >
+                Next
+                {isFetchingNextPage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              </button>
             </span>
-          </div>
-        )}
-        {totalItems > 0 && (
-          <div className="flex flex-col items-center justify-between gap-2.5 border-t border-border/60 pt-3 text-xs sm:flex-row">
-            <div className="text-muted-foreground">
-              Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, totalItems)} of{" "}
-              {totalItems.toLocaleString()}
-              {hasMore ? "+" : ""} {totalItems === 1 ? "person" : "people"}
-            </div>
-            {(totalPages > 1 || hasMore) && (
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(Math.max(1, safePage - 1))}
-                  disabled={safePage <= 1}
-                  className="h-7 gap-1 px-2.5 text-xs"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                  Previous
-                </Button>
-                <span className="px-2 font-medium text-muted-foreground">
-                  Page <span className="font-semibold text-foreground">{safePage}</span> of{" "}
-                  <span className="font-semibold text-foreground">
-                    {totalPages}
-                    {hasMore ? "+" : ""}
-                  </span>
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(Math.min(totalPages, safePage + 1))}
-                  disabled={safePage >= totalPages}
-                  className="h-7 gap-1 px-2.5 text-xs"
-                >
-                  Next
-                  {isFetchingNextPage ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  )}
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,9 +1,10 @@
 "use client";
 
 import React from "react";
+import { Loader2 } from "lucide-react";
 import type { AgentSummary } from "@/types/api";
 import { AnimatedNumber } from "@/components/ui/animated-number";
-import { StatCardSkeleton } from "@/components/ui/skeleton";
+import { StatTile, LoadingBox } from "@/components/ui/wf";
 
 interface RecipientsKPISummaryProps {
   summary: AgentSummary | undefined;
@@ -14,11 +15,6 @@ interface RecipientsKPISummaryProps {
   isError: boolean;
   onRetry: () => void;
 }
-
-const CARD = "flex h-full flex-col rounded-xl border border-border/60 bg-card p-4";
-const LABEL = "text-[11px] font-medium text-foreground/80";
-const VALUE = "mt-3 text-xl md:text-2xl font-bold tracking-tight tabular-nums";
-const NOTE = "mt-3 flex flex-wrap items-center gap-1.5 text-[10px] leading-snug text-muted-foreground";
 
 const pct = (part: number, total: number) => (total > 0 ? Math.round((part / total) * 100) : 0);
 
@@ -34,77 +30,53 @@ export function RecipientsKPISummary({
     return (
       <div
         role="alert"
-        className="flex items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-xs text-destructive"
+        className="flex items-center justify-between gap-3 rounded-[10px] border border-[#F5C2C0] bg-[#FDECEC] p-3 text-[13px] text-[#B42318]"
       >
         <span>Could not load the totals.</span>
-        <button type="button" className="font-semibold underline" onClick={onRetry}>
+        <button type="button" className="border-0 bg-transparent font-semibold underline" onClick={onRetry}>
           Retry
         </button>
       </div>
     );
   }
 
-  // Same first-load skeleton as the other card rows.
   if (isLoading && !summary) {
-    return <StatCardSkeleton count={6} className="grid-cols-2 md:grid-cols-3 lg:grid-cols-6" />;
+    return <LoadingBox>Loading the totals…</LoadingBox>;
   }
 
-  const value = (count: number | undefined, colour: string) =>
+  const value = (count: number | undefined) =>
     count === undefined ? (
-      <span className="inline-block h-7 w-14 animate-pulse rounded bg-muted" />
+      <Loader2 className="mt-1.5 h-5 w-5 animate-spin text-[#A3A3A3]" aria-label="Loading" />
     ) : (
-      <span className={colour}>
-        <AnimatedNumber value={count} />
-      </span>
+      <AnimatedNumber value={count} />
     );
 
   const total = summary?.total ?? 0;
 
   return (
-    <div
+    <section
+      aria-label="Summary"
       aria-busy={isRefreshing}
-      className={`grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6 transition-opacity ${isRefreshing ? "opacity-60" : ""}`}
+      className={`grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2 transition-opacity sm:grid-cols-[repeat(auto-fit,minmax(170px,1fr))] sm:gap-3 ${
+        isRefreshing ? "opacity-60" : ""
+      }`}
     >
-      <div className={CARD}>
-        <div className={LABEL}>NDC candidates</div>
-        <div className={VALUE}>{value(candidateCount, "text-foreground")}</div>
-        <div className={NOTE}>
-          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold leading-none text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-            INEC
-          </span>
-          <span>names from INEC lists</span>
-        </div>
-      </div>
-
-      <div className={CARD}>
-        <div className={LABEL}>Official agents</div>
-        <div className={VALUE}>{value(summary?.official, "text-foreground")}</div>
-        <div className={NOTE}>one per covered unit</div>
-      </div>
-
-      <div className={CARD}>
-        <div className={LABEL}>Extra agents</div>
-        <div className={VALUE}>{value(summary?.extra, "text-emerald-600 dark:text-emerald-400")}</div>
-        <div className={NOTE}>support groups and candidates</div>
-      </div>
-
-      <div className={CARD}>
-        <div className={LABEL}>On Telegram</div>
-        <div className={VALUE}>{value(summary?.telegramConnected, "text-emerald-600 dark:text-emerald-400")}</div>
-        <div className={NOTE}>{pct(summary?.telegramConnected ?? 0, total)}% of listed</div>
-      </div>
-
-      <div className={CARD}>
-        <div className={LABEL}>SMS only</div>
-        <div className={VALUE}>{value(summary?.smsOnly, "text-foreground/70")}</div>
-        <div className={NOTE}>not on Telegram yet</div>
-      </div>
-
-      <div className={CARD}>
-        <div className={LABEL}>Not matched</div>
-        <div className={VALUE}>{value(summary?.notMatched, "text-red-700 dark:text-red-400")}</div>
-        <div className={NOTE}>no confirmed number: gets no messages</div>
-      </div>
-    </div>
+      <StatTile label="NDC candidates" value={value(candidateCount)} inec note="names from INEC lists" />
+      <StatTile label="Official agents" value={value(summary?.official)} note="one per covered unit" />
+      <StatTile label="Extra agents" value={value(summary?.extra)} color="#1E8A55" note="support groups and candidates" />
+      <StatTile
+        label="On Telegram"
+        value={value(summary?.telegramConnected)}
+        color="#1E8A55"
+        note={`${pct(summary?.telegramConnected ?? 0, total)}% of listed`}
+      />
+      <StatTile label="SMS only" value={value(summary?.smsOnly)} color="#525252" note="not on Telegram yet" />
+      <StatTile
+        label="Not matched"
+        value={value(summary?.notMatched)}
+        color="#9B1C1C"
+        note="no confirmed number: gets no messages"
+      />
+    </section>
   );
 }

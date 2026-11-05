@@ -9,10 +9,9 @@ import {
   type CandidateSortOrder,
 } from "@/components/candidates/candidates-filters";
 import { CandidatesTable } from "@/components/candidates/candidates-table";
-import { CandidatesDirectorySkeleton } from "@/components/candidates/candidates-skeletons";
-import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Send, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
+import { WF, PageHeader, LoadingBox, CenterSpinner } from "@/components/ui/wf";
+import { Send, AlertCircle, RefreshCw } from "lucide-react";
 import type { CandidateData } from "@/lib/types";
 
 const SEARCH_DEBOUNCE_MS = 400;
@@ -215,60 +214,54 @@ export default function CandidatesPage() {
   };
 
   if (isLoading) {
-    return <CandidatesDirectorySkeleton viewMode="table" />;
+    return (
+      <div className="flex flex-col gap-4">
+        <PageHeader title="NDC Candidates Directory" subtitle="Loading…" />
+        <LoadingBox>Loading candidates…</LoadingBox>
+      </div>
+    );
   }
 
   if (error && !data) {
     return (
-      <div className="max-w-xl mx-auto mt-16 p-6 rounded-xl border border-border bg-card text-center space-y-3">
-        <AlertCircle className="w-6 h-6 text-amber-600 mx-auto" />
-        <p className="text-sm font-semibold text-foreground">Could not load candidate registry</p>
-        <p className="text-xs text-muted-foreground">
+      <div className={`${WF.card} mx-auto mt-16 max-w-xl space-y-3 p-6 text-center`}>
+        <AlertCircle className="mx-auto h-6 w-6 text-[#B45309]" />
+        <p className="text-[14px] font-semibold text-[#0A0A0A]">Could not load candidate registry</p>
+        <p className="text-[12px] text-[#737373]">
           {error.message || "An unexpected error occurred while fetching candidate tickets."}
         </p>
-        <Button size="sm" onClick={() => refetch()} className="gap-1.5 text-xs">
-          <RefreshCw className="w-3.5 h-3.5" />
-          <span>Retry</span>
-        </Button>
+        <button type="button" onClick={() => refetch()} className={WF.btnDark}>
+          <RefreshCw className="h-3.5 w-3.5" />
+          Retry
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
-            NDC Candidates Directory
-          </h1>
-          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
-            Nigeria · names and seats from INEC&apos;s 2027 final lists
-          </p>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <Button variant="outline" onClick={handleExportCSV} className="h-8 px-3 text-xs">
-            Export CSV
-          </Button>
-          {/* Broadcasts reach agents only for now, so candidates can't be messaged yet.
-              A disabled button gets no hover events, so the tooltip sits on a wrapper. */}
-          <Tooltip>
-            <TooltipTrigger render={<span tabIndex={0} className="inline-flex cursor-not-allowed rounded-lg" />}>
-              <Button
-                disabled
-                className="h-8 gap-1.5 bg-foreground px-3 text-xs font-medium text-background hover:bg-foreground/90"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>
+    <div className="flex w-full min-w-0 flex-col gap-3 text-[#0A0A0A] sm:gap-4">
+      <PageHeader
+        title="NDC Candidates Directory"
+        subtitle="Nigeria · names and seats from INEC’s 2027 final lists"
+        actions={
+          <>
+            <button type="button" onClick={handleExportCSV} className={WF.btnOutline}>
+              Export CSV
+            </button>
+            {/* Broadcasts reach agents only for now, so candidates can't be messaged yet.
+                A disabled button gets no hover events, so the tooltip sits on a wrapper. */}
+            <Tooltip>
+              <TooltipTrigger render={<span tabIndex={0} className="inline-flex cursor-not-allowed" />}>
+                <button type="button" disabled className={WF.btnDark}>
+                  <Send className="h-3.5 w-3.5" />
                   Message Filtered ({isRefreshing ? "…" : matchCount.toLocaleString()})
-                </span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Not available yet: broadcasts reach agents only</TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Not available yet: broadcasts reach agents only</TooltipContent>
+            </Tooltip>
+          </>
+        }
+      />
 
       <CandidatesFilters
         selectedOffice={selectedOffice}
@@ -298,59 +291,51 @@ export default function CandidatesPage() {
       {error && data ? (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-50/60 px-4 py-2.5 text-xs text-amber-900 dark:bg-amber-950/20 dark:text-amber-200"
+          className="flex items-center justify-between gap-3 rounded-[10px] border border-[#F5E2A8] bg-[#FEF9E7] px-3 py-2 text-[13px] text-[#7A5A00]"
         >
           <span className="flex items-center gap-2">
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
             Couldn&apos;t update the list. Showing the last results loaded.
           </span>
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => void refetch()}>
+          <button type="button" className={WF.btnRow} onClick={() => void refetch()}>
             Retry
-          </Button>
+          </button>
         </div>
       ) : null}
 
-      <section
-        aria-busy={isRefreshing}
-        className="relative min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4"
-      >
-        <div
-          className={`space-y-3 transition-opacity ${isRefreshing ? "pointer-events-none opacity-40" : ""}`}
-        >
-        <CandidatesTable
-          candidates={filteredCandidates}
-          stateNames={stateNameByCode}
-          sortOrder={sortOrder}
-          onSortChange={setSortOrder}
-          totalCount={matchCount}
-          hasMore={Boolean(hasNextPage)}
-          isLoadingMore={isFetchingNextPage}
-          onLoadMore={loadMore}
-          resetKey={[
-            selectedOffice,
-            selectedStateId,
-            selectedLgaId,
-            selectedWardId,
-            selectedChannel,
-            selectedCoverageTier,
-            selectedRole,
-            sortOrder,
-            debouncedSearch,
-          ].join("|")}
-        />
+      <section aria-busy={isRefreshing} className="relative min-w-0">
+        <CenterSpinner show={isRefreshing} />
+        <div className={`transition-opacity ${isRefreshing ? "pointer-events-none opacity-40" : ""}`}>
+          <CandidatesTable
+            candidates={filteredCandidates}
+            stateNames={stateNameByCode}
+            sortOrder={sortOrder}
+            onSortChange={setSortOrder}
+            totalCount={matchCount}
+            hasMore={Boolean(hasNextPage)}
+            isLoadingMore={isFetchingNextPage}
+            onLoadMore={loadMore}
+            resetKey={[
+              selectedOffice,
+              selectedStateId,
+              selectedLgaId,
+              selectedWardId,
+              selectedChannel,
+              selectedCoverageTier,
+              selectedRole,
+              sortOrder,
+              debouncedSearch,
+            ].join("|")}
+          />
         </div>
-        {isRefreshing && (
-          <div
-            role="status"
-            className="absolute inset-0 z-10 flex items-center justify-center"
-          >
-            <span className="inline-flex items-center gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-xs text-muted-foreground shadow-sm">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              Loading candidates…
-            </span>
-          </div>
-        )}
       </section>
+
+      <p className={WF.note}>
+        Names and seats: INEC 2027 final lists. * Coverage: polling units with the official agent (the party&rsquo;s one
+        INEC-recognised agent, who stands for every NDC candidate at the unit), of all polling units in the seat; tiers:
+        High 50%+, Medium 30–49%, Critical below 30%. Extra agents are other registered people a candidate fields; they
+        never change coverage.
+      </p>
     </div>
   );
 }

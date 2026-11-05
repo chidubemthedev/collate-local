@@ -22,14 +22,10 @@ import { AtStakeCandidates } from "@/components/coverage/at-stake-candidates";
 import { CoverageMap } from "@/components/coverage/coverage-map";
 import { CoverageFilters, type CoverageFilterMode, type CoverageViewBy } from "@/components/coverage/coverage-filters";
 import { CoverageTable } from "@/components/coverage/coverage-table";
-import {
-  CoverageDashboardSkeleton,
-  KPISummarySkeleton,
-  CoverageTableSkeleton,
-} from "@/components/coverage/coverage-skeletons";
-import { Button } from "@/components/ui/button";
-import { Send, Building, AlertCircle } from "lucide-react";
+import { Send, Building, AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { WF, PageHeader, LoadingBox, CenterSpinner } from "@/components/ui/wf";
 
 interface SortableRow {
   code: string;
@@ -227,12 +223,6 @@ export default function CoveragePage() {
     gps: "With GPS",
     "no-gps": "No GPS",
   };
-  const scopeLabel = [
-    currentLevel === "national" ? "All of Nigeria" : levelName,
-    filterModeLabel[filterMode],
-  ]
-    .filter(Boolean)
-    .join(" · ");
   // KPI metrics come only from the live API summary
   const kpiData = useMemo(() => {
     if (!summaryData) return null;
@@ -473,29 +463,33 @@ export default function CoveragePage() {
 
   if (queryErrors.length > 0) {
     return (
-      <div className="max-w-xl mx-auto mt-16 p-6 rounded-xl border border-border bg-card text-center space-y-3">
-        <AlertCircle className="w-6 h-6 text-amber-600 mx-auto" />
-        <p className="text-sm font-semibold text-foreground">Could not load coverage data</p>
-        <p className="text-xs text-muted-foreground">
+      <div className={`${WF.card} mx-auto mt-16 max-w-xl space-y-3 p-6 text-center`}>
+        <AlertCircle className="mx-auto h-6 w-6 text-[#B45309]" />
+        <p className="text-[14px] font-semibold text-[#0A0A0A]">Could not load coverage data</p>
+        <p className="text-[12px] text-[#737373]">
           {(queryErrors[0] as Error).message || "The server did not respond. Try again."}
         </p>
-        <Button size="sm" onClick={handleRetry}>
+        <button type="button" className={WF.btnDark} onClick={handleRetry}>
           Retry
-        </Button>
+        </button>
       </div>
     );
   }
 
   if (isLoadingStates) {
-    return <CoverageDashboardSkeleton />;
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-[#737373]" aria-label="Loading coverage" />
+      </div>
+    );
   }
 
   if (apiStates.length === 0) {
     return (
-      <div className="max-w-xl mx-auto mt-16 p-6 rounded-xl border border-border bg-card text-center space-y-2">
-        <Building className="w-6 h-6 text-muted-foreground mx-auto" />
-        <p className="text-sm font-semibold text-foreground">No polling units available</p>
-        <p className="text-xs text-muted-foreground">
+      <div className={`${WF.card} mx-auto mt-16 max-w-xl space-y-2 p-6 text-center`}>
+        <Building className="mx-auto h-6 w-6 text-[#737373]" />
+        <p className="text-[14px] font-semibold text-[#0A0A0A]">No polling units available</p>
+        <p className="text-[12px] text-[#737373]">
           Your account has no geography in scope, so there is no coverage to show.
         </p>
       </div>
@@ -535,62 +529,72 @@ export default function CoveragePage() {
     />
   );
 
+  const titleArea =
+    currentLevel === "ward"
+      ? `${toTitle(levelName)} ward`
+      : currentLevel === "lga"
+      ? `${toTitle(levelName)} LGA`
+      : currentLevel === "state"
+      ? `${toTitle(levelName)} State`
+      : "All of Nigeria";
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header Section */}
-      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 w-full">
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
-            2027 Coverage Dashboard
-          </h1>
-          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
-            Official coverage and extra agents by polling unit · {scopeLabel}
-          </p>
-        </div>
+    <div className="flex w-full min-w-0 flex-col gap-3.5 text-[#0A0A0A] sm:gap-5">
+      <PageHeader
+        title="2027 Coverage Dashboard"
+        subtitle={`Official coverage and extra agents by polling unit · ${[titleArea, filterModeLabel[filterMode]].filter(Boolean).join(" · ")}`}
+        actions={
+          <>
+            <Tooltip>
+              <TooltipTrigger render={<span tabIndex={0} className="inline-flex" />}>
+                <button type="button" disabled className={WF.btnOutline}>
+                  Save as area
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Not available yet</TooltipContent>
+            </Tooltip>
+            <Link href={`/broadcasts/new?target=${encodeURIComponent(levelName)}`} className={WF.btnDark}>
+              <Send className="h-3.5 w-3.5" />
+              Broadcast to this Area
+            </Link>
+          </>
+        }
+      />
 
-        <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
-          <Link
-            href={`/broadcasts/new?target=${encodeURIComponent(levelName)}`}
-            className="inline-flex items-center justify-center rounded-lg text-[11px] font-medium h-8 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Broadcast to this Area</span>
-          </Link>
-        </div>
-      </div>
-
-      <section className="min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
+      <section aria-label="Filters" className={`${WF.card} p-3 sm:px-4 sm:py-3.5`}>
         {coverageFilters}
       </section>
 
-      {/* Top Metric Cards */}
-      <div
-        aria-busy={isFetchingSummary}
-        className={isFetchingSummary && kpiData ? "opacity-60" : ""}
-      >
+      <div aria-busy={isFetchingSummary} className="relative">
         {isLoadingSummary && !kpiData ? (
-          <KPISummarySkeleton />
+          <LoadingBox>Loading the summary…</LoadingBox>
         ) : kpiData ? (
-          <KPISummary
-            levelName={kpiData.levelName}
-            totalPUs={kpiData.totalPUs}
-            gpsPUs={kpiData.gpsPUs}
-            coveredPUs={kpiData.coveredPUs}
-            noCoveragePUs={kpiData.noCoveragePUs}
-            officialAgentPct={kpiData.officialAgentPct}
-            extraAgentsCount={kpiData.extraAgentsCount}
-            lgasCount={kpiData.lgasCount}
-            wardsCount={kpiData.wardsCount}
-            statesCount={kpiData.statesCount}
-          />
+          <>
+            <CenterSpinner show={isFetchingSummary} />
+            <div className={isFetchingSummary ? "opacity-60 transition-opacity" : "transition-opacity"}>
+              <KPISummary
+                levelName={kpiData.levelName}
+                totalPUs={kpiData.totalPUs}
+                gpsPUs={kpiData.gpsPUs}
+                coveredPUs={kpiData.coveredPUs}
+                noCoveragePUs={kpiData.noCoveragePUs}
+                officialAgentPct={kpiData.officialAgentPct}
+                extraAgentsCount={kpiData.extraAgentsCount}
+                lgasCount={kpiData.lgasCount}
+                wardsCount={kpiData.wardsCount}
+                statesCount={kpiData.statesCount}
+              />
+            </div>
+          </>
         ) : null}
       </div>
+
       <AtStakeCandidates
         stateId={selectedStateId}
         lgaId={selectedLgaId}
         wardId={selectedWardId}
         officeId={selectedOfficeId}
-        areaName={levelName}
+        areaName={titleArea}
       />
 
       <CoverageMap
@@ -608,20 +612,20 @@ export default function CoveragePage() {
           void coordinatePointsQuery.refetch();
         }}
       />
-      <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
-        <div
-          aria-busy={isCoverageTableFetching}
-          className={isCoverageTableFetching && !isCoverageTableLoading ? "opacity-60" : ""}
-        >
-          {isCoverageTableLoading ? (
-            <CoverageTableSkeleton />
-          ) : (
+
+      <div aria-busy={isCoverageTableFetching} className="relative">
+        {isCoverageTableLoading ? (
+          <LoadingBox>Loading {currentLevel === "ward" ? "polling units" : currentLevel === "lga" ? "wards" : "LGAs"}…</LoadingBox>
+        ) : (
+          <>
+            <CenterSpinner show={isCoverageTableFetching} />
             <CoverageTable
               level={currentLevel}
               states={filteredStates}
               lgas={filteredLGAs}
               wards={filteredWards}
               pollingUnits={filteredPollingUnits}
+              areaName={selectedWard?.name}
               onOpenState={(code) => {
                 setSelectedStateCode(code);
                 setSelectedLgaCode("all");
@@ -633,9 +637,22 @@ export default function CoveragePage() {
               }}
               onOpenWard={(code) => setSelectedWardCode(code)}
             />
-          )}
-        </div>
-      </section>
+          </>
+        )}
+      </div>
+
+      <p className={WF.note}>
+        Names, codes, counts and GPS: INEC. * Coverage means the polling unit has its one official agent (the
+        party&rsquo;s INEC-recognised agent); extra agents, tagged by who owns them (the party or a candidate), never
+        change coverage.
+      </p>
     </div>
   );
+}
+
+function toTitle(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/(^|[\s(/.-])([a-z])/g, (_, sep: string, ch: string) => sep + ch.toUpperCase())
+    .replace(/\bFct\b/g, "FCT");
 }

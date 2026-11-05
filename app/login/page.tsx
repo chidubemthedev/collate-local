@@ -96,6 +96,28 @@ export default function LoginPage() {
     }
   };
 
+  // Pasting the code from the email fills every box. maxLength={1} would cut the pasted
+  // text to one digit before onChange runs, so the paste is read here instead.
+  // Spaces, dashes or words around the code ("Your code: 482 913") are ignored.
+  const handleOtpPaste = (index: number, e: React.ClipboardEvent<HTMLInputElement>) => {
+    const digits = e.clipboardData.getData("text").replace(/\D/g, "");
+    if (!digits) return;
+    e.preventDefault();
+    // A whole code always fills from the first box, wherever the cursor was.
+    const start = digits.length >= 6 ? 0 : index;
+    const newOtp = [...otp];
+    digits
+      .slice(0, 6 - start)
+      .split("")
+      .forEach((d, i) => {
+        newOtp[start + i] = d;
+      });
+    setOtp(newOtp);
+    setErrorMessage(null);
+    const nextEmpty = newOtp.findIndex((d) => !d);
+    otpInputRefs.current[nextEmpty === -1 ? 5 : nextEmpty]?.focus();
+  };
+
   const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       otpInputRefs.current[index - 1]?.focus();
@@ -269,7 +291,10 @@ export default function LoginPage() {
                       maxLength={1}
                       value={digit}
                       onChange={(e) => handleOtpChange(idx, e.target.value)}
+                      onPaste={(e) => handleOtpPaste(idx, e)}
                       onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                      autoComplete={idx === 0 ? "one-time-code" : "off"}
+                      aria-label={`Digit ${idx + 1} of 6`}
                       disabled={verifyOtpMutation.isPending}
                       className="w-11 h-12 text-center text-lg font-bold rounded-lg border border-input bg-background focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 outline-none transition-all"
                     />
@@ -277,13 +302,16 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Dev mode delivery note */}
-              <div className="p-2.5 rounded-md bg-muted/60 border border-border text-[11px] text-muted-foreground flex items-start gap-2">
-                <Info className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                <span>
-                  In local development, check your terminal server logs for <code className="bg-background px-1 py-0.5 rounded font-mono text-[10px]">[auth] OTP code</code> or check your inbox.
-                </span>
-              </div>
+              {/* Local development only: Next.js replaces NODE_ENV at build time, so a
+                  production build leaves this note out entirely. */}
+              {process.env.NODE_ENV === "development" && (
+                <div className="p-2.5 rounded-md bg-muted/60 border border-border text-[11px] text-muted-foreground flex items-start gap-2">
+                  <Info className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                  <span>
+                    In local development, check your terminal server logs for <code className="bg-background px-1 py-0.5 rounded font-mono text-[10px]">[auth] OTP code</code> or check your inbox.
+                  </span>
+                </div>
+              )}
 
               <div className="flex flex-col gap-2 pt-1">
                 <Button
