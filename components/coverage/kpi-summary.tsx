@@ -18,7 +18,7 @@ interface KPISummaryProps {
 
 function SourceTag({ children }: { children: React.ReactNode }) {
   return (
-    <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold leading-none bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+    <span className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold leading-none bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
       {children}
     </span>
   );
@@ -26,15 +26,15 @@ function SourceTag({ children }: { children: React.ReactNode }) {
 
 function Note({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mt-3 flex items-start gap-1.5 text-[11px] leading-snug text-muted-foreground">
+    <div className="mt-3 flex items-start gap-1.5 text-[10px] leading-snug text-muted-foreground">
       {children}
     </div>
   );
 }
 
 const CARD = "bg-card border border-border/60 rounded-xl p-4 flex flex-col h-full";
-const LABEL = "text-xs text-muted-foreground font-medium";
-const VALUE = "mt-3 text-2xl md:text-3xl font-bold tracking-tight";
+const LABEL = "text-[11px] text-muted-foreground font-medium";
+const VALUE = "mt-3 text-xl md:text-2xl font-bold tracking-tight";
 
 export function KPISummary({
   totalPUs,
@@ -67,7 +67,7 @@ export function KPISummary({
         <div className={LABEL}>With GPS Position</div>
         <div className={`${VALUE} text-foreground flex items-baseline gap-2`}>
           <AnimatedNumber value={gpsPUs} />
-          <span className="text-sm font-medium text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
             <AnimatedNumber value={gpsPct} />%
           </span>
         </div>

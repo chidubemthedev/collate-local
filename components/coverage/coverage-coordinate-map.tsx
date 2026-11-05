@@ -180,7 +180,7 @@ export function CoverageCoordinateMap({
       <p className="text-[10px] leading-relaxed text-muted-foreground">
         The map is limited to Nigeria&apos;s approximate coordinate bounds. Multiple polling units
         may share one mapped location. Coordinates are approximate; verify a location before
-        relying on it for directions. Map tiles © OpenStreetMap contributors.
+        relying on it for directions. Map © OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors.
       </p>
     </div>
   );

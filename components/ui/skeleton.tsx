@@ -23,7 +23,7 @@ function TableSkeleton({
       <table className="w-full min-w-max border-collapse text-left text-xs">
         <thead className="sticky top-0 z-10 border-b bg-muted/50 text-muted-foreground">
           <tr>
-            {columns.map((column, index) => (
+            {columns.map((column) => (
               <th key={typeof column === "string" ? column : column.label} className={`px-3 py-3 font-medium ${typeof column === "string" ? "" : column.className ?? ""}`}>
                 {typeof column === "string" ? column : column.label}
               </th>

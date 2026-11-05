@@ -13,8 +13,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PUDetailDrawer } from "./pu-detail-drawer";
 import {
   ChevronRight,
@@ -24,12 +22,17 @@ import {
   MapPin,
   ExternalLink,
   Download,
-  Send,
   Eye,
-  Info,
   Building,
 } from "lucide-react";
-import Link from "next/link";
+
+// INEC names come in upper case (e.g. "AKWA IBOM"); show them as "Akwa Ibom", keeping FCT as is.
+function toTitleCase(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/(^|[\s\-'(])([a-z])/g, (_, sep: string, ch: string) => sep + ch.toUpperCase())
+    .replace(/\bFct\b/g, "FCT");
+}
 
 interface CoverageTableProps {
   level: "national" | "state" | "lga" | "ward";
@@ -54,13 +57,19 @@ export function CoverageTable({
 }: CoverageTableProps) {
   const [selectedPU, setSelectedPU] = useState<PollingUnitData | null>(null);
   const [isPUModalOpen, setIsPUModalOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
+  const STATES_INITIAL_COUNT = 15;
 
-  // Auto-reset page when level or data source changes
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [level, states.length, lgas.length, wards.length, pollingUnits.length]);
+  // Back to page 1 (and the short state list) when the level or data changes. The view is
+  // stored with the data it belongs to, so no reset effect is needed.
+  const viewKey = `${level}|${states.length}|${lgas.length}|${wards.length}|${pollingUnits.length}`;
+  const [viewState, setViewState] = useState({ key: viewKey, page: 1, showAllStates: false });
+  const currentView = viewState.key === viewKey ? viewState : { key: viewKey, page: 1, showAllStates: false };
+  const currentPage = currentView.page;
+  const showAllStates = currentView.showAllStates;
+  const setCurrentPage = (update: (page: number) => number) =>
+    setViewState({ ...currentView, page: update(currentPage) });
+  const setShowAllStates = (value: boolean) => setViewState({ ...currentView, showAllStates: value });
 
   const totalItems =
     level === "national"
@@ -119,12 +128,154 @@ export function CoverageTable({
     document.body.removeChild(link);
   };
 
+  if (level === "national") {
+    const visibleStates = showAllStates ? states : states.slice(0, STATES_INITIAL_COUNT);
+    const hiddenCount = states.length - visibleStates.length;
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2 px-1">
+          <div className="flex items-center gap-2">
+            <h3 className="text-xs font-semibold text-foreground">Breakdown by State</h3>
+            <span className="rounded border border-border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+              National
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCSV}
+            className="h-8 px-3 text-[11px]"
+          >
+            Export CSV
+          </Button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="text-[11px]">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-20 font-semibold text-foreground">Code</TableHead>
+                <TableHead className="font-semibold text-foreground">State</TableHead>
+                <TableHead className="font-semibold text-foreground">Total PUs</TableHead>
+                <TableHead className="font-semibold text-foreground hidden md:table-cell">With GPS</TableHead>
+                <TableHead
+                  className="font-semibold text-foreground min-w-[180px]"
+                  title="A polling unit is covered when it has 1 official agent"
+                >
+                  Official coverage *
+                </TableHead>
+                <TableHead
+                  className="font-semibold text-foreground hidden sm:table-cell"
+                  title="Extra agents assigned on top of the official agent"
+                >
+                  Extra agents *
+                </TableHead>
+                <TableHead className="text-right font-semibold text-foreground w-24">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="text-[11px]">
+              {states.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    No states match your search query or filter.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                visibleStates.map((st) => {
+                  const gpsPct = st.totalPUs > 0 ? Math.round((st.gpsPUs / st.totalPUs) * 100) : 0;
+                  return (
+                    <TableRow
+                      key={st.code}
+                      className="h-[37px] hover:bg-muted/30 transition-colors cursor-pointer"
+                      onClick={() => onOpenState(st.code)}
+                    >
+                      <TableCell className="text-muted-foreground">{st.code}</TableCell>
+                      <TableCell className="font-semibold text-foreground">{toTitleCase(st.name)}</TableCell>
+                      <TableCell className="text-foreground tabular-nums">
+                        {st.totalPUs.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground tabular-nums hidden md:table-cell">
+                        {st.gpsPUs.toLocaleString()} ({gpsPct}%)
+                      </TableCell>
+                      <TableCell>
+                        <div className="w-[120px] space-y-1">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                              {st.officialAgentPct}%
+                            </span>
+                            <span className="text-[9px] text-muted-foreground tabular-nums whitespace-nowrap">
+                              {st.coveredPUs.toLocaleString()} / {st.totalPUs.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="h-1 w-full overflow-hidden rounded-full bg-emerald-50 dark:bg-emerald-950/40">
+                            <div
+                              className="h-full rounded-full bg-emerald-600 dark:bg-emerald-500"
+                              style={{ width: `${Math.min(100, Math.max(0, st.officialAgentPct))}%` }}
+                            />
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-purple-600 dark:text-purple-400 tabular-nums hidden sm:table-cell">
+                        {st.extraAgentsCount.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2.5 text-xs font-semibold"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onOpenState(st.code);
+                          }}
+                        >
+                          Open
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {states.length > 0 && (
+          <div className="flex items-center justify-between gap-2 border-t border-border/60 px-1 pt-3 text-[11px]">
+            <span className="text-muted-foreground">
+              Showing {visibleStates.length} of {states.length} states
+            </span>
+            {hiddenCount > 0 ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-[11px]"
+                onClick={() => setShowAllStates(true)}
+              >
+                Show {hiddenCount} more
+              </Button>
+            ) : states.length > STATES_INITIAL_COUNT ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-[11px]"
+                onClick={() => setShowAllStates(false)}
+              >
+                Show less
+              </Button>
+            ) : null}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       {/* Table Action Bar */}
       <div className="flex items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-foreground">
+          <h3 className="text-xs font-semibold text-foreground">
             {level === "national" && `States Breakdown (${states.length})`}
             {level === "state" && `Local Government Areas (${lgas.length})`}
             {level === "lga" && `Wards (${wards.length})`}
@@ -154,7 +305,7 @@ export function CoverageTable({
         {level === "national" && (
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-muted/40 text-xs">
+              <TableHeader className="sticky top-0 z-10 bg-muted/40 text-[11px]">
                 <TableRow>
                   <TableHead className="w-16 font-semibold">Code</TableHead>
                   <TableHead className="font-semibold">State</TableHead>
@@ -165,7 +316,7 @@ export function CoverageTable({
                   <TableHead className="text-right font-semibold w-24">Action</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody className="text-xs">
+              <TableBody className="text-[11px]">
                 {states.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
@@ -235,7 +386,7 @@ export function CoverageTable({
         {level === "state" && (
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-muted/40 text-xs">
+              <TableHeader className="sticky top-0 z-10 bg-muted/40 text-[11px]">
                 <TableRow>
                   <TableHead className="w-20 font-semibold">Code</TableHead>
                   <TableHead className="font-semibold">Local Govt Area</TableHead>
@@ -247,7 +398,7 @@ export function CoverageTable({
                   <TableHead className="text-right font-semibold w-24">Action</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody className="text-xs">
+              <TableBody className="text-[11px]">
                 {lgas.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
@@ -265,7 +416,7 @@ export function CoverageTable({
                         {lga.code}
                       </TableCell>
                       <TableCell className="font-semibold text-foreground">
-                        {lga.name}
+                        {toTitleCase(lga.name)}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-[11px] hidden lg:table-cell">
                         {lga.federalConstituency || "—"}
@@ -316,7 +467,7 @@ export function CoverageTable({
         {level === "lga" && (
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-muted/40 text-xs">
+              <TableHeader className="sticky top-0 z-10 bg-muted/40 text-[11px]">
                 <TableRow>
                   <TableHead className="w-24 font-semibold">Code</TableHead>
                   <TableHead className="font-semibold">Ward Name</TableHead>
@@ -328,7 +479,7 @@ export function CoverageTable({
                   <TableHead className="text-right font-semibold w-24">Action</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody className="text-xs">
+              <TableBody className="text-[11px]">
                 {wards.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
@@ -397,7 +548,7 @@ export function CoverageTable({
         {level === "ward" && (
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-muted/40 text-xs">
+              <TableHeader className="sticky top-0 z-10 bg-muted/40 text-[11px]">
                 <TableRow>
                   <TableHead className="w-32 font-semibold">INEC Code</TableHead>
                   <TableHead className="font-semibold min-w-[200px]">Polling Unit & Location</TableHead>
@@ -407,7 +558,7 @@ export function CoverageTable({
                   <TableHead className="text-right font-semibold w-24">Action</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody className="text-xs">
+              <TableBody className="text-[11px]">
                 {pollingUnits.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
@@ -532,7 +683,7 @@ export function CoverageTable({
 
         {/* Pagination Footer */}
         {totalItems > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 px-3.5 py-2.5 border-t border-border/60 bg-muted/20 text-xs">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 px-3.5 py-2.5 border-t border-border/60 bg-muted/20 text-[11px]">
             <div className="text-muted-foreground text-center sm:text-left">
               Showing <span className="font-semibold text-foreground">{startIndex + 1}</span>–
               <span className="font-semibold text-foreground">{endIndex}</span> of{" "}

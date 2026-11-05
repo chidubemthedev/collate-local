@@ -1,185 +1,213 @@
 "use client";
 
-import React from "react";
-import { formatCoverage } from "@/lib/coverage/format";
+import React, { useSyncExternalStore } from "react";
 import { CandidateData } from "@/lib/types";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import {
-  ShieldCheck,
-  AlertTriangle,
-  Send,
-} from "lucide-react";
-import Link from "next/link";
+import { toTitleCase } from "./candidates-filters";
 
 interface CandidateDetailModalProps {
   candidate: CandidateData | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The seat's state name, if any (national seats have none). */
+  stateName?: string | null;
 }
 
-export function CandidateDetailModal({
+const OFFICE_BADGE: Record<string, string> = {
+  President: "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300",
+  Governor: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
+  Senate: "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300",
+  "House of Reps": "bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300",
+  "State Assembly": "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
+};
+
+const CHANNEL_BADGE: Record<CandidateData["telegramStatus"], { label: string; className: string }> = {
+  connected: { label: "Connected", className: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" },
+  sms_only: { label: "Invited", className: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300" },
+  not_matched: { label: "Not connected", className: "bg-muted text-muted-foreground" },
+};
+
+function coverageTier(cand: CandidateData) {
+  if (cand.totalPUs <= 0) return { label: "Not mapped", className: "bg-muted text-muted-foreground" };
+  if (cand.coveragePct >= 50) {
+    return { label: "High", className: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" };
+  }
+  if (cand.coveragePct >= 30) {
+    return { label: "Medium", className: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300" };
+  }
+  return { label: "Critical", className: "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300" };
+}
+
+// Side panel from the sm breakpoint up; a centred modal on phones.
+const DESKTOP_QUERY = "(min-width: 640px)";
+function subscribe(callback: () => void) {
+  const media = window.matchMedia(DESKTOP_QUERY);
+  media.addEventListener("change", callback);
+  return () => media.removeEventListener("change", callback);
+}
+function useIsDesktop() {
+  return useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia(DESKTOP_QUERY).matches,
+    () => true,
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[110px_1fr] items-center gap-3 py-1">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 text-xs text-foreground">{children}</dd>
+    </div>
+  );
+}
+
+const PILL = "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-medium";
+
+function CandidateDetailBody({
   candidate,
-  open,
-  onOpenChange,
-}: CandidateDetailModalProps) {
+  stateName,
+  onClose,
+  Title,
+  Description,
+}: {
+  candidate: CandidateData;
+  stateName?: string | null;
+  onClose: () => void;
+  Title: typeof DialogTitle | typeof SheetTitle;
+  Description: typeof DialogDescription | typeof SheetDescription;
+}) {
+  const tier = coverageTier(candidate);
+  const channel = CHANNEL_BADGE[candidate.telegramStatus] ?? CHANNEL_BADGE.not_matched;
+  const deputyTitle = candidate.office === "President" ? "Vice-President" : "Deputy";
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex-1 space-y-4 overflow-y-auto p-5">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 space-y-1.5">
+            <span className={`${PILL} ${OFFICE_BADGE[candidate.office] ?? "bg-muted text-muted-foreground"}`}>
+              {candidate.office}
+            </span>
+            <Title className="text-lg font-bold leading-tight text-foreground">
+              {toTitleCase(candidate.name)}
+            </Title>
+            {candidate.deputyName && (
+              <Description className="text-xs text-muted-foreground">
+                ({deputyTitle}) {toTitleCase(candidate.deputyName)}
+              </Description>
+            )}
+          </div>
+          <Button variant="outline" size="sm" className="h-8 shrink-0 px-3 text-xs" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+
+        {/* Seat and coverage */}
+        <dl>
+          <Row label="Seat">
+            <span className="font-semibold">{toTitleCase(candidate.seat)}</span>
+          </Row>
+          <Row label="State">{stateName ? toTitleCase(stateName) : "—"}</Row>
+          <Row label="Official coverage">
+            {candidate.isOffCycle ? (
+              <span className={`${PILL} bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300`}>
+                Off-cycle: not on the next election day
+              </span>
+            ) : (
+              <span className="inline-flex flex-wrap items-center gap-2">
+                <span className="tabular-nums">
+                  {candidate.totalPUs > 0
+                    ? `${candidate.coveredPUs.toLocaleString()} of ${candidate.totalPUs.toLocaleString()} (${candidate.coveragePct}%)`
+                    : "No units mapped"}
+                </span>
+                <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${tier.className}`}>
+                  {tier.label}
+                </span>
+              </span>
+            )}
+          </Row>
+          <Row label="Extra agents">
+            <span className="text-purple-600 dark:text-purple-400">
+              +{candidate.extraAgentsCount.toLocaleString()} extra agents of their own
+            </span>
+          </Row>
+          <Row label="Source">INEC 2027 final list (name and seat)</Row>
+        </dl>
+
+        {/* Contact and channel */}
+        <div className="space-y-1 border-t border-border/70 pt-4">
+          <div className="pb-1">
+            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Contact and channel
+            </h3>
+          </div>
+          <dl>
+            <Row label="Phone">{candidate.phoneMasked ?? "Not on file"}</Row>
+            <Row label="Email">Not on file</Row>
+            <Row label="Channel">
+              <span className={`${PILL} ${channel.className}`}>{channel.label}</span>
+            </Row>
+            <Row label="Notes">None</Row>
+          </dl>
+          <p className="pt-1 text-[11px] text-muted-foreground">
+            Read-only. Only Admin can edit candidate details.
+          </p>
+        </div>
+      </div>
+
+      {/* Footer actions (both features are not built yet) */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-border/70 p-5">
+        <Button
+          disabled
+          title="Not available yet"
+          className="h-9 bg-foreground px-4 text-xs text-background hover:bg-foreground/90"
+        >
+          View as this candidate
+        </Button>
+        <Button variant="outline" disabled title="Not available yet" className="h-9 px-4 text-xs">
+          Agents in this seat
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export function CandidateDetailModal({ candidate, open, onOpenChange, stateName }: CandidateDetailModalProps) {
+  const isDesktop = useIsDesktop();
   if (!candidate) return null;
 
-  const getOfficeBadgeColor = (office: string) => {
-    switch (office) {
-      case "President":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200";
-      case "Governor":
-        return "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200";
-      case "Senate":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200";
-      case "House of Reps":
-        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200";
-      case "State Assembly":
-        return "bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 border-teal-200";
-      default:
-        return "bg-muted text-muted-foreground";
-    }
-  };
+  const close = () => onOpenChange(false);
+
+  if (isDesktop) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="right" showCloseButton={false} className="gap-0 p-0 sm:max-w-md">
+          <CandidateDetailBody
+            candidate={candidate}
+            stateName={stateName}
+            onClose={close}
+            Title={SheetTitle}
+            Description={SheetDescription}
+          />
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0">
-        {/* Header */}
-        <div className="p-4 sm:p-5 bg-muted/40 border-b border-border/80">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className={getOfficeBadgeColor(candidate.office)}>
-                {candidate.office}
-              </Badge>
-              <Badge variant="outline" className="font-mono text-[10px]">
-                {candidate.seat}
-              </Badge>
-            </div>
-            {candidate.isOffCycle && (
-              <Badge variant="destructive" className="bg-amber-600 text-white text-[10px]">
-                Off-Cycle
-              </Badge>
-            )}
-          </div>
-
-          <DialogTitle className="text-base sm:text-lg font-bold text-foreground mt-2.5">
-            {candidate.name}
-          </DialogTitle>
-          {candidate.deputyName && (
-            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-              Running mate: <span className="text-foreground font-medium">{candidate.deputyName}</span>
-            </DialogDescription>
-          )}
-        </div>
-
-        <div className="p-4 sm:p-5 space-y-4">
-          {candidate.isOffCycle ? (
-            <div className="p-3 rounded-lg border border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold">Off-Cycle Election Seat</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  This seat is not up in the next election day (off-cycle state).
-                </p>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Coverage KPI Box */}
-              <div className="p-3.5 rounded-lg border border-border/80 bg-card space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-muted-foreground flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    Official Party Agent Coverage
-                  </span>
-                  <span className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">
-                    {formatCoverage(candidate.coveredPUs, candidate.totalPUs, candidate.coveragePct)}
-                  </span>
-                </div>
-                <Progress value={candidate.coveragePct} className="h-2 bg-emerald-100 dark:bg-emerald-950/40" />
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
-                  <span>{candidate.coveredPUs.toLocaleString()} Covered PUs</span>
-                  <span>{(candidate.totalPUs - candidate.coveredPUs).toLocaleString()} Gaps</span>
-                  <span>{candidate.totalPUs.toLocaleString()} Total PUs</span>
-                </div>
-              </div>
-
-              {/* Extra Agents & Secrecy */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="p-3 rounded-lg border border-border/70 bg-muted/20">
-                  <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
-                    Candidate Extra Agents
-                  </span>
-                  <div className="text-base font-bold text-foreground mt-0.5">
-                    {candidate.extraAgentsCount.toLocaleString()}
-                  </div>
-                  <span className="text-[10px] text-muted-foreground block mt-0.5">
-                    Tagged protectors & mobilisers
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-lg border border-border/70 bg-muted/20">
-                  <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
-                    Channel Status
-                  </span>
-                  <div className="mt-1">
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] ${
-                        candidate.telegramStatus === "connected"
-                          ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border-emerald-300"
-                          : candidate.telegramStatus === "sms_only"
-                          ? "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-300"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {candidate.telegramStatus === "connected"
-                        ? "Telegram Connected"
-                        : candidate.telegramStatus === "sms_only"
-                        ? "SMS Fallback Only"
-                        : "Number Not Matched"}
-                    </Badge>
-                  </div>
-                  <span className="text-[10px] text-muted-foreground font-mono block mt-1">
-                    {candidate.phoneMasked ?? "No phone on file"}
-                  </span>
-                </div>
-              </div>
-            </>
-          )}
-
-          <Separator />
-
-          {/* Action Buttons */}
-          <div className="space-y-2 pt-1">
-            <div className="flex items-center gap-2">
-              <Link
-                href={`/broadcasts/new?target=${encodeURIComponent(candidate.name)}`}
-                className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-8 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all flex-1"
-                onClick={() => onOpenChange(false)}
-              >
-                <Send className="w-3.5 h-3.5" />
-                Send Broadcast to Candidate
-              </Link>
-              <Button
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="text-xs h-8"
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
+      <DialogContent showCloseButton={false} className="max-h-[90vh] gap-0 overflow-hidden p-0">
+        <CandidateDetailBody
+          candidate={candidate}
+          stateName={stateName}
+          onClose={close}
+          Title={DialogTitle}
+          Description={DialogDescription}
+        />
       </DialogContent>
     </Dialog>
   );

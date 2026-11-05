@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { UnifiedAgentRecord, AgentDetailModal } from "./agent-detail-modal";
 import {
   Table,
@@ -12,17 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  ShieldCheck,
-  Users,
-  AlertCircle,
-  MapPin,
-  ExternalLink,
-  Send,
-  Eye,
-  UserPlus,
-} from "lucide-react";
-import Link from "next/link";
+import { AlertCircle, MapPin, UserPlus } from "lucide-react";
 
 interface AgentsTableProps {
   agents: UnifiedAgentRecord[];
@@ -32,13 +22,14 @@ interface AgentsTableProps {
 export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
   const [selectedAgent, setSelectedAgent] = useState<UnifiedAgentRecord | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
 
-  // Auto-reset to first page when the agent dataset changes (e.g. filters applied)
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [agents.length]);
+  // Back to the first page when the agent dataset changes (e.g. filters applied).
+  // The page is stored with the dataset size it belongs to, so no reset effect is needed.
+  const [pageState, setPageState] = useState({ key: agents.length, page: 1 });
+  const currentPage = pageState.key === agents.length ? pageState.page : 1;
+  const setCurrentPage = (update: (page: number) => number) =>
+    setPageState({ key: agents.length, page: update(currentPage) });
 
   const totalPages = Math.max(1, Math.ceil(agents.length / PAGE_SIZE));
   const paginatedAgents = useMemo(() => {
@@ -51,16 +42,13 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
     setIsModalOpen(true);
   };
 
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case "Official Party Agent":
+  // Type is the agent kind stored on the assignment (no role is stored yet).
+  const getTypeBadge = (type: UnifiedAgentRecord["type"]) => {
+    switch (type) {
+      case "official":
         return "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-300";
-      case "Protector":
-        return "bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border-blue-300";
-      case "Mobiliser":
+      case "extra":
         return "bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border-purple-200";
-      case "Snapper":
-        return "bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border-teal-200";
       default:
         return "bg-muted text-muted-foreground";
     }
@@ -76,7 +64,7 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
               <TableHead className="font-semibold min-w-[200px]">Polling Unit & Location</TableHead>
               <TableHead className="font-semibold min-w-[180px]">Agent Name & Type</TableHead>
               <TableHead className="font-semibold hidden md:table-cell min-w-[160px]">Sponsor / Owner</TableHead>
-              <TableHead className="font-semibold hidden sm:table-cell">Role</TableHead>
+              <TableHead className="font-semibold hidden sm:table-cell">Type</TableHead>
               <TableHead className="font-semibold hidden lg:table-cell">Contact & Status</TableHead>
               <TableHead className="text-right font-semibold w-24">Action</TableHead>
             </TableRow>
@@ -153,13 +141,13 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
                       </div>
                     </TableCell>
 
-                    {/* Role */}
+                    {/* Type */}
                     <TableCell className="hidden sm:table-cell">
                       {isGap ? (
                         <span className="text-muted-foreground text-[11px]">Unfilled</span>
                       ) : (
-                        <Badge variant="outline" className={`text-[10px] ${getRoleBadge(agent.role)}`}>
-                          {agent.role}
+                        <Badge variant="outline" className={`text-[10px] ${getTypeBadge(agent.type)}`}>
+                          {isOfficial ? "Official" : "Extra"}
                         </Badge>
                       )}
                     </TableCell>

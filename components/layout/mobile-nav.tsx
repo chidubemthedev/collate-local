@@ -12,8 +12,6 @@ import {
   Radio,
   Send,
   Contact,
-  ShieldCheck,
-  Layers,
   Menu,
   Eye,
 } from "lucide-react";

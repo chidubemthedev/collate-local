@@ -10,6 +10,8 @@ import {
   describeScope as describeScopeCore,
 } from "./core/scope-queries";
 import { listAgents as listAgentsCore, summarizeAgents as summarizeAgentsCore } from "./core/list-agents";
+import { listOwnerGroups as listOwnerGroupsCore } from "./core/owner-groups";
+import type { OwnerGroupDto } from "./core/owner-groups";
 import type { AgentListContext, AgentPage, AgentSummary } from "./core/list-agents";
 import type { PolicyUser } from "./core/policy-user";
 import type { Scope } from "./core/scope";
@@ -25,6 +27,7 @@ export type { AgentDto, AgentPage, AgentListContext, AgentSummary } from "./core
 export type { PolicyUser } from "./core/policy-user";
 export type { Scope } from "./core/scope";
 export type { VisibleOwners } from "./core/owners";
+export type { OwnerGroupDto } from "./core/owner-groups";
 
 async function getManager(): Promise<EntityManager> {
   return (await getDataSource()).manager;
@@ -65,6 +68,10 @@ export async function listAgents(
   context?: AgentListContext,
 ): Promise<AgentPage> {
   return listAgentsCore(user, filters, context, await getManager());
+}
+
+export async function listOwnerGroups(user: PolicyUser): Promise<OwnerGroupDto[]> {
+  return listOwnerGroupsCore(user, await getManager());
 }
 
 export async function summarizeAgents(

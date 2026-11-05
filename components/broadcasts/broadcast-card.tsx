@@ -155,7 +155,7 @@ export function BroadcastCard({ broadcast, onPreview }: BroadcastCardProps) {
       {/* Message Snippet */}
       {broadcast.messageContent && (
         <div className="text-xs text-muted-foreground/90 line-clamp-2 bg-muted/30 p-2.5 rounded-lg border border-border/60 font-sans italic">
-          "{broadcast.messageContent.replace(/[#*`_]/g, "")}"
+          &ldquo;{broadcast.messageContent.replace(/[#*`_]/g, "")}&rdquo;
         </div>
       )}
 

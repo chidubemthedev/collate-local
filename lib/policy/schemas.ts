@@ -12,7 +12,8 @@ export const agentFiltersSchema = z.object({
   ownerGroupId: idFilter.optional(),
   ownerCandidateId: idFilter.optional(),
   agentKind: z.nativeEnum(AgentKind).optional(),
-  channel: z.enum(["telegram", "not_connected"]).optional(),
+  // not_connected = sms_only + not_matched.
+  channel: z.enum(["telegram", "not_connected", "sms_only", "not_matched"]).optional(),
   q: z.string().trim().min(1).max(100).optional(),
   cursor: z.string().max(512).refine(isValidCursor).optional(),
   // Candidates must not get bulk export; this cap applies to every caller.

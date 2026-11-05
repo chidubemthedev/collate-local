@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { X, SlidersHorizontal, ChevronDown } from "lucide-react";
+import { SlidersHorizontal, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,11 +12,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-export interface ActiveTableFilter {
-  id: string;
-  label: string;
-  onRemove: () => void;
-}
+import { ActiveFilterChips, type ActiveTableFilter } from "@/components/ui/active-filter-chips";
+
+export type { ActiveTableFilter };
 
 export function TableToolbar({
   children,
@@ -93,28 +91,7 @@ export function TableToolbar({
         </div>
       )}
 
-      {activeFilters.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
-          {activeFilters.map((filter) => (
-            <Badge key={filter.id} variant="secondary" className="gap-1 pr-1">
-              <span className="max-w-48 truncate">{filter.label}</span>
-              <button
-                type="button"
-                aria-label={`Remove ${filter.label} filter`}
-                onClick={filter.onRemove}
-                className="rounded-full p-0.5 hover:bg-background/70"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-          {onClear && (
-            <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={onClear}>
-              Clear filters
-            </Button>
-          )}
-        </div>
-      )}
+      <ActiveFilterChips filters={activeFilters} onClear={onClear} />
     </div>
   );
 }

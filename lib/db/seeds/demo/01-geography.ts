@@ -60,14 +60,12 @@ export async function seedGeography(queryRunner: QueryRunner): Promise<{
     states[row.inec_state_code] = row.id;
   }
 
-  let lgaCursor = 0;
   for (const state of statesMeta) {
     const lgaRows = await queryRunner.query(
       `
         INSERT INTO lga (state_id, inec_lga_code, lga_name)
         VALUES ${state.lgaNames
           .map((name, index) => {
-            lgaCursor += 1;
             const code = `${state.stateCode}${String(index + 1).padStart(2, "0")}`;
             lgas[`${states[state.stateCode]}:${code}`] = 0;
             return `(${states[state.stateCode]}, '${code}', '${name.replace("'", "''")}')`;

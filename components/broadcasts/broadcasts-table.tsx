@@ -9,12 +9,8 @@ import {
   Clock,
   FileEdit,
   Eye,
-  ExternalLink,
-  Users,
   MapPin,
   ChevronRight,
-  Smartphone,
-  CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
 
