@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, usePermissions, useLogout } from "@/lib/hooks/use-auth";
+import { useHasMounted } from "@/lib/hooks/use-has-mounted";
 import {
   MapPin,
   Users,
@@ -21,8 +22,11 @@ import { Badge } from "@/components/ui/badge";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const { data: permissions } = usePermissions();
+  const hasMounted = useHasMounted();
+  const { data: sessionData } = useSession();
+  const { data: permissionsData } = usePermissions();
+  const session = hasMounted ? sessionData : undefined;
+  const permissions = hasMounted ? permissionsData : undefined;
   const logoutMutation = useLogout();
 
   if (pathname === "/login") {

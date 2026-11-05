@@ -218,6 +218,7 @@ export default function AgentsPage() {
                 ? "Mobiliser"
                 : "Snapper",
           phoneMasked: item.maskedPhone || "—",
+          telegramStatus: item.telegramConnected ? "connected" : undefined,
           puCode: item.pollingUnit.inecPollingUnitCode,
           puName:
             item.pollingUnit.name ||
@@ -374,7 +375,7 @@ export default function AgentsPage() {
       "PU Code,PU Name,Location,Agent Name,Agent Type,Sponsor/Owner,Role,Phone (Masked),Channel Status\n";
 
     filteredAgents.forEach((a) => {
-      csvContent += `"${a.puCode}","${a.puName}","${a.puLocation}","${a.name}","${a.type}","${a.sponsor}","${a.role}","${a.phoneMasked}","${a.telegramStatus ?? ""}"\n`;
+      csvContent += `"${a.puCode}","${a.puName}","${a.puLocation}","${a.name}","${a.type}","${a.sponsor}","${a.role}","${a.phoneMasked}","${a.telegramStatus === "connected" ? "Telegram Connected" : a.type === "gap" ? "" : "Not available yet"}"\n`;
     });
 
     const encodedUri = encodeURI(csvContent);

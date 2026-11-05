@@ -47,6 +47,9 @@ interface Fixtures {
   lagosStateId: number;
   kanoStateId: number;
   lagosWardId: number;
+  kanoWardId: number;
+  lagosPu1: number;
+  kanoPu1: number;
   kanoStateIdForFilter: number;
   ownerLagosGroupId: number;
   linkPhone: string;
@@ -252,7 +255,58 @@ describe.skipIf(!shouldRun)("broadcast database integration", () => {
     ).rejects.toBeInstanceOf(InvalidFilterError);
   });
 
-  it("materializes one delivery per person and adds running mates", async () => {
+  it("applies polling unit and verification filters without revealing out-of-scope units", async () => {
+    const {
+      adminPersonId,
+      senderPersonId,
+      extraAgentPersonId,
+      lagosPu1,
+      kanoPu1,
+      kanoWardId,
+    } = requireFixtures();
+    const admin = await loadPolicyUser(adminPersonId, requireManager());
+    const sender = await loadPolicyUser(senderPersonId, requireManager());
+
+    expect(
+      await previewAudience(admin, { pollingUnitId: lagosPu1 }, requireManager()),
+    ).toEqual({ officialCount: 1, extraCount: 3 });
+    expect(
+      await previewAudience(sender, { pollingUnitId: kanoPu1 }, requireManager()),
+    ).toEqual({ officialCount: 0, extraCount: 0 });
+    expect(
+      await previewAudience(sender, { wardId: kanoWardId }, requireManager()),
+    ).toEqual({ officialCount: 0, extraCount: 0 });
+
+    await requireManager().query(
+      "UPDATE person SET verification_status = 'rejected' WHERE id = $1::uuid",
+      [extraAgentPersonId],
+    );
+    expect(
+      await previewAudience(
+        admin,
+        { stateId: requireFixtures().lagosStateId, verificationStatus: "rejected" },
+        requireManager(),
+      ),
+    ).toEqual({ officialCount: 0, extraCount: 1 });
+    expect(
+      await previewAudience(
+        admin,
+        {
+          stateId: requireFixtures().lagosStateId,
+          wardId: requireFixtures().lagosWardId,
+          pollingUnitId: lagosPu1,
+          verificationStatus: "rejected",
+        },
+        requireManager(),
+      ),
+    ).toEqual({ officialCount: 0, extraCount: 1 });
+    await requireManager().query(
+      "UPDATE person SET verification_status = 'verified' WHERE id = $1::uuid",
+      [extraAgentPersonId],
+    );
+  });
+
+  it("materializes only eligible agent recipients and matches the preview count", async () => {
     const {
       senderPersonId,
       officialAgentPersonId,
@@ -264,6 +318,11 @@ describe.skipIf(!shouldRun)("broadcast database integration", () => {
       kanoAgentPersonId,
       hiddenOwnerAgentPersonId,
     } = requireFixtures();
+    const preview = await previewAudience(
+      await loadPolicyUser(senderPersonId, requireManager()),
+      {},
+      requireManager(),
+    );
     const broadcastId = await createBroadcastFixture(
       senderPersonId,
       {},
@@ -271,7 +330,8 @@ describe.skipIf(!shouldRun)("broadcast database integration", () => {
     );
 
     const count = await materializeDeliveries(broadcastId, requireManager());
-    expect(count).toBe(5);
+    expect(count).toBe(4);
+    expect(count).toBe(preview.officialCount + preview.extraCount);
 
     const rows = (await requireManager().query(
       "SELECT person_id FROM delivery WHERE broadcast_id = $1::uuid",
@@ -284,16 +344,16 @@ describe.skipIf(!shouldRun)("broadcast database integration", () => {
         extraAgentPersonId,
         candidatePersonId,
         noConsentAgentPersonId,
-        runningMatePersonId,
       ]),
     );
     expect(personIds.filter((id) => id === extraAgentPersonId)).toHaveLength(1);
     expect(personIds).not.toContain(declinedAgentPersonId);
     expect(personIds).not.toContain(kanoAgentPersonId);
     expect(personIds).not.toContain(hiddenOwnerAgentPersonId);
+    expect(personIds).not.toContain(runningMatePersonId);
 
     const repeat = await materializeDeliveries(broadcastId, requireManager());
-    expect(repeat).toBe(5);
+    expect(repeat).toBe(4);
   });
 
   it("sends successfully, marks the broadcast completed and skips terminal rows", async () => {
@@ -763,6 +823,9 @@ async function createFixtures(entityManager: EntityManager): Promise<Fixtures> {
     kanoStateId,
     lagosWardId,
     kanoStateIdForFilter: kanoStateId,
+    kanoWardId,
+    lagosPu1,
+    kanoPu1,
     ownerLagosGroupId,
     linkPhone: `+2340000002001`,
     officialPhone: `+2340000002002`,
