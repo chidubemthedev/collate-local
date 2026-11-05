@@ -21,6 +21,8 @@ export interface CoverageFilters {
   politicalUnitId?: number | null;
 }
 
+export type PollingUnitFilterParams = { gps?: "with" | "without"; coverage?: "gaps" };
+
 export interface CoverageGapsFilters extends CoverageFilters {
   limit?: number;
   offset?: number;
@@ -37,17 +39,20 @@ export const COVERAGE_KEYS = {
  * Fetch headline coverage metrics for the current scope.
  */
 export function useCoverageSummary(
-  filters: CoverageFilters = {},
+  filters: CoverageFilters & PollingUnitFilterParams = {},
   options?: { enabled?: boolean },
 ) {
-  const cleanFilters: Record<string, number> = {};
+  const cleanFilters: Record<string, number | string> = {};
+  if (filters.gps) cleanFilters.gps = filters.gps;
+  if (filters.coverage) cleanFilters.coverage = filters.coverage;
   if (filters.stateId && filters.stateId > 0) cleanFilters.stateId = filters.stateId;
   if (filters.lgaId && filters.lgaId > 0) cleanFilters.lgaId = filters.lgaId;
   if (filters.wardId && filters.wardId > 0) cleanFilters.wardId = filters.wardId;
   if (filters.politicalUnitId && filters.politicalUnitId > 0) cleanFilters.politicalUnitId = filters.politicalUnitId;
 
+  const summaryKey = COVERAGE_KEYS.summary(cleanFilters as CoverageFilters);
   return useQuery<CoverageSummary, ApiClientError>({
-    queryKey: COVERAGE_KEYS.summary(cleanFilters),
+    queryKey: summaryKey,
     queryFn: async () => {
       const res = await apiClient.get<CoverageSummary>("/api/coverage/summary", cleanFilters);
       return res.data;

@@ -9,6 +9,7 @@ import {
   useGeographyLgas,
   useGeographyWards,
   useGeographyPollingUnits,
+  type PollingUnitFilterParams,
 } from "@/lib/hooks/use-geography";
 import {
   useCoverageSummary,
@@ -20,7 +21,7 @@ import { StateData, LGAData, WardData, PollingUnitData } from "@/lib/types";
 import { KPISummary } from "@/components/coverage/kpi-summary";
 import { AtStakeCandidates } from "@/components/coverage/at-stake-candidates";
 import { CoverageMap } from "@/components/coverage/coverage-map";
-import { CoverageFilters } from "@/components/coverage/coverage-filters";
+import { CoverageFilters, type CoverageFilterMode, type CoverageViewBy } from "@/components/coverage/coverage-filters";
 import { CoverageTable } from "@/components/coverage/coverage-table";
 import {
   CoverageDashboardSkeleton,
@@ -40,6 +41,24 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+interface SortableRow {
+  code: string;
+  totalPUs: number;
+  noCoveragePUs: number;
+  officialAgentPct: number;
+  extraAgentsCount: number;
+}
+
+function compareRows(sortBy: string) {
+  return (a: SortableRow, b: SortableRow) => {
+    if (sortBy === "pus-desc") return b.totalPUs - a.totalPUs;
+    if (sortBy === "gaps-desc") return b.noCoveragePUs - a.noCoveragePUs;
+    if (sortBy === "coverage-asc") return a.officialAgentPct - b.officialAgentPct;
+    if (sortBy === "extra-desc") return b.extraAgentsCount - a.extraAgentsCount;
+    return a.code.localeCompare(b.code, undefined, { numeric: true });
+  };
+}
+
 export default function CoveragePage() {
   const {
     activePersona,
@@ -52,8 +71,9 @@ export default function CoveragePage() {
     resetAreaFilters,
   } = useApp();
 
-  const [filterMode, setFilterMode] = useState<"all" | "gaps">("all");
-  const [sortBy, setSortBy] = useState<string>("pus-desc");
+  const [filterMode, setFilterMode] = useState<CoverageFilterMode>("all");
+  const [sortBy, setSortBy] = useState<string>("inec");
+  const [viewBy, setViewBy] = useState<CoverageViewBy>("administrative");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Determine current hierarchy level
@@ -64,6 +84,14 @@ export default function CoveragePage() {
     return "national";
   }, [selectedStateCode, selectedLgaCode, selectedWardCode]);
 
+  // The pills are applied by the API, so the filter goes with every request.
+  const puFilter = useMemo<PollingUnitFilterParams>(() => {
+    if (filterMode === "gaps") return { coverage: "gaps" };
+    if (filterMode === "gps") return { gps: "with" };
+    if (filterMode === "no-gps") return { gps: "without" };
+    return {};
+  }, [filterMode]);
+
   // Fetch live geography data
   const {
     data: apiStates = [],
@@ -71,7 +99,7 @@ export default function CoveragePage() {
     isFetching: isFetchingStates,
     error: statesError,
     refetch: refetchStates,
-  } = useGeographyStates();
+  } = useGeographyStates(puFilter);
 
   const statesList = apiStates;
 
@@ -91,7 +119,7 @@ export default function CoveragePage() {
     isFetching: isFetchingLgas,
     error: lgasError,
     refetch: refetchLgas,
-  } = useGeographyLgas(selectedStateId);
+  } = useGeographyLgas(selectedStateId, puFilter);
 
   const lgasList = useMemo(() => {
     if (selectedStateCode === "all") return [];
@@ -114,7 +142,7 @@ export default function CoveragePage() {
     isFetching: isFetchingWards,
     error: wardsError,
     refetch: refetchWards,
-  } = useGeographyWards(selectedLgaId);
+  } = useGeographyWards(selectedLgaId, puFilter);
 
   const wardsList = useMemo(() => {
     if (selectedLgaCode === "all") return [];
@@ -137,13 +165,14 @@ export default function CoveragePage() {
     areaKey,
     officeId: null,
   });
-  const selectedOfficeId = officeChoice.areaKey === areaKey ? officeChoice.officeId : null;
+  const selectedOfficeId =
+    viewBy === "political" && officeChoice.areaKey === areaKey ? officeChoice.officeId : null;
   const setSelectedOfficeId = (officeId: number | null) => setOfficeChoice({ areaKey, officeId });
+  // The offices list must not depend on the chosen office, or picking one refetches and reloads the dropdown.
   const candidateQuery = useCandidateCoverage({
     stateId: selectedStateId,
     lgaId: selectedLgaId,
     wardId: selectedWardId,
-    officeId: selectedOfficeId,
   });
   const candidateOffices = candidateQuery.data?.pages[0]?.offices ?? [];
   const officesLoading = candidateQuery.isFetching && !candidateQuery.isFetchingNextPage;
@@ -154,15 +183,17 @@ export default function CoveragePage() {
     isFetching: isFetchingPollingUnits,
     error: pusError,
     refetch: refetchPus,
-  } = useGeographyPollingUnits(selectedWardId);
+  } = useGeographyPollingUnits(selectedWardId, puFilter.gps);
 
   // Live coverage summary query
-  const isStateDetailEnabled = currentLevel === "state" && selectedStateId !== null;
+  const isStateDetailEnabled =
+    currentLevel === "state" && selectedStateId !== null && filterMode === "all";
   const stateDetailQuery = useGeographyState(isStateDetailEnabled ? selectedStateId : null);
   const coverageSummaryQuery = useCoverageSummary({
     stateId: selectedStateId,
     lgaId: selectedLgaId,
     wardId: selectedWardId,
+    ...puFilter,
   }, {
     enabled: !isStateDetailEnabled,
   });
@@ -201,6 +232,18 @@ export default function CoveragePage() {
       ? selectedState?.name || selectedStateCode
       : "Nigeria";
 
+  const filterModeLabel: Record<CoverageFilterMode, string> = {
+    all: "",
+    gaps: "Gaps only",
+    gps: "With GPS",
+    "no-gps": "No GPS",
+  };
+  const scopeLabel = [
+    currentLevel === "national" ? "All of Nigeria" : levelName,
+    filterModeLabel[filterMode],
+  ]
+    .filter(Boolean)
+    .join(" · ");
   // KPI metrics come only from the live API summary
   const kpiData = useMemo(() => {
     if (!summaryData) return null;
@@ -270,10 +313,6 @@ export default function CoveragePage() {
       };
     });
 
-    if (filterMode === "gaps") {
-      result = result.filter((s) => s.noCoveragePUs > 0);
-    }
-
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(
@@ -282,17 +321,10 @@ export default function CoveragePage() {
     }
 
     // Sort
-    result.sort((a, b) => {
-      if (sortBy === "pus-desc") return b.totalPUs - a.totalPUs;
-      if (sortBy === "pus-asc") return a.totalPUs - b.totalPUs;
-      if (sortBy === "coverage-desc") return b.officialAgentPct - a.officialAgentPct;
-      if (sortBy === "coverage-asc") return a.officialAgentPct - b.officialAgentPct;
-      if (sortBy === "name-asc") return a.name.localeCompare(b.name);
-      return 0;
-    });
+    result.sort(compareRows(sortBy));
 
     return result;
-  }, [statesList, filterMode, searchQuery, sortBy]);
+  }, [statesList, searchQuery, sortBy]);
 
   // Filter and sort LGAs data (live or static)
   const filteredLGAs: LGAData[] = useMemo(() => {
@@ -316,10 +348,6 @@ export default function CoveragePage() {
       };
     });
 
-    if (filterMode === "gaps") {
-      result = result.filter((l) => l.noCoveragePUs > 0);
-    }
-
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(
@@ -328,17 +356,10 @@ export default function CoveragePage() {
     }
 
     // Sort
-    result.sort((a, b) => {
-      if (sortBy === "pus-desc") return b.totalPUs - a.totalPUs;
-      if (sortBy === "pus-asc") return a.totalPUs - b.totalPUs;
-      if (sortBy === "coverage-desc") return b.officialAgentPct - a.officialAgentPct;
-      if (sortBy === "coverage-asc") return a.officialAgentPct - b.officialAgentPct;
-      if (sortBy === "name-asc") return a.name.localeCompare(b.name);
-      return 0;
-    });
+    result.sort(compareRows(sortBy));
 
     return result;
-  }, [lgasList, selectedStateCode, filterMode, searchQuery, sortBy]);
+  }, [lgasList, selectedStateCode, searchQuery, sortBy]);
 
   // Filter and sort Wards data (live or static)
   const filteredWards: WardData[] = useMemo(() => {
@@ -362,10 +383,6 @@ export default function CoveragePage() {
       };
     });
 
-    if (filterMode === "gaps") {
-      result = result.filter((w) => w.noCoveragePUs > 0);
-    }
-
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(
@@ -374,17 +391,10 @@ export default function CoveragePage() {
     }
 
     // Sort
-    result.sort((a, b) => {
-      if (sortBy === "pus-desc") return b.totalPUs - a.totalPUs;
-      if (sortBy === "pus-asc") return a.totalPUs - b.totalPUs;
-      if (sortBy === "coverage-desc") return b.officialAgentPct - a.officialAgentPct;
-      if (sortBy === "coverage-asc") return a.officialAgentPct - b.officialAgentPct;
-      if (sortBy === "name-asc") return a.name.localeCompare(b.name);
-      return 0;
-    });
+    result.sort(compareRows(sortBy));
 
     return result;
-  }, [wardsList, selectedLgaCode, filterMode, searchQuery, sortBy]);
+  }, [wardsList, selectedLgaCode, searchQuery, sortBy]);
 
   // Polling units come only from the live ward polling-units API
   const pollingUnitsList: PollingUnitData[] = useMemo(() => {
@@ -515,11 +525,16 @@ export default function CoveragePage() {
       setFilterMode={setFilterMode}
       sortBy={sortBy}
       setSortBy={setSortBy}
+      viewBy={viewBy}
+      setViewBy={(next) => {
+        setViewBy(next);
+        setSelectedLgaCode("all");
+        setSelectedWardCode("all");
+        setOfficeChoice({ areaKey, officeId: null });
+      }}
       searchQuery={searchQuery}
       setSearchQuery={setSearchQuery}
       activePersona={activePersona}
-      totalPUsCount={kpiData?.totalPUs ?? 0}
-      gapsCount={kpiData?.noCoveragePUs ?? 0}
       onReset={() => {
         resetAreaFilters();
         setSelectedOfficeId(null);
@@ -540,8 +555,7 @@ export default function CoveragePage() {
             2027 Coverage Dashboard
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Monitor real-time official party agent deployment
-            {kpiData ? ` across ${kpiData.totalPUs.toLocaleString()} polling units in view.` : "."}
+            Official coverage and extra agents by polling unit · {scopeLabel}
           </p>
         </div>
 
