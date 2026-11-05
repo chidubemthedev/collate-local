@@ -1,9 +1,6 @@
 import type { QueryRunner } from "typeorm";
 import { createHash, randomBytes } from "node:crypto";
-import { AccessLink } from "../../entities/access-link.entity";
-import { AuditLog } from "../../entities/audit-log.entity";
-import { ImportBatch } from "../../entities/import-batch.entity";
-import { demoIp, demoPhone, writeDemoTokenFile } from "./utils";
+import { demoIp, writeDemoTokenFile } from "./utils";
 
 export async function seedOperations(queryRunner: QueryRunner): Promise<void> {
   const candidateRows = await queryRunner.query(`

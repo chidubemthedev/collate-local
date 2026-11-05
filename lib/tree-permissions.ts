@@ -1,4 +1,4 @@
-import { Persona, RoleType } from "@/lib/types";
+import { Persona } from "@/lib/types";
 
 export const PERSONAS: Persona[] = [
   {

@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { decodeCandidateCoverageCursor } from "./candidate-coverage";
+import { describe, expect, it, vi } from "vitest";
+import type { DataSource } from "typeorm";
+import {
+  countCandidates,
+  decodeCandidateCoverageCursor,
+  listCandidateCoverage,
+} from "./candidate-coverage";
 
 describe("decodeCandidateCoverageCursor", () => {
   it("decodes a level.id cursor", () => {
@@ -10,5 +15,141 @@ describe("decodeCandidateCoverageCursor", () => {
     expect(decodeCandidateCoverageCursor("abc")).toBeNull();
     expect(decodeCandidateCoverageCursor("1.2.3")).toBeNull();
     expect(decodeCandidateCoverageCursor("1; DROP")).toBeNull();
+  });
+});
+
+const GEO_SQL = "s.id = $1";
+const GEO_PARAMETERS = [7];
+
+describe("countCandidates", () => {
+  function setup(total: number | string = 9) {
+    const query = vi.fn(async () => [{ total }]);
+    const dataSource = { query } as unknown as DataSource;
+    return { query, dataSource };
+  }
+
+  it("counts without the coverage aggregation and returns a number", async () => {
+    const { query, dataSource } = setup("9");
+
+    const total = await countCandidates({
+      dataSource,
+      geoSql: GEO_SQL,
+      geoParameters: GEO_PARAMETERS,
+      firstFreeParameter: 2,
+      officeId: null,
+    });
+
+    expect(total).toBe(9);
+    expect(query).toHaveBeenCalledTimes(1);
+    const [sql] = query.mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).toContain("COUNT(*)");
+    // The expensive per-unit totals and per-candidate coverage must not run for a count.
+    expect(sql).not.toContain("unit_totals");
+    expect(sql).not.toContain("agent_assignment");
+    // The user's scope still limits which seats count.
+    expect(sql).toContain(GEO_SQL);
+  });
+
+  it("binds office, nationalOnly and overlap after the geo parameters", async () => {
+    const { query, dataSource } = setup();
+
+    await countCandidates({
+      dataSource,
+      geoSql: GEO_SQL,
+      geoParameters: GEO_PARAMETERS,
+      firstFreeParameter: 2,
+      officeId: 3,
+      nationalOnly: true,
+      overlap: { stateId: 4, lgaId: 17, wardId: null },
+    });
+
+    const [sql, parameters] = query.mock.calls[0] as unknown as [string, unknown[]];
+    expect(parameters).toEqual([7, 3, true, 4, 17, null]);
+    expect(sql).toContain("$2::int");
+    expect(sql).toContain("$3::boolean");
+    expect(sql).toContain("$4::int");
+    expect(sql).toContain("$6::int");
+    expect(sql).toContain("political_unit_type = 'country'");
+  });
+
+  it("defaults nationalOnly to false and overlap to no filter", async () => {
+    const { query, dataSource } = setup();
+
+    await countCandidates({
+      dataSource,
+      geoSql: GEO_SQL,
+      geoParameters: GEO_PARAMETERS,
+      firstFreeParameter: 2,
+      officeId: null,
+    });
+
+    const [, parameters] = query.mock.calls[0] as unknown as [string, unknown[]];
+    expect(parameters).toEqual([7, null, false, null, null, null]);
+  });
+
+  it("returns 0 when the database returns no row", async () => {
+    const query = vi.fn(async () => []);
+    const total = await countCandidates({
+      dataSource: { query } as unknown as DataSource,
+      geoSql: GEO_SQL,
+      geoParameters: GEO_PARAMETERS,
+      firstFreeParameter: 2,
+      officeId: null,
+    });
+    expect(total).toBe(0);
+  });
+});
+
+describe("listCandidateCoverage parameters", () => {
+  function setup() {
+    const query = vi.fn(async (sql: string) =>
+      sql.includes("INSERT INTO audit_log") ? [] : [{ rows: [], offices: [] }],
+    );
+    return { query, dataSource: { query } as unknown as DataSource };
+  }
+
+  it("binds nationalOnly and the overlap area after the existing parameters", async () => {
+    const { query, dataSource } = setup();
+
+    await listCandidateCoverage({
+      dataSource,
+      actorPersonId: "11111111-1111-4111-8111-111111111111",
+      ipAddress: null,
+      geoSql: GEO_SQL,
+      geoParameters: GEO_PARAMETERS,
+      firstFreeParameter: 2,
+      limit: 12,
+      cursor: null,
+      officeId: null,
+      nationalOnly: true,
+      overlap: { stateId: 4, lgaId: null, wardId: 301 },
+    });
+
+    const [sql, parameters] = query.mock.calls[0] as unknown as [string, unknown[]];
+    // geo, level, id, limit+1, office, nationalOnly, overlap state / lga / ward
+    expect(parameters).toEqual([7, null, null, 13, null, true, 4, null, 301]);
+    expect(sql).toContain("political_unit_type = 'country'");
+    expect(sql).toContain("ov_ppu.political_unit_id");
+    // Coverage totals stay clipped by the geo filter only, never by the overlap area.
+    expect(sql).toMatch(/unit_totals AS MATERIALIZED \([\s\S]*WHERE s\.id = \$1[\s\S]*GROUP BY/);
+  });
+
+  it("keeps the old behaviour when the new options are left out", async () => {
+    const { query, dataSource } = setup();
+
+    await listCandidateCoverage({
+      dataSource,
+      actorPersonId: "11111111-1111-4111-8111-111111111111",
+      ipAddress: null,
+      geoSql: GEO_SQL,
+      geoParameters: GEO_PARAMETERS,
+      firstFreeParameter: 2,
+      limit: 12,
+      cursor: null,
+      officeId: 5,
+    });
+
+    const [, parameters] = query.mock.calls[0] as unknown as [string, unknown[]];
+    expect(parameters).toEqual([7, null, null, 13, 5, false, null, null, null]);
   });
 });

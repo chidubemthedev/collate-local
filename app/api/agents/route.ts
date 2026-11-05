@@ -1,7 +1,6 @@
 import { getClientIp } from "@/lib/auth/request";
 import { requireUser } from "@/lib/auth/current-user";
 import { failure, internalError, success } from "@/lib/api/response";
-import { InvalidFilterError } from "@/lib/policy/errors";
 import { policyErrorResponse } from "@/lib/policy/http";
 import {
   agentFiltersSchema,

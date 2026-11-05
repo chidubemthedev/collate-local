@@ -8,6 +8,9 @@ export async function seedPoliticalStructure(
   stateIds: Record<string, number>,
   pollingUnitIds: Record<string, number>,
 ): Promise<{ politicalUnits: Record<string, number>; statePoliticalUnitIds: Record<string, number> }> {
+  // Kept in the signature for the seed runner; this step reads what it needs itself.
+  void stateIds;
+  void pollingUnitIds;
   await seedOffices();
 
   const demoStates = getDemoStates();

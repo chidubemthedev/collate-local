@@ -86,5 +86,7 @@ export function useAgents(filters: AgentsQueryFilters = {}, options?: { enabled?
       };
     },
     enabled: options?.enabled ?? true,
+    // Keep the last results on screen while a filter change loads.
+    placeholderData: keepPreviousData,
   });
 }

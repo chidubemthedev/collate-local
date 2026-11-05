@@ -14,7 +14,6 @@ import {
 import {
   useCoverageSummary,
   useCoverageMapPoints,
-  useCoverageGaps,
   useCandidateCoverage,
 } from "@/lib/hooks/use-coverage";
 import { StateData, LGAData, WardData, PollingUnitData } from "@/lib/types";
@@ -29,16 +28,7 @@ import {
   CoverageTableSkeleton,
 } from "@/components/coverage/coverage-skeletons";
 import { Button } from "@/components/ui/button";
-import {
-  ShieldCheck,
-  Send,
-  Download,
-  Building,
-  Layers,
-  Sparkles,
-  CheckCircle2,
-  AlertCircle,
-} from "lucide-react";
+import { Send, Building, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
 interface SortableRow {
@@ -96,7 +86,6 @@ export default function CoveragePage() {
   const {
     data: apiStates = [],
     isLoading: isLoadingStates,
-    isFetching: isFetchingStates,
     error: statesError,
     refetch: refetchStates,
   } = useGeographyStates(puFilter);
@@ -394,7 +383,7 @@ export default function CoveragePage() {
     result.sort(compareRows(sortBy));
 
     return result;
-  }, [wardsList, selectedLgaCode, searchQuery, sortBy]);
+  }, [wardsList, selectedLgaCode, selectedStateCode, searchQuery, sortBy]);
 
   // Polling units come only from the live ward polling-units API
   const pollingUnitsList: PollingUnitData[] = useMemo(() => {
@@ -551,10 +540,10 @@ export default function CoveragePage() {
       {/* Header Section */}
       <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 w-full">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
             2027 Coverage Dashboard
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
             Official coverage and extra agents by polling unit · {scopeLabel}
           </p>
         </div>
@@ -562,7 +551,7 @@ export default function CoveragePage() {
         <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
           <Link
             href={`/broadcasts/new?target=${encodeURIComponent(levelName)}`}
-            className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-8 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
+            className="inline-flex items-center justify-center rounded-lg text-[11px] font-medium h-8 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Broadcast to this Area</span>

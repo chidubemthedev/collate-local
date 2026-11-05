@@ -1,7 +1,6 @@
 import "dotenv/config";
-import type { DataSource } from "typeorm";
 import dataSource from "../../data-source";
-import { ensureDemoDataDoesNotExist, resetDemoData } from "./reset";
+import { ensureDemoDataDoesNotExist } from "./reset";
 import { seedGeography } from "./01-geography";
 import { seedPoliticalStructure } from "./02-political-structure";
 import { seedGroupsAndPeople } from "./03-groups-people";
@@ -25,7 +24,7 @@ export async function runDemoSeed(): Promise<void> {
     const geography = await seedGeography(dataSource.createQueryRunner());
     const structure = await seedPoliticalStructure(dataSource.createQueryRunner(), geography.states, geography.pollingUnits);
     const groupData = await seedGroupsAndPeople(dataSource.createQueryRunner(), geography.states, structure.politicalUnits);
-    const agentData = await seedAgents(dataSource.createQueryRunner(), groupData.groupIds, geography.states, structure.politicalUnits);
+    await seedAgents(dataSource.createQueryRunner(), groupData.groupIds, geography.states, structure.politicalUnits);
     await seedBroadcasts(dataSource.createQueryRunner());
     await seedOperations(dataSource.createQueryRunner());
     await seedCoverageCounts(dataSource.createQueryRunner());

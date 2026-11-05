@@ -1,8 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState } from "react";
 import { Persona, BroadcastData, AccessGroup } from "@/lib/types";
-import { PERSONAS, getEffectivePersona } from "@/lib/tree-permissions";
+import { getEffectivePersona } from "@/lib/tree-permissions";
 import { BROADCASTS_DATA } from "@/lib/data/broadcasts-data";
 import { ACCESS_GROUPS_DATA } from "@/lib/data/settings-data";
 

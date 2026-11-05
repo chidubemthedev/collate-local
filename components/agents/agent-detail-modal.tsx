@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
@@ -26,8 +25,6 @@ import {
   AlertCircle,
   MapPin,
   ExternalLink,
-  Phone,
-  MessageSquare,
   Send,
   Users,
   UserCheck,
@@ -215,20 +212,16 @@ export function AgentDetailModal({
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="p-3 rounded-lg border border-border/70 bg-card space-y-1">
                   <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
-                    Assigned Role
+                    Type
                   </span>
                   <div className="font-semibold text-sm text-foreground flex items-center gap-1">
                     <UserCheck className="w-3.5 h-3.5 text-primary" />
-                    <span>{agent.role}</span>
+                    <span>{isOfficial ? "Official" : "Extra"}</span>
                   </div>
                   <span className="text-[10px] text-muted-foreground block">
-                    {agent.role === "Official Party Agent"
-                      ? "Official party representative with collation signoff rights"
-                      : agent.role === "Protector"
-                      ? "Guards ballot integrity and monitors voter queues"
-                      : agent.role === "Mobiliser"
-                      ? "Ensures voter turnout and constituency check-in"
-                      : "Captures EC8A result sheet photos for collation audit"}
+                    {isOfficial
+                      ? "One per unit; this is what makes the unit covered"
+                      : "Tagged by owner; never changes coverage"}
                   </span>
                 </div>
 

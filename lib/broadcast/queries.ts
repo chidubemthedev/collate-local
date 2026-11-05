@@ -47,6 +47,26 @@ export type BroadcastDetail = Omit<BroadcastListItem, "messageText"> & {
   messageText: string;
 };
 
+/**
+ * Who the recipient is, worked out from what they are now (not stored on the delivery):
+ * a candidate or running mate through their seat, otherwise an agent through their assignment.
+ */
+export interface DeliveryRecipient {
+  kind: "candidate" | "official_agent" | "extra_agent" | null;
+  /** Office for candidates ("Senate"), owner group or candidate name for extra agents. */
+  officeName: string | null;
+  ownerName: string | null;
+  isRunningMate: boolean;
+  /** Seat constituency for candidates; null for agents. */
+  seatName: string | null;
+  stateCode: string | null;
+  /** Polling unit for agents; null for candidates. */
+  pollingUnitCode: string | null;
+  pollingUnitName: string | null;
+  /** Where the record comes from: "INEC list" for candidates, null when unknown. */
+  source: string | null;
+}
+
 export interface DeliveryListItem {
   id: string;
   personId: string;
@@ -59,6 +79,7 @@ export interface DeliveryListItem {
   tappedOkAt: Date | null;
   failedAt: Date | null;
   createdAt: Date;
+  recipient: DeliveryRecipient;
 }
 
 export interface DeliveryPage {
@@ -206,6 +227,115 @@ function mapDeliveryCounts(row?: {
 
 function getBroadcastTitle(messageText: string): string {
   return Array.from(messageText).slice(0, 60).join("").trim();
+}
+
+const EMPTY_RECIPIENT: DeliveryRecipient = {
+  kind: null,
+  officeName: null,
+  ownerName: null,
+  isRunningMate: false,
+  seatName: null,
+  stateCode: null,
+  pollingUnitCode: null,
+  pollingUnitName: null,
+  source: null,
+};
+
+/** One query for a page of recipients: their candidate seat (if any) and agent assignment (if any). */
+async function resolveDeliveryRecipients(
+  personIds: string[],
+  manager: EntityManager,
+): Promise<Map<string, DeliveryRecipient>> {
+  if (personIds.length === 0) return new Map();
+  const rows = await manager.query<Array<{
+    personId: string;
+    officeName: string | null;
+    seatName: string | null;
+    stateCode: string | null;
+    isRunningMate: boolean | null;
+    agentKind: string | null;
+    pollingUnitCode: string | null;
+    pollingUnitName: string | null;
+    ownerName: string | null;
+  }>>(
+    `
+      SELECT
+        ids.person_id AS "personId",
+        cand.office_name AS "officeName",
+        cand.seat_name AS "seatName",
+        cand.state_code AS "stateCode",
+        cand.is_running_mate AS "isRunningMate",
+        asg.agent_kind AS "agentKind",
+        asg.pu_code AS "pollingUnitCode",
+        asg.pu_name AS "pollingUnitName",
+        asg.owner_name AS "ownerName"
+      FROM unnest($1::uuid[]) AS ids(person_id)
+      LEFT JOIN LATERAL (
+        SELECT
+          o.office_name,
+          pun.political_unit_name AS seat_name,
+          (c.principal_candidate_id IS NOT NULL) AS is_running_mate,
+          (
+            SELECT s2.inec_state_code
+            FROM pu_political_unit ppu2
+            JOIN polling_unit pu2 ON pu2.id = ppu2.polling_unit_id
+            JOIN ward w2 ON w2.id = pu2.ward_id
+            JOIN lga l2 ON l2.id = w2.lga_id
+            JOIN state s2 ON s2.id = l2.state_id
+            WHERE ppu2.political_unit_id = pun.id AND pun.political_unit_type <> 'country'
+            LIMIT 1
+          ) AS state_code
+        FROM candidate c
+        LEFT JOIN candidate principal ON principal.id = c.principal_candidate_id
+        JOIN seat st ON st.id = COALESCE(c.seat_id, principal.seat_id)
+        JOIN office o ON o.id = st.office_id
+        JOIN political_unit pun ON pun.id = st.political_unit_id
+        WHERE c.person_id = ids.person_id
+        ORDER BY c.id
+        LIMIT 1
+      ) cand ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT
+          aa.agent_kind::text AS agent_kind,
+          pu.inec_polling_unit_code AS pu_code,
+          pu.polling_unit_name AS pu_name,
+          COALESCE(g.group_name, owner_person.full_name) AS owner_name
+        FROM agent_assignment aa
+        JOIN polling_unit pu ON pu.id = aa.polling_unit_id
+        LEFT JOIN groups g ON g.id = aa.owner_group_id
+        LEFT JOIN candidate oc ON oc.id = aa.owner_candidate_id
+        LEFT JOIN person owner_person ON owner_person.id = oc.person_id
+        WHERE aa.person_id = ids.person_id
+        ORDER BY (aa.agent_kind = 'official') DESC, aa.created_at, aa.id
+        LIMIT 1
+      ) asg ON TRUE;
+    `,
+    [personIds],
+  );
+
+  return new Map(rows.map((row): [string, DeliveryRecipient] => {
+    if (row.officeName) {
+      return [row.personId, {
+        ...EMPTY_RECIPIENT,
+        kind: "candidate",
+        officeName: row.officeName,
+        isRunningMate: Boolean(row.isRunningMate),
+        seatName: row.seatName,
+        stateCode: row.stateCode,
+        source: "INEC list",
+      }];
+    }
+    if (row.agentKind) {
+      return [row.personId, {
+        ...EMPTY_RECIPIENT,
+        kind: row.agentKind === "official" ? "official_agent" : "extra_agent",
+        ownerName: row.ownerName,
+        pollingUnitCode: row.pollingUnitCode,
+        pollingUnitName: row.pollingUnitName,
+      }];
+    }
+    return [row.personId, EMPTY_RECIPIENT];
+  }));
 }
 
 async function listDeliveryCounts(
@@ -488,6 +618,10 @@ export async function listBroadcastDeliveries(
     const hasNextPage = rows.length > limit;
     const pageRows = hasNextPage ? rows.slice(0, limit) : rows;
     const lastRow = pageRows.at(-1);
+    const recipients = await resolveDeliveryRecipients(
+      [...new Set(pageRows.map((row) => row.personId))],
+      transactionManager,
+    );
 
     await transactionManager.getRepository(AuditLog).insert({
       actorPersonId: user.personId,
@@ -510,6 +644,7 @@ export async function listBroadcastDeliveries(
         tappedOkAt: row.tappedOkAt,
         failedAt: row.failedAt,
         createdAt: row.createdAt,
+        recipient: recipients.get(row.personId) ?? EMPTY_RECIPIENT,
       })),
       nextCursor:
         hasNextPage && lastRow

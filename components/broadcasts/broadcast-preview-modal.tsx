@@ -6,7 +6,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -16,19 +15,13 @@ import {
   Send,
   CheckCircle2,
   Clock,
-  Radio,
   FileEdit,
-  Smartphone,
   Eye,
   Sparkles,
   ExternalLink,
   Bot,
-  User,
   Check,
   CheckCheck,
-  MapPin,
-  Calendar,
-  AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -132,7 +125,7 @@ export function BroadcastPreviewModal({
           <div className="flex items-center justify-between gap-2">
             <Tabs
               value={activeTab}
-              onValueChange={(v) => setActiveTab(v as any)}
+              onValueChange={(v) => setActiveTab(v as "telegram" | "details")}
               className="w-full"
             >
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">

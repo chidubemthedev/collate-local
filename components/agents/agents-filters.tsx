@@ -2,56 +2,52 @@
 
 import React from "react";
 import { useGeographyStates, useGeographyLgas, useGeographyWards } from "@/lib/hooks/use-geography";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { TableToolbar } from "@/components/ui/table-toolbar";
 import { FieldSpinner } from "@/components/ui/field-spinner";
-import {
-  Search,
-  Filter,
-  RotateCcw,
-  Download,
-  Send,
-  ShieldCheck,
-  Users,
-  AlertCircle,
-  Building,
-} from "lucide-react";
-import Link from "next/link";
+import { TableToolbar, type ActiveTableFilter } from "@/components/ui/table-toolbar";
+import { toTitleCase } from "@/components/candidates/candidates-filters";
+import { useOwnerGroups } from "@/lib/hooks/use-groups";
+import { Button } from "@/components/ui/button";
+
+export type AgentTypeFilter = "all" | "official" | "extra";
+
+// Agent kind as stored on the assignment (official or extra).
+const TYPE_OPTIONS = [
+  { value: "all", label: "Any type" },
+  { value: "official", label: "Official" },
+  { value: "extra", label: "Extra" },
+] as const;
+
+function labelFor(options: ReadonlyArray<{ value: string; label: string }>, value: string | null) {
+  return options.find((option) => option.value === value)?.label ?? options[0].label;
+}
+
+const LABEL_CLASS =
+  "flex items-center gap-1.5 truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground";
+const TRIGGER_CLASS = "h-8 w-full bg-background text-xs data-[disabled]:bg-muted data-[disabled]:opacity-70";
 
 interface AgentsFiltersProps {
-  selectedTypeTab: "all" | "official" | "extra" | "gaps";
-  setSelectedTypeTab: (tab: "all" | "official" | "extra" | "gaps") => void;
   selectedState: string;
   setSelectedState: (state: string) => void;
   selectedLga: string;
   setSelectedLga: (lga: string) => void;
   selectedWard: string;
   setSelectedWard: (ward: string) => void;
+  /** "all" or an owner group id as a string. */
   selectedSponsor: string;
   setSelectedSponsor: (sponsor: string) => void;
-  selectedRole: string;
-  setSelectedRole: (role: string) => void;
-  selectedChannel: string;
-  setSelectedChannel: (channel: string) => void;
+  selectedType: AgentTypeFilter;
+  setSelectedType: (type: AgentTypeFilter) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   totalFilteredCount: number;
-  counts: {
-    all: number;
-    official: number;
-    extra: number;
-    gaps: number;
-  };
-  onReset: () => void;
-  onExportCSV: () => void;
+  /** The records are refetching after a filter change. */
+  isRefreshing?: boolean;
+  onClear: () => void;
 }
 
 export function AgentsFilters({
-  selectedTypeTab,
-  setSelectedTypeTab,
   selectedState,
   setSelectedState,
   selectedLga,
@@ -60,315 +56,302 @@ export function AgentsFilters({
   setSelectedWard,
   selectedSponsor,
   setSelectedSponsor,
-  selectedRole,
-  setSelectedRole,
-  selectedChannel,
-  setSelectedChannel,
+  selectedType,
+  setSelectedType,
   searchQuery,
   setSearchQuery,
   totalFilteredCount,
-  counts,
-  onReset,
-  onExportCSV,
+  isRefreshing = false,
+  onClear,
 }: AgentsFiltersProps) {
-  const { data: apiStates = [] } = useGeographyStates();
-  const statesList = apiStates;
-  const foundState = statesList.find(
-    (s) => s.code === selectedState || String(s.id) === selectedState
-  );
+  const { data: statesList = [], isPending: statesPending } = useGeographyStates();
+  const foundState = statesList.find((s) => s.code === selectedState || String(s.id) === selectedState);
   const selectedStateId = foundState ? foundState.id : null;
 
   const { data: apiLgas = [], isFetching: lgasFetching } = useGeographyLgas(selectedStateId);
   const availableLGAs = selectedState === "all" ? [] : apiLgas;
-  const foundLga = availableLGAs.find(
-    (l) => l.code === selectedLga || String(l.id) === selectedLga
-  );
+  const foundLga = availableLGAs.find((l) => l.code === selectedLga || String(l.id) === selectedLga);
   const selectedLgaId = foundLga ? foundLga.id : null;
 
   const { data: apiWards = [], isFetching: wardsFetching } = useGeographyWards(selectedLgaId);
   const availableWards = selectedLga === "all" ? [] : apiWards;
+
   const lgaBusy = selectedState !== "all" && lgasFetching;
   const wardBusy = selectedLga !== "all" && wardsFetching;
+  const foundWard = availableWards.find((w) => w.code === selectedWard || String(w.id) === selectedWard);
 
-  const tabs: Array<{
-    id: AgentsFiltersProps["selectedTypeTab"];
-    label: string;
-    count: number;
-    icon: typeof Users;
-  }> = [
-    { id: "all", label: "All Records", count: counts.all, icon: Users },
-    { id: "official", label: "Official Party Agents", count: counts.official, icon: ShieldCheck },
-    { id: "extra", label: "Candidate Extra Agents", count: counts.extra, icon: Users },
-    { id: "gaps", label: "Gaps (Uncovered PUs)", count: counts.gaps, icon: AlertCircle },
+  const groupsQuery = useOwnerGroups();
+  const ownerGroups = groupsQuery.data ?? [];
+  const groupsBusy = groupsQuery.isPending;
+  const sponsorName = (value: string | null) => {
+    if (!value || value === "all") return "Anyone";
+    return ownerGroups.find((group) => String(group.id) === value)?.name ?? "Anyone";
+  };
+
+  const activeFilters: ActiveTableFilter[] = [
+    ...(searchQuery.trim()
+      ? [{ id: "search", label: `Search: ${searchQuery.trim()}`, onRemove: () => setSearchQuery("") }]
+      : []),
+    ...(selectedState !== "all"
+      ? [
+          {
+            id: "state",
+            label: `State: ${foundState ? toTitleCase(foundState.name) : selectedState}`,
+            onRemove: () => {
+              setSelectedState("all");
+              setSelectedLga("all");
+              setSelectedWard("all");
+            },
+          },
+        ]
+      : []),
+    ...(selectedLga !== "all"
+      ? [
+          {
+            id: "lga",
+            label: `LGA: ${foundLga ? toTitleCase(foundLga.name) : selectedLga}`,
+            onRemove: () => {
+              setSelectedLga("all");
+              setSelectedWard("all");
+            },
+          },
+        ]
+      : []),
+    ...(selectedWard !== "all"
+      ? [
+          {
+            id: "ward",
+            label: `Ward: ${foundWard ? toTitleCase(foundWard.name) : selectedWard}`,
+            onRemove: () => setSelectedWard("all"),
+          },
+        ]
+      : []),
+    ...(selectedSponsor !== "all"
+      ? [
+          {
+            id: "sponsor",
+            label: `Sponsor: ${sponsorName(selectedSponsor)}`,
+            onRemove: () => setSelectedSponsor("all"),
+          },
+        ]
+      : []),
+    ...(selectedType !== "all"
+      ? [
+          {
+            id: "type",
+            label: `Type: ${labelFor(TYPE_OPTIONS, selectedType)}`,
+            onRemove: () => setSelectedType("all"),
+          },
+        ]
+      : []),
   ];
 
   return (
-    <div className="space-y-3">
-      {/* Top Bar: Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/60">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isSelected = selectedTypeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setSelectedTypeTab(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                  isSelected
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted/70 text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{tab.label}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    isSelected
-                      ? "bg-primary-foreground/20 text-primary-foreground"
-                      : "bg-background text-muted-foreground"
-                  }`}
-                >
-                  {tab.count.toLocaleString()}
-                </span>
-              </button>
-            );
-          })}
+    <div className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
+      {/* Collapses behind a Filters button on phones, like the Coverage page. */}
+      <TableToolbar inlineMobile activeFilters={activeFilters} onClear={onClear}>
+      <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Search */}
+        <div className="min-w-0 space-y-1.5">
+          <label className={LABEL_CLASS}>Search</label>
+          <Input
+            type="text"
+            placeholder="Unit, code or sponsor"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-8 w-full bg-background text-xs"
+          />
         </div>
-      </div>
 
-      <TableToolbar
-        onClear={onReset}
-        activeFilters={[
-          ...(selectedState !== "all" ? [{ id: "state", label: `State: ${foundState?.name ?? selectedState}`, onRemove: () => { setSelectedState("all"); setSelectedLga("all"); setSelectedWard("all"); } }] : []),
-          ...(selectedLga !== "all" ? [{ id: "lga", label: `LGA: ${foundLga?.name ?? selectedLga}`, onRemove: () => { setSelectedLga("all"); setSelectedWard("all"); } }] : []),
-          ...(selectedWard !== "all" ? [{ id: "ward", label: `Ward: ${availableWards.find((ward) => ward.code === selectedWard || String(ward.id) === selectedWard)?.name ?? selectedWard}`, onRemove: () => setSelectedWard("all") }] : []),
-          ...(selectedSponsor !== "all" ? [{ id: "sponsor", label: `Sponsor: ${selectedSponsor}`, onRemove: () => setSelectedSponsor("all") }] : []),
-          ...(selectedRole !== "all" ? [{ id: "role", label: `Role: ${selectedRole}`, onRemove: () => setSelectedRole("all") }] : []),
-          ...(selectedChannel !== "all" ? [{ id: "channel", label: `Channel: ${selectedChannel}`, onRemove: () => setSelectedChannel("all") }] : []),
-          ...(searchQuery ? [{ id: "search", label: `Search: ${searchQuery}`, onRemove: () => setSearchQuery("") }] : []),
-          ...(selectedTypeTab !== "all" ? [{ id: "type", label: `Type: ${selectedTypeTab}`, onRemove: () => setSelectedTypeTab("all") }] : []),
-        ]}
-        actions={
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onExportCSV}
-              className="text-xs h-7.5 gap-1.5 px-2.5"
-            >
-              <Download className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>Export Roster (CSV)</span>
-            </Button>
-            <Link
-              href="/broadcasts/new?group=agents"
-              className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-7.5 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>Broadcast to Agents</span>
-            </Link>
-          </>
-        }
-      >
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-        {/* State Filter */}
-        <div className="space-y-1 min-w-0 w-full">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
+        {/* State */}
+        <div className="min-w-0 space-y-1.5">
+          <label className={LABEL_CLASS}>
             State
+            <FieldSpinner loading={statesPending} />
           </label>
           <Select
             value={selectedState}
+            disabled={statesPending}
             onValueChange={(val) => {
-              if (val) {
-                setSelectedState(val);
-                setSelectedLga("all");
-                setSelectedWard("all");
-              }
+              if (!val) return;
+              setSelectedState(val);
+              setSelectedLga("all");
+              setSelectedWard("all");
             }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background w-full">
-              <SelectValue placeholder="All States">
+            <SelectTrigger className={TRIGGER_CLASS}>
+              <SelectValue placeholder="All states">
                 {(val) => {
-                  if (!val || val === "all") return "All States";
+                  if (statesPending) return "Loading states…";
+                  if (!val || val === "all") return "All states";
                   const found = statesList.find((s) => s.code === val || String(s.id) === val);
-                  return found ? found.name : val;
+                  return found ? toTitleCase(found.name) : "All states";
                 }}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All States</SelectItem>
+              <SelectItem value="all">All states</SelectItem>
               {statesList.map((st) => (
                 <SelectItem key={st.code} value={st.code}>
-                  {st.name} ({st.code})
+                  {toTitleCase(st.name)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* LGA Filter */}
-        <div className="space-y-1 min-w-0 w-full">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 truncate">
+        {/* LGA */}
+        <div className="min-w-0 space-y-1.5">
+          <label className={LABEL_CLASS}>
             LGA
             <FieldSpinner loading={lgaBusy} />
           </label>
           <Select
             value={selectedLga}
-            onValueChange={(val) => {
-              if (val) {
-                setSelectedLga(val);
-                setSelectedWard("all");
-              }
-            }}
             disabled={selectedState === "all" || lgaBusy}
+            onValueChange={(val) => {
+              if (!val) return;
+              setSelectedLga(val);
+              setSelectedWard("all");
+            }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background w-full">
-              <SelectValue placeholder={selectedState === "all" ? "Select state" : "All LGAs"}>
+            <SelectTrigger className={TRIGGER_CLASS}>
+              <SelectValue placeholder="All LGAs">
                 {(val) => {
                   if (lgaBusy) return "Loading LGAs…";
-                  if (!val || val === "all") return selectedState === "all" ? "Select state" : "All LGAs";
+                  if (!val || val === "all") return "All LGAs";
                   const found = availableLGAs.find((l) => l.code === val || String(l.id) === val);
-                  return found ? found.name : val;
+                  return found ? toTitleCase(found.name) : "All LGAs";
                 }}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All LGAs ({availableLGAs.length})</SelectItem>
+              <SelectItem value="all">All LGAs</SelectItem>
               {availableLGAs.map((lga) => (
                 <SelectItem key={lga.code} value={lga.code}>
-                  {lga.name} ({lga.code})
+                  {toTitleCase(lga.name)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* Ward Filter */}
-        <div className="space-y-1 min-w-0 w-full">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 truncate">
+        {/* Ward */}
+        <div className="min-w-0 space-y-1.5">
+          <label className={LABEL_CLASS}>
             Ward
             <FieldSpinner loading={wardBusy} />
           </label>
           <Select
             value={selectedWard}
+            disabled={selectedLga === "all" || wardBusy}
             onValueChange={(val) => {
               if (val) setSelectedWard(val);
             }}
-            disabled={selectedLga === "all" || wardBusy}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background w-full">
-              <SelectValue placeholder={selectedLga === "all" ? "Select LGA" : "All Wards"}>
+            <SelectTrigger className={TRIGGER_CLASS}>
+              <SelectValue placeholder="All wards">
                 {(val) => {
                   if (wardBusy) return "Loading wards…";
-                  if (!val || val === "all") return selectedLga === "all" ? "Select LGA" : "All Wards";
+                  if (!val || val === "all") return "All wards";
                   const found = availableWards.find((w) => w.code === val || String(w.id) === val);
-                  return found ? found.name : val;
+                  return found ? toTitleCase(found.name) : "All wards";
                 }}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Wards ({availableWards.length})</SelectItem>
+              <SelectItem value="all">All wards</SelectItem>
               {availableWards.map((w) => (
                 <SelectItem key={w.code} value={w.code}>
-                  {w.name} ({w.code})
+                  {toTitleCase(w.name)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* Sponsor Filter */}
-        <div className="space-y-1 min-w-0 w-full">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
-            Sponsor
+        {/* Sponsor / owner */}
+        <div className="min-w-0 space-y-1.5">
+          <label className={LABEL_CLASS}>
+            Sponsor / owner
+            <FieldSpinner loading={groupsBusy} />
           </label>
           <Select
             value={selectedSponsor}
+            disabled={groupsBusy || groupsQuery.isError}
             onValueChange={(val) => {
               if (val) setSelectedSponsor(val);
             }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background w-full">
-              <SelectValue placeholder="All Sponsors">
-                {(val) => {
-                  if (!val || val === "all") return "All Sponsors";
-                  const labels: Record<string, string> = {
-                    Party: "Party Official",
-                    President: "Presidency",
-                    Senate: "Senate",
-                    "House of Reps": "House of Reps",
-                    "State Assembly": "State Assembly",
-                  };
-                  return labels[val] || val;
-                }}
+            <SelectTrigger className={TRIGGER_CLASS}>
+              <SelectValue placeholder="Anyone">
+                {(val) => (groupsBusy ? "Loading groups…" : sponsorName(val as string | null))}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Sponsors</SelectItem>
-              <SelectItem value="Party">Party Official</SelectItem>
-              <SelectItem value="President">Presidency</SelectItem>
-              <SelectItem value="Senate">Senate</SelectItem>
-              <SelectItem value="House of Reps">House of Reps</SelectItem>
-              <SelectItem value="State Assembly">State Assembly</SelectItem>
+              <SelectItem value="all">Anyone</SelectItem>
+              {ownerGroups.map((group) => (
+                <SelectItem key={group.id} value={String(group.id)}>
+                  {group.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
+          {groupsQuery.isError && (
+            <div role="alert" className="flex items-center gap-2 text-xs text-destructive">
+              <span>Could not load groups.</span>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto p-0"
+                onClick={() => void groupsQuery.refetch()}
+              >
+                Retry
+              </Button>
+            </div>
+          )}
         </div>
 
-        {/* Role Filter */}
-        <div className="space-y-1 min-w-0 w-full">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
-            Role
-          </label>
+        {/* Type */}
+        <div className="min-w-0 space-y-1.5">
+          <label className={LABEL_CLASS}>Type</label>
           <Select
-            value={selectedRole}
+            value={selectedType}
             onValueChange={(val) => {
-              if (val) setSelectedRole(val);
+              if (val === "all" || val === "official" || val === "extra") setSelectedType(val);
             }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-background w-full">
-              <SelectValue placeholder="All Roles">
-                {(val) => {
-                  if (!val || val === "all") return "All Roles";
-                  const labels: Record<string, string> = {
-                    "Official Party Agent": "Official Party Agent",
-                    Protector: "Protector (Ballot Guard)",
-                    Mobiliser: "Mobiliser (Turnout)",
-                    Snapper: "Snapper (EC8A Photos)",
-                  };
-                  return labels[val] || val;
-                }}
+            <SelectTrigger className={TRIGGER_CLASS}>
+              <SelectValue placeholder="Any type">
+                {(val) => labelFor(TYPE_OPTIONS, val as string | null)}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Roles</SelectItem>
-              <SelectItem value="Official Party Agent">Official Party Agent</SelectItem>
-              <SelectItem value="Protector">Protector (Ballot Guard)</SelectItem>
-              <SelectItem value="Mobiliser">Mobiliser (Turnout)</SelectItem>
-              <SelectItem value="Snapper">Snapper (EC8A Photos)</SelectItem>
+              {TYPE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-        </div>
-
-        {/* Search */}
-        <div className="order-first space-y-1 min-w-0 w-full">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block truncate">
-            Search
-          </label>
-          <div className="relative w-full">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Name or PU code..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-8.5 text-xs bg-background w-full"
-            />
-          </div>
         </div>
       </div>
       </TableToolbar>
-      <p className="text-xs text-muted-foreground">
-        Showing <strong className="text-foreground">{totalFilteredCount}</strong> record{totalFilteredCount !== 1 ? "s" : ""}
+
+      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground" aria-live="polite">
+        {isRefreshing ? (
+          <>
+            <FieldSpinner loading />
+            Updating results…
+          </>
+        ) : selectedState === "all" ? (
+          "Pick a state to list agent records"
+        ) : (
+          `${totalFilteredCount.toLocaleString()} record${totalFilteredCount === 1 ? "" : "s"} match${
+            totalFilteredCount === 1 ? "es" : ""
+          }`
+        )}
       </p>
     </div>
   );

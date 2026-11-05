@@ -4,7 +4,6 @@ import {
   PrimaryGeneratedColumn,
   Unique
 } from "typeorm";
-import type { Relation } from "typeorm";
 @Entity("auth_rate_limit")
 @Unique("uq_auth_rate_limit_bucket_window", ["bucketKey", "windowStartedAt"])
 export class AuthRateLimit {
