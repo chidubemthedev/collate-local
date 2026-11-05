@@ -15,6 +15,7 @@
     "db:seed": "tsx ./lib/db/seeds/index.ts",
     "db:seed:inec": "tsx ./lib/db/seeds/inec.ts",
     "db:seed:inec:coordinates": "tsx ./scripts/import-inec-coordinates.ts",
+    "db:audit:coordinates": "tsx ./scripts/audit-polling-unit-coordinates.ts",
     "db:seed:inec:politics": "tsx ./lib/db/seeds/inec-politics.ts",
     "db:seed:demo": "tsx ./lib/db/seeds/demo/index.ts",
     "db:seed:demo:reset": "tsx ./lib/db/seeds/demo/reset.ts",

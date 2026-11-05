@@ -19,7 +19,8 @@ Collate is a polling-unit coverage and messaging system for one Nigerian politic
 7. [Getting started](#7-getting-started)
 8. [Testing, deployment and contributing](#8-testing-deployment-and-contributing)
 9. [License and contact](#9-license-and-contact)
-10. [Notes / TODO](#10-notes--todo)
+10. [Data sources and attribution](#10-data-sources-and-attribution)
+11. [Notes / TODO](#11-notes--todo)
 
 ---
 
@@ -946,7 +947,7 @@ The full contract (parameters, bodies, response schemas, examples, error respons
 | `GET /api/geography/wards/{wardId}/polling-units` | Session | Polling units and their agents (cursor, audited) |
 | `GET /api/coverage/summary` | Session | Coverage totals for the filtered area |
 | `GET /api/coverage/map-points` | Session | Grouped polling-unit coordinates and official-agent counts (no person data) |
-| `GET /api/coverage/candidates` | Session | Candidates with coverage for their seat (cursor, audited) |
+| `GET /api/coverage/candidates` | Session | Candidates with coverage for their seat (cursor, `limit` up to 500, audited) |
 | `GET /api/coverage/gaps` | Session | Polling units without an official agent (offset) |
 | `POST /api/coverage/assignments` | Session, same origin | Create an agent assignment (audited) |
 | `DELETE /api/coverage/assignments/{assignmentId}` | Session, same origin | Delete an assignment (audited) |
@@ -1124,10 +1125,17 @@ npm run db:seed:inec:coordinates   # dry-run coordinate match report
 npm run db:seed:inec:politics      # political units, seats, NDC candidates (run after db:seed:inec)
 ```
 
-The coordinate command downloads the MIT-licensed [INEC polling-unit dataset](https://github.com/mykeels/inec-polling-units) (at a pinned revision; originally sourced from INEC), then matches on normalized state, LGA, ward and polling-unit names. It skips missing or out-of-envelope points, duplicate or ambiguous name matches, and existing coordinates. The source has no polling-unit codes, so matching is deliberately exact and incomplete. In the pinned snapshot, 57,326 rows have no coordinates, 1,505 points are outside the coarse envelope, and more than 92,000 valid rows share a coordinate with another unit. That can mean several units share a site, but it can also mean a geocoding shortcut; these are approximate data, not verified survey locations. The envelope is only a coarse sanity check, not a country-boundary validation. The default is a dry run; pass `-- --apply` to update only rows whose latitude and longitude are both NULL:
+The coordinate command downloads the MIT-licensed [INEC polling-unit dataset](https://github.com/mykeels/inec-polling-units) (at a pinned revision; originally sourced from INEC), then matches on normalized state, LGA, ward and polling-unit names. It skips missing or out-of-envelope points, duplicate or ambiguous name matches, and existing coordinates. The source has no polling-unit codes, so matching is deliberately exact and incomplete. In the pinned snapshot, 57,326 rows have no coordinates, 1,505 points are outside the coarse envelope, and more than 92,000 valid rows share a coordinate with another unit. That can mean several units share a site, but it can also mean a geocoding shortcut; these are approximate data, not verified survey locations. The default is a dry run; pass `-- --apply` to update only rows whose latitude and longitude are both NULL:
 
 ```sh
 npm run db:seed:inec:coordinates -- --apply
+```
+
+The source geocodes by name, so some units landed on a same-named place elsewhere (often in a different state). The importer therefore also checks each point against [geoBoundaries](https://www.geoboundaries.org/) (CC BY 4.0, pinned revision, 2022) state and LGA polygons and rejects a point that is more than 2 km outside its own state or more than 25 km outside its own LGA. LGAs whose names do not match a boundary are checked at state level only. In the pinned snapshot this removed 9,131 of 102,154 points (2,040 outside their state, 7,091 far from their LGA). Points inside the tolerance can still be a few kilometres off. To audit what is already stored, run a dry run, then clear the invalid points (a CSV backup of the cleared rows is written to the temp folder, or pass `--backup=<file.csv>`):
+
+```sh
+npm run db:audit:coordinates
+npm run db:audit:coordinates -- --apply
 ```
 
 | Script | Purpose |
@@ -1163,7 +1171,7 @@ A bot can have only one webhook, and a tunnel URL changes on restart, so set it 
 
 ### Docker
 
-There is no Docker or docker-compose file in the repo. See [Notes / TODO](#10-notes--todo).
+There is no Docker or docker-compose file in the repo. See [Notes / TODO](#11-notes--todo).
 
 ---
 
@@ -1197,7 +1205,7 @@ Production checklist: `NODE_ENV=production`, strong `AUTH_SECRET`, `TELEGRAM_DRY
 1. Branch from the main branch and keep changes small and focused.
 2. Routes call `lib/` functions. Don't import `lib/db`, `typeorm` or `pg` in a route.
 3. Use `success()`, `failure()` and `internalError()` from `lib/api/response.ts`. Don't use raw `Response.json`.
-4. Mask phone numbers, cap `limit` at 100 with cursor pagination, and check same origin on mutating routes.
+4. Mask phone numbers, cap `limit` (100 for most lists, 500 for `/api/coverage/candidates` and `/api/coverage/gaps`) with cursor pagination where the list supports it, and check same origin on mutating routes.
 5. A route that returns individual person data writes an `audit_log` row in the same transaction.
 6. Never put names, phones or other personal data in queue payloads or logs.
 7. Don't hardcode state, LGA, ward, office or group names, or INEC codes.
@@ -1215,7 +1223,31 @@ Production checklist: `NODE_ENV=production`, strong `AUTH_SECRET`, `TELEGRAM_DRY
 
 ---
 
-## 10. Notes / TODO
+## 10. Data sources and attribution
+
+Everything below is third-party data or a third-party service. The repo does not own any of it.
+
+| Data | Source | Used for | Licence / terms |
+| --- | --- | --- | --- |
+| States, LGAs, wards, polling units | [INEC polling unit locator](https://cvr.inecnigeria.org/pu), scraped by `scripts/inec-scrape.ts` into `data/inec/geography.json.gz` | The whole geography tree | INEC public data. No licence is stated by INEC. |
+| Candidate lists (presidential, governorship, Senate, House of Representatives, state assembly) | Final candidate list PDFs from the [INEC press page](https://www.inecnigeria.org/press), parsed by `scripts/inec-extract-candidates.py` into `data/inec/candidates.json.gz` | Candidates and seats | INEC public documents |
+| Federal constituency names | [Wikipedia: List of Nigerian federal constituencies](https://en.wikipedia.org/wiki/List_of_Nigerian_federal_constituencies) (wikitext saved in `data/inec/sources/wiki-federal.txt`, as at November 2024) | Mapping constituencies to LGAs in `scripts/inec-build-political-units.py` | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+| Polling-unit coordinates | [mykeels/inec-polling-units](https://github.com/mykeels/inec-polling-units), `polling-units.csv` at commit `cea8b041`, itself derived from INEC | `polling_unit.latitude` / `longitude` via `npm run db:seed:inec:coordinates` | MIT (per the repo). Geocoded by name, so approximate. |
+| State and LGA boundaries | [geoBoundaries](https://www.geoboundaries.org/) Nigeria ADM1 and ADM2, gbOpen release, commit `9469f09`, boundary year 2022 | Checking coordinates against their own state and LGA (`lib/db/seeds/inec-coordinate-validation.ts`) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Cite: Runfola, D. et al. (2020), "geoBoundaries: A global database of political administrative boundaries", PLOS ONE 15(4): e0231866. |
+| Map tiles | [OpenStreetMap](https://www.openstreetmap.org/copyright) raster tiles (`tile.openstreetmap.org`) | Coverage map base layer | ODbL. Attribution is shown on the map. The public tile server has a [usage policy](https://operations.osmfoundation.org/policies/tiles/); use a tile provider for heavy production traffic. |
+| Map fonts | MapLibre demo glyphs (`demotiles.maplibre.org`, "Noto Sans Regular") | Cluster count labels | Demo service, not for production use |
+
+How the coordinate data was cleaned:
+
+1. The coordinate importer matched 102,154 INEC polling units to the MIT dataset by exact normalised state, LGA, ward and unit name, and wrote them to `polling_unit`.
+2. Some points were geocoded to a same-named place elsewhere, so units showed up in the wrong state. We checked every stored point against the geoBoundaries state and LGA polygons.
+3. 9,131 points failed (2,040 more than 2 km outside their own state, 7,091 more than 25 km outside their own LGA) and were set to `NULL`. 93,023 remain. The importer now applies the same check, so re-running it does not bring them back.
+
+Caveats: INEC's own pages and PDFs may change after scraping; the committed files are a snapshot. Boundary polygons are generalised, which is why the state check allows 2 km. If you reuse this data, keep the CC BY and ODbL attributions.
+
+---
+
+## 11. Notes / TODO
 
 Things that are unclear, missing or worth fixing. Nothing here is guessed in the sections above.
 
@@ -1237,7 +1269,8 @@ Things that are unclear, missing or worth fixing. Nothing here is guessed in the
 - [ ] OTP request returns `404` for unknown or ineligible emails, which allows email enumeration (invite-only system, rate-limited). `OTP_REQUEST_MIN_RESPONSE_MS` and `OTP_REQUEST_COOLDOWN_MS` are declared in `lib/auth/config.ts` but not applied.
 - [ ] OTP routes have no `Origin` check. They rely on `SameSite=Lax`.
 - [ ] Rate limits are fixed-window, so a burst across a window edge can briefly double the allowance. With `TRUST_PROXY=false` behind a proxy, all clients share one IP bucket.
-- [ ] `/api/coverage/gaps` uses offset pagination with `limit` up to 500, unlike the other lists (cursor, max 100).
+- [ ] `/api/coverage/gaps` uses offset pagination with `limit` up to 500, unlike most lists (cursor, max 100). `/api/coverage/candidates` is cursor-paginated but also allows up to 500, so the Candidates page loads the whole registry in two requests.
+- [ ] Polling-unit coordinates: about 84,000 of 177,299 units have none (about 57,000 missing in the source plus 9,131 cleared by the boundary check). 40 LGA names (for example Sagamu, Somolu, Maiduguri M.C.) don't match the geoBoundaries names, so those are checked at state level only. Points that pass can still be a few kilometres off, and no source gives surveyed locations.
 - [ ] `coverage_count` is never read; coverage is computed live from `agent_assignment`.
 - [ ] Coverage credit: a candidate's coverage currently counts only official agents owned by that candidate. Decide whether any official agent in the seat should count.
 - [ ] The office-overlap "tree rule" is a TODO in the policy layer.
