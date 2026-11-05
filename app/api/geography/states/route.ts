@@ -2,13 +2,19 @@ import "server-only";
 import { connection } from "next/server";
 import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
 import { internalError, success } from "@/lib/api/response";
+import { parsePollingUnitFilter, pollingUnitFilterClauses } from "@/lib/coverage/pu-filter";
+import { hasGpsSql } from "@/lib/geography/gps";
 
-export async function GET() {
+export async function GET(request: Request) {
   await connection();
 
   try {
     const auth = await requireApiAuth();
     if (!auth.ok) return auth.response;
+
+    const puFilter = parsePollingUnitFilter(new URL(request.url).searchParams);
+    if ("error" in puFilter) return puFilter.error;
+    const puSql = pollingUnitFilterClauses(puFilter).map((clause) => ` AND ${clause}`).join("");
 
     const { dataSource } = auth.context;
     const scope = getCoverageScopeFilter(auth.context, {
@@ -34,7 +40,7 @@ export async function GET() {
         s.state_name AS name,
         COUNT(DISTINCT pu.id) AS total_pus,
         COUNT(DISTINCT CASE WHEN aa.person_id IS NOT NULL THEN pu.id END) AS covered_pus,
-        COUNT(DISTINCT CASE WHEN pu.latitude IS NOT NULL AND pu.longitude IS NOT NULL THEN pu.id END) AS gps_pus,
+        COUNT(DISTINCT CASE WHEN ${hasGpsSql("pu")} THEN pu.id END) AS gps_pus,
         COUNT(DISTINCT CASE WHEN aa.agent_kind = 'extra' THEN aa.person_id END) AS extra_agents,
         COUNT(DISTINCT l.id) AS lgas_count,
         COUNT(DISTINCT w.id) AS wards_count
@@ -43,7 +49,7 @@ export async function GET() {
       LEFT JOIN ward w ON w.lga_id = l.id
       LEFT JOIN polling_unit pu ON pu.ward_id = w.id
       LEFT JOIN agent_assignment aa ON aa.polling_unit_id = pu.id AND aa.agent_kind = 'official'
-      WHERE ${scope.sql}
+      WHERE ${scope.sql}${puSql}
       GROUP BY s.id, s.inec_state_code, s.state_name
       ORDER BY s.state_name ASC;
     `, scope.parameters);

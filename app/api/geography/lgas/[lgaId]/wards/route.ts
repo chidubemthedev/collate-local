@@ -2,8 +2,10 @@ import "server-only";
 import { connection } from "next/server";
 import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
 import { failure, internalError, success } from "@/lib/api/response";
+import { hasGpsSql } from "@/lib/geography/gps";
+import { parsePollingUnitFilter, pollingUnitFilterClauses } from "@/lib/coverage/pu-filter";
 
-export async function GET(_: Request, { params }: { params: Promise<{ lgaId: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ lgaId: string }> }) {
   await connection();
 
   const { lgaId } = await params;
@@ -16,6 +18,11 @@ export async function GET(_: Request, { params }: { params: Promise<{ lgaId: str
 
     const auth = await requireApiAuth();
     if (!auth.ok) return auth.response;
+
+    const puFilter = parsePollingUnitFilter(new URL(request.url).searchParams);
+    if ("error" in puFilter) return puFilter.error;
+    const puClauses = pollingUnitFilterClauses(puFilter);
+    const puSql = puClauses.map((clause) => ` AND ${clause}`).join("");
 
     const { dataSource } = auth.context;
     const scope = getCoverageScopeFilter(auth.context, {
@@ -39,14 +46,14 @@ export async function GET(_: Request, { params }: { params: Promise<{ lgaId: str
         w.ward_name AS name,
         COUNT(DISTINCT pu.id) AS total_pus,
         COUNT(DISTINCT CASE WHEN aa.person_id IS NOT NULL THEN pu.id END) AS covered_pus,
-        COUNT(DISTINCT CASE WHEN pu.latitude IS NOT NULL AND pu.longitude IS NOT NULL THEN pu.id END) AS gps_pus,
+        COUNT(DISTINCT CASE WHEN ${hasGpsSql("pu")} THEN pu.id END) AS gps_pus,
         COUNT(DISTINCT CASE WHEN aa.agent_kind = 'extra' THEN aa.person_id END) AS extra_agents
       FROM ward w
       JOIN lga l ON l.id = w.lga_id
       JOIN state s ON s.id = l.state_id
       LEFT JOIN polling_unit pu ON pu.ward_id = w.id
       LEFT JOIN agent_assignment aa ON aa.polling_unit_id = pu.id AND aa.agent_kind = 'official'
-      WHERE w.lga_id = $6 AND ${scope.sql}
+      WHERE w.lga_id = $6 AND ${scope.sql}${puSql}
       GROUP BY w.id, w.inec_ward_code, w.ward_name
       ORDER BY w.ward_name ASC;
     `, [...scope.parameters, lgaIdNum]);
