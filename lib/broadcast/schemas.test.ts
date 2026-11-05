@@ -8,12 +8,14 @@ describe("audienceFilterSchema", () => {
       wardId: 12,
       politicalUnitId: 3,
       ownerGroupId: 7,
+      pollingUnitId: 22,
     });
     expect(parsed).toEqual({
       stateId: 4,
       wardId: 12,
       politicalUnitId: 3,
       ownerGroupId: 7,
+      pollingUnitId: 22,
       agentKind: "all",
     });
   });
@@ -23,6 +25,18 @@ describe("audienceFilterSchema", () => {
     expect(audienceFilterSchema.safeParse({ lgaId: "x" }).success).toBe(false);
     expect(audienceFilterSchema.safeParse({ agentKind: "coordinator" }).success).toBe(false);
     expect(audienceFilterSchema.safeParse({ ownerCandidateId: 2 }).success).toBe(false);
+    expect(audienceFilterSchema.safeParse({ verificationStatus: "pending" }).success).toBe(false);
+  });
+
+  it("accepts polling unit and person verification filters", () => {
+    for (const verificationStatus of ["unverified", "verified", "rejected"]) {
+      expect(
+        audienceFilterSchema.parse({
+          pollingUnitId: "12",
+          verificationStatus,
+        }),
+      ).toMatchObject({ pollingUnitId: 12, verificationStatus });
+    }
   });
 });
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { formatCoverage, NOT_AVAILABLE_YET } from "@/lib/coverage/format";
 import { StateData, LGAData, WardData, PollingUnitData } from "@/lib/types";
 import {
   Table,
@@ -198,10 +199,7 @@ export function CoverageTable({
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-[11px]">
                             <span className="font-bold text-emerald-700 dark:text-emerald-400">
-                              {st.officialAgentPct}%
-                            </span>
-                            <span className="text-muted-foreground">
-                              {st.coveredPUs.toLocaleString()} / {st.totalPUs.toLocaleString()}
+                              {formatCoverage(st.coveredPUs, st.totalPUs, st.officialAgentPct)}
                             </span>
                           </div>
                           <div className="w-full bg-emerald-100 dark:bg-emerald-950/40 rounded-full h-1.5 overflow-hidden">
@@ -282,10 +280,7 @@ export function CoverageTable({
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-[11px]">
                             <span className="font-bold text-emerald-700 dark:text-emerald-400">
-                              {lga.officialAgentPct}%
-                            </span>
-                            <span className="text-muted-foreground">
-                              {lga.coveredPUs.toLocaleString()} / {lga.totalPUs.toLocaleString()}
+                              {formatCoverage(lga.coveredPUs, lga.totalPUs, lga.officialAgentPct)}
                             </span>
                           </div>
                           <div className="w-full bg-emerald-100 dark:bg-emerald-950/40 rounded-full h-1.5 overflow-hidden">
@@ -366,10 +361,7 @@ export function CoverageTable({
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-[11px]">
                             <span className="font-bold text-emerald-700 dark:text-emerald-400">
-                              {w.officialAgentPct}%
-                            </span>
-                            <span className="text-muted-foreground">
-                              {w.coveredPUs.toLocaleString()} / {w.totalPUs.toLocaleString()}
+                              {formatCoverage(w.coveredPUs, w.totalPUs, w.officialAgentPct)}
                             </span>
                           </div>
                           <div className="w-full bg-emerald-100 dark:bg-emerald-950/40 rounded-full h-1.5 overflow-hidden">
@@ -480,7 +472,7 @@ export function CoverageTable({
                                 {pu.officialAgentName}
                               </div>
                               <div className="text-[10px] text-muted-foreground font-mono">
-                                {pu.officialAgentPhone || "+234 ••• ••• 671"}
+                                {pu.officialAgentPhone || NOT_AVAILABLE_YET}
                               </div>
                             </div>
                           ) : (

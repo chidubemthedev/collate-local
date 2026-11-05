@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { formatCoverage } from "@/lib/coverage/format";
 import { CandidateData } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -154,12 +155,11 @@ export function CandidatesCards({ candidates }: CandidatesCardsProps) {
                         Official Coverage
                       </span>
                       <span className="font-bold text-emerald-700 dark:text-emerald-400">
-                        {cand.coveragePct}%
+                        {formatCoverage(cand.coveredPUs, cand.totalPUs, cand.coveragePct)}
                       </span>
                     </div>
                     <Progress value={cand.coveragePct} className="h-1.5 bg-emerald-100 dark:bg-emerald-950/40" />
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                      <span>{cand.coveredPUs.toLocaleString()} / {cand.totalPUs.toLocaleString()} PUs</span>
+                    <div className="flex items-center justify-end text-[11px] text-muted-foreground">
                       <span className="text-indigo-600 dark:text-indigo-400 font-semibold">
                         +{cand.extraAgentsCount.toLocaleString()} extra
                       </span>

@@ -10,9 +10,11 @@ import { getScope } from "./scope";
 import { getVisibleOwners } from "./owners";
 import { loadPolicyUser } from "./policy-user";
 import { maskPhoneNumber } from "./list-agents";
+import { gpsFilterSchema, gpsFilterSql, hasGpsSql } from "../../geography/gps";
 
 const cursorPayloadSchema = z.object({
   pollingUnitCode: z.string().min(1).max(128),
+  gps: gpsFilterSchema.optional(),
 }).strict();
 
 const cursorSchema = z.string().max(512).refine((value) => {
@@ -28,9 +30,10 @@ const cursorSchema = z.string().max(512).refine((value) => {
 export const wardPollingUnitsQuerySchema = z.object({
   cursor: cursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
+  gps: gpsFilterSchema,
 }).strict();
 
-export type WardPollingUnitsQuery = z.infer<typeof wardPollingUnitsQuerySchema>;
+export type WardPollingUnitsQuery = z.input<typeof wardPollingUnitsQuerySchema>;
 
 export interface WardPollingUnitAgent {
   assignmentId: string;
@@ -55,6 +58,7 @@ export interface WardPollingUnit {
   latitude: number | null;
   longitude: number | null;
   hasGPS: boolean;
+  hasGps: boolean;
   hasOfficialAgent: boolean;
   agents: WardPollingUnitAgent[];
 }
@@ -77,6 +81,7 @@ interface PollingUnitRow {
   stateCode: string;
   latitude: number | null;
   longitude: number | null;
+  hasGps: boolean;
 }
 
 interface AgentRow {
@@ -91,18 +96,22 @@ interface AgentRow {
   ownerDisplayName: string;
 }
 
-function encodeCursor(pollingUnitCode: string): string {
-  return Buffer.from(JSON.stringify({ pollingUnitCode }), "utf8").toString("base64url");
+function encodeCursor(pollingUnitCode: string, gps: "all" | "with" | "without"): string {
+  return Buffer.from(JSON.stringify({ pollingUnitCode, gps }), "utf8").toString("base64url");
 }
 
-function decodeCursor(cursor: string): string {
+function decodeCursor(cursor: string, gps: "all" | "with" | "without"): string {
   const parsed = cursorSchema.safeParse(cursor);
   if (!parsed.success) {
     throw new InvalidFilterError();
   }
 
   const json = Buffer.from(cursor, "base64url").toString("utf8");
-  return cursorPayloadSchema.parse(JSON.parse(json)).pollingUnitCode;
+  const payload = cursorPayloadSchema.parse(JSON.parse(json));
+  if ((payload.gps ?? "all") !== gps) {
+    throw new InvalidFilterError();
+  }
+  return payload.pollingUnitCode;
 }
 
 export async function listWardPollingUnits(
@@ -150,15 +159,21 @@ export async function listWardPollingUnits(
       .addSelect("state.inecStateCode", "stateCode")
       .addSelect("pollingUnit.latitude", "latitude")
       .addSelect("pollingUnit.longitude", "longitude")
+      .addSelect(hasGpsSql("pollingUnit"), "hasGps")
       .where("pollingUnit.wardId = :wardPollingUnitsWardId", {
         wardPollingUnitsWardId: wardId,
       });
     scope.apply(pollingUnitQuery, "pollingUnit.id");
 
+    const gpsClause = gpsFilterSql(parsedFilters.data.gps, "pollingUnit");
+    if (gpsClause) {
+      pollingUnitQuery.andWhere(gpsClause);
+    }
+
     if (parsedFilters.data.cursor) {
       pollingUnitQuery.andWhere(
         "pollingUnit.inecPollingUnitCode > :wardPollingUnitsCursor",
-        { wardPollingUnitsCursor: decodeCursor(parsedFilters.data.cursor) },
+        { wardPollingUnitsCursor: decodeCursor(parsedFilters.data.cursor, parsedFilters.data.gps) },
       );
     }
 
@@ -259,13 +274,14 @@ export async function listWardPollingUnits(
           stateCode: pollingUnit.stateCode,
           latitude: pollingUnit.latitude,
           longitude: pollingUnit.longitude,
-          hasGPS: pollingUnit.latitude !== null && pollingUnit.longitude !== null,
+          hasGPS: pollingUnit.hasGps,
+          hasGps: pollingUnit.hasGps,
           hasOfficialAgent: agents.some((agent) => agent.agentKind === "official"),
           agents,
         };
       }),
       nextCursor: hasNextPage && lastPollingUnit
-        ? encodeCursor(lastPollingUnit.code)
+        ? encodeCursor(lastPollingUnit.code, parsedFilters.data.gps)
         : null,
     };
 

@@ -36,6 +36,7 @@ interface TestPollingUnit {
   stateCode: string;
   latitude: number | null;
   longitude: number | null;
+  hasGps: boolean;
   wardId: number;
 }
 
@@ -105,6 +106,11 @@ function makeManager(data: TestData) {
             andWhere(condition: unknown, values?: Record<string, unknown>) {
               hasFalseClause ||= condition === "FALSE";
               Object.assign(parameters, values);
+              if (typeof condition === "string" && condition.includes(".latitude")) {
+                parameters.wardPollingUnitsGps = condition.startsWith("NOT ")
+                  ? "without"
+                  : "with";
+              }
               if (values && Object.keys(values).some((key) => key.startsWith("policyVisibleOwnerGroupIds"))) {
                 hasOwnerFilter = true;
               }
@@ -137,6 +143,10 @@ function makeManager(data: TestData) {
                 const cursor = parameters.wardPollingUnitsCursor;
                 return data.pollingUnits
                   .filter((unit) => unit.wardId === wardId && data.visibleWardIds.has(wardId))
+                  .filter((unit) =>
+                    parameters.wardPollingUnitsGps === undefined ||
+                    (parameters.wardPollingUnitsGps === "with" ? unit.hasGps : !unit.hasGps),
+                  )
                   .filter((unit) => typeof cursor !== "string" || unit.code > cursor)
                   .sort((left, right) => left.code.localeCompare(right.code))
                   .slice(0, pageSize) as T[];
@@ -183,6 +193,7 @@ function makePollingUnits(count: number, wardId = 7): TestPollingUnit[] {
       stateCode: "S",
       latitude: null,
       longitude: null,
+      hasGps: false,
       wardId,
     };
   });
@@ -331,6 +342,79 @@ describe("listWardPollingUnits", () => {
     expect(page?.nextCursor).toBeTruthy();
   });
 
+  it("filters all, GPS-present and GPS-missing units, including null and zero coordinates", async () => {
+    const units = makePollingUnits(3).map((unit, index) => {
+      if (index === 0) {
+        return { ...unit, latitude: null, longitude: null, hasGps: false };
+      }
+      if (index === 1) {
+        return { ...unit, latitude: 0, longitude: 0, hasGps: false };
+      }
+      return { ...unit, latitude: 6.5, longitude: 3.4, hasGps: true };
+    });
+
+    const all = await listWardPollingUnits(
+      scopedUser.personId,
+      7,
+      {},
+      {},
+      makeManager(makeTestData({ pollingUnits: units })).manager,
+    );
+    const withGps = await listWardPollingUnits(
+      scopedUser.personId,
+      7,
+      { gps: "with" },
+      {},
+      makeManager(makeTestData({ pollingUnits: units })).manager,
+    );
+    const withoutGps = await listWardPollingUnits(
+      scopedUser.personId,
+      7,
+      { gps: "without" },
+      {},
+      makeManager(makeTestData({ pollingUnits: units })).manager,
+    );
+
+    expect(all?.items.map((unit) => unit.hasGps)).toEqual([false, false, true]);
+    expect(all?.items.map((unit) => unit.hasGPS)).toEqual([false, false, true]);
+    expect(withGps?.items.map((unit) => unit.code)).toEqual(["003"]);
+    expect(withoutGps?.items.map((unit) => unit.code)).toEqual(["001", "002"]);
+  });
+
+  it("binds the keyset cursor to its GPS mode", async () => {
+    const pollingUnits = makePollingUnits(102).map((unit, index) =>
+      index % 2 === 0
+        ? { ...unit, latitude: 6.5, longitude: 3.4, hasGps: true }
+        : unit,
+    );
+    const first = await listWardPollingUnits(
+      scopedUser.personId,
+      7,
+      { limit: 1, gps: "with" },
+      {},
+      makeManager(makeTestData({ pollingUnits })).manager,
+    );
+
+    await expect(
+      listWardPollingUnits(
+        scopedUser.personId,
+        7,
+        { cursor: first?.nextCursor ?? undefined, gps: "without" },
+        {},
+        makeManager(makeTestData({ pollingUnits })).manager,
+      ),
+    ).rejects.toThrow();
+
+    const next = await listWardPollingUnits(
+      scopedUser.personId,
+      7,
+      { cursor: first?.nextCursor ?? undefined, gps: "with", limit: 1 },
+      {},
+      makeManager(makeTestData({ pollingUnits })).manager,
+    );
+    expect(next?.items.map((unit) => unit.code)).toEqual(["003"]);
+  });
+
   it("fails the read when writing the audit row fails", async () => {
     const { manager } = makeManager(makeTestData({ failAudit: true }));
 
@@ -342,5 +426,7 @@ describe("listWardPollingUnits", () => {
   it("rejects limits above the configured page cap", () => {
     expect(wardPollingUnitsQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
     expect(wardPollingUnitsQuerySchema.parse({}).limit).toBe(50);
+    expect(wardPollingUnitsQuerySchema.parse({}).gps).toBe("all");
+    expect(wardPollingUnitsQuerySchema.safeParse({ gps: "invalid" }).success).toBe(false);
   });
 });

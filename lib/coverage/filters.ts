@@ -1,3 +1,5 @@
+import { gpsFilterSchema } from "../geography/gps";
+
 type CoverageFilter = {
   key: "stateId" | "lgaId" | "wardId" | "politicalUnitId";
   sql: (parameter: number) => string;
@@ -16,6 +18,17 @@ const coverageFilters: CoverageFilter[] = [
     )`,
   },
 ];
+
+export function parseCoverageGpsFilter(
+  searchParams: URLSearchParams,
+): "all" | "with" | "without" | null {
+  const parsed = gpsFilterSchema.safeParse(searchParams.get("gps") ?? undefined);
+  if (!parsed.success) {
+    return null;
+  }
+
+  return parsed.data;
+}
 
 export function parseCoverageFilters(
   searchParams: URLSearchParams,

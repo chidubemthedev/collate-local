@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useCandidates } from "@/lib/hooks/use-candidates";
 import { CandidatesFilters } from "@/components/candidates/candidates-filters";
 import { CandidatesTable } from "@/components/candidates/candidates-table";
@@ -14,42 +14,69 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-export default function CandidatesPage() {
-  const { data: rawCandidates = [], isLoading, error, refetch } = useCandidates();
+const SEARCH_DEBOUNCE_MS = 400;
+const OFFICE_TABS = ["President", "Governor", "Senate", "House of Reps", "State Assembly"];
 
+export default function CandidatesPage() {
   const [selectedOffice, setSelectedOffice] = useState<string>("all");
   const [selectedState, setSelectedState] = useState<string>("all");
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [selectedCoverageTier, setSelectedCoverageTier] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
-  // Dynamic office counts
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const [selectedOfficeId, setSelectedOfficeId] = useState<number | undefined>(undefined);
+
+  const {
+    data,
+    isLoading,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useCandidates({ officeId: selectedOfficeId });
+
+  // Office options come with the first page of every query.
+  const knownOffices = useMemo(() => data?.pages[0]?.offices ?? [], [data]);
+
+  const handleSelectOffice = (name: string) => {
+    setSelectedOffice(name);
+    setSelectedOfficeId(knownOffices.find((office) => office.name === name)?.id);
+  };
+
+  const rawCandidates = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? [],
+    [data],
+  );
+  const apiTotal = data?.pages[0]?.total ?? 0;
+
   const officeCounts = useMemo(() => {
     const counts: Record<string, number> = {
-      all: rawCandidates.length,
-      President: 0,
-      Governor: 0,
-      Senate: 0,
-      "House of Reps": 0,
-      "State Assembly": 0,
+      all: knownOffices.reduce((sum, office) => sum + office.count, 0),
     };
-    rawCandidates.forEach((c) => {
-      if (counts[c.office] !== undefined) {
-        counts[c.office]++;
-      }
-    });
+    for (const name of OFFICE_TABS) counts[name] = 0;
+    for (const office of knownOffices) {
+      if (counts[office.name] !== undefined) counts[office.name] = office.count;
+    }
     return counts;
-  }, [rawCandidates]);
+  }, [knownOffices]);
 
-  // Filter candidates
+  // The API filters by office only; these remaining filters apply to the rows loaded so far.
+  const hasLocalFilters =
+    selectedState !== "all" ||
+    selectedChannel !== "all" ||
+    selectedCoverageTier !== "all" ||
+    debouncedSearch !== "";
+
   const filteredCandidates = useMemo(() => {
     return rawCandidates.filter((cand) => {
-      // Office filter
-      if (selectedOffice !== "all" && cand.office !== selectedOffice) {
-        return false;
-      }
-
       // State filter
       if (selectedState !== "all" && cand.stateCode && cand.stateCode !== selectedState) {
         return false;
@@ -68,8 +95,8 @@ export default function CandidatesPage() {
       }
 
       // Search query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
+      if (debouncedSearch) {
+        const q = debouncedSearch.toLowerCase();
         const matchesName = cand.name.toLowerCase().includes(q);
         const matchesSeat = cand.seat.toLowerCase().includes(q);
         const matchesDeputy = cand.deputyName?.toLowerCase().includes(q);
@@ -81,14 +108,16 @@ export default function CandidatesPage() {
 
       return true;
     });
-  }, [rawCandidates, selectedOffice, selectedState, selectedChannel, selectedCoverageTier, searchQuery]);
+  }, [rawCandidates, selectedState, selectedChannel, selectedCoverageTier, debouncedSearch]);
 
   const handleResetFilters = () => {
     setSelectedOffice("all");
+    setSelectedOfficeId(undefined);
     setSelectedState("all");
     setSelectedChannel("all");
     setSelectedCoverageTier("all");
     setSearchQuery("");
+    setDebouncedSearch("");
   };
 
   const handleExportCSV = () => {
@@ -112,7 +141,7 @@ export default function CandidatesPage() {
     return <CandidatesDirectorySkeleton viewMode={viewMode} />;
   }
 
-  if (error) {
+  if (error && !data) {
     return (
       <div className="max-w-xl mx-auto mt-16 p-6 rounded-xl border border-border bg-card text-center space-y-3">
         <AlertCircle className="w-6 h-6 text-amber-600 mx-auto" />
@@ -155,7 +184,7 @@ export default function CandidatesPage() {
       <section className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4">
         <CandidatesFilters
           selectedOffice={selectedOffice}
-          setSelectedOffice={setSelectedOffice}
+          setSelectedOffice={handleSelectOffice}
           selectedState={selectedState}
           setSelectedState={setSelectedState}
           selectedChannel={selectedChannel}
@@ -167,7 +196,7 @@ export default function CandidatesPage() {
           viewMode={viewMode}
           setViewMode={setViewMode}
           officeCounts={officeCounts}
-          totalCount={filteredCandidates.length}
+          totalCount={hasLocalFilters ? filteredCandidates.length : apiTotal}
           onReset={handleResetFilters}
           onExportCSV={handleExportCSV}
         />
@@ -175,6 +204,19 @@ export default function CandidatesPage() {
           <CandidatesTable candidates={filteredCandidates} />
         ) : (
           <CandidatesCards candidates={filteredCandidates} />
+        )}
+        {hasNextPage && (
+          <div className="flex justify-center pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              disabled={isFetchingNextPage}
+              onClick={() => void fetchNextPage()}
+            >
+              {isFetchingNextPage ? "Loading..." : "Load more"}
+            </Button>
+          </div>
         )}
       </section>
     </div>

@@ -59,6 +59,16 @@ function applyAudienceFilter(
       audienceWardId: filter.wardId,
     });
   }
+  if (filter.pollingUnitId !== undefined) {
+    query.andWhere("pollingUnit.id = :audiencePollingUnitId", {
+      audiencePollingUnitId: filter.pollingUnitId,
+    });
+  }
+  if (filter.verificationStatus !== undefined) {
+    query.andWhere("person.verificationStatus = :audienceVerificationStatus", {
+      audienceVerificationStatus: filter.verificationStatus,
+    });
+  }
   if (filter.politicalUnitId !== undefined) {
     query.andWhere(
       `EXISTS (
@@ -131,19 +141,27 @@ export async function previewAudience(
 
   const entityManager = await resolveManager(manager);
   const query = baseRecipientQuery(entityManager, user, parsed.data)
-    .select(
-      "COUNT(DISTINCT CASE WHEN assignment.agentKind = 'official' THEN person.id END)::int",
-      "officialCount",
-    )
+    .select("person.id", "personId")
     .addSelect(
-      "COUNT(DISTINCT CASE WHEN assignment.agentKind = 'extra' THEN person.id END)::int",
-      "extraCount",
-    );
+      "MIN(CASE WHEN assignment.agentKind = 'official' THEN 0 ELSE 1 END)",
+      "agentRank",
+    )
+    .groupBy("person.id");
+  const [recipientSql, recipientParameters] = query.getQueryAndParameters();
 
-  const row = await query.getRawOne<{
+  const rows = await entityManager.query<Array<{
     officialCount: number | string;
     extraCount: number | string;
-  }>();
+  }>>(
+    `
+      SELECT
+        COUNT(*) FILTER (WHERE recipients."agentRank" = 0)::int AS "officialCount",
+        COUNT(*) FILTER (WHERE recipients."agentRank" = 1)::int AS "extraCount"
+      FROM (${recipientSql}) AS recipients;
+    `,
+    recipientParameters,
+  );
+  const row = rows[0];
 
   return {
     officialCount: Number(row?.officialCount ?? 0),
@@ -176,6 +194,7 @@ export async function materializeDeliveries(
     );
     validateAudienceFilter(user, parsed.data);
 
+    // TODO(decision): candidate recipients.
     const recipients = baseRecipientQuery(
       transactionManager,
       user,
@@ -191,27 +210,6 @@ export async function materializeDeliveries(
         ON CONFLICT (broadcast_id, person_id) DO NOTHING;
       `,
       [broadcastId, ...recipientParameters],
-    );
-
-    // ASSUMPTION: flag for Julian - a running mate of a candidate recipient is
-    // added even when they are not an agent in the audience themselves.
-    await transactionManager.query(
-      `
-        INSERT INTO delivery (broadcast_id, person_id, delivery_channel, delivery_status)
-        SELECT DISTINCT $1::uuid, running_mate_person.id, 'telegram'::delivery_channel, 'pending'::delivery_status
-        FROM delivery recipient_delivery
-        JOIN candidate principal
-          ON principal.person_id = recipient_delivery.person_id
-         AND principal.seat_id IS NOT NULL
-        JOIN candidate running_mate
-          ON running_mate.principal_candidate_id = principal.id
-        JOIN person running_mate_person
-          ON running_mate_person.id = running_mate.person_id
-        WHERE recipient_delivery.broadcast_id = $1::uuid
-          AND ${LATEST_CONSENT_DECLINED("running_mate_person.id")}
-        ON CONFLICT (broadcast_id, person_id) DO NOTHING;
-      `,
-      [broadcastId],
     );
 
     const countRow = (await transactionManager.query(
