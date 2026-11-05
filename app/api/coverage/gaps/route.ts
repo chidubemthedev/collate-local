@@ -1,8 +1,9 @@
 import "server-only";
 import { connection, type NextRequest } from "next/server";
 import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
-import { parseCoverageFilters } from "@/lib/coverage/filters";
+import { parseCoverageFilters, parseCoverageGpsFilter } from "@/lib/coverage/filters";
 import { failure, internalError, success } from "@/lib/api/response";
+import { gpsFilterSql } from "@/lib/geography/gps";
 
 export async function GET(request: NextRequest) {
   await connection();
@@ -19,6 +20,11 @@ export async function GET(request: NextRequest) {
     });
     const filters = parseCoverageFilters(request.nextUrl.searchParams, scope.parameters.length + 1);
     if ("error" in filters) return filters.error;
+    const gpsFilter = parseCoverageGpsFilter(request.nextUrl.searchParams);
+    if (gpsFilter === null) {
+      return failure("validation_failed", "Invalid request parameters");
+    }
+    const gpsClause = gpsFilterSql(gpsFilter, "pu");
 
     const rawLimit = request.nextUrl.searchParams.get("limit");
     const rawOffset = request.nextUrl.searchParams.get("offset");
@@ -39,6 +45,7 @@ export async function GET(request: NextRequest) {
       name: string | null;
       latitude: number | null;
       longitude: number | null;
+      has_gps: boolean;
       ward_code: string;
       ward_name: string;
       lga_code: string;
@@ -54,6 +61,7 @@ export async function GET(request: NextRequest) {
           pu.polling_unit_name AS name,
           pu.latitude,
           pu.longitude,
+          ${gpsFilterSql("with", "pu")} AS has_gps,
           w.inec_ward_code AS ward_code,
           w.ward_name,
           l.inec_lga_code AS lga_code,
@@ -68,6 +76,7 @@ export async function GET(request: NextRequest) {
         WHERE ${[
           scope.sql,
           ...filters.clauses,
+          ...(gpsClause ? [gpsClause] : []),
           `NOT EXISTS (
             SELECT 1
             FROM agent_assignment aa
@@ -90,7 +99,8 @@ export async function GET(request: NextRequest) {
         name: row.name ?? "Unnamed PU",
         latitude: row.latitude,
         longitude: row.longitude,
-        hasGPS: row.latitude !== null && row.longitude !== null,
+        hasGPS: row.has_gps,
+        hasGps: row.has_gps,
         ward: { code: row.ward_code, name: row.ward_name },
         lga: { code: row.lga_code, name: row.lga_name },
         state: { code: row.state_code, name: row.state_name },

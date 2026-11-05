@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const idFilter = z.coerce.number().int().positive();
+const verificationStatus = z.enum(["unverified", "verified", "rejected"]);
 
 export const broadcastIdSchema = z.uuid();
 
@@ -9,10 +10,12 @@ export const audienceFilterSchema = z
     stateId: idFilter.optional(),
     lgaId: idFilter.optional(),
     wardId: idFilter.optional(),
+    pollingUnitId: idFilter.optional(),
     politicalUnitId: idFilter.optional(),
     officeId: idFilter.optional(),
     ownerGroupId: idFilter.optional(),
     agentKind: z.enum(["official", "extra", "all"]).default("all"),
+    verificationStatus: verificationStatus.optional(),
   })
   .strict();
 
