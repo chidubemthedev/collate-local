@@ -3,13 +3,17 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import { useSession, usePermissions } from "@/lib/hooks/use-auth";
+import { useHasMounted } from "@/lib/hooks/use-has-mounted";
 import { Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function ViewAsBar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const { data: permissions } = usePermissions();
+  const hasMounted = useHasMounted();
+  const { data: sessionData } = useSession();
+  const { data: permissionsData } = usePermissions();
+  const session = hasMounted ? sessionData : undefined;
+  const permissions = hasMounted ? permissionsData : undefined;
 
   if (pathname === "/login" || !session?.authenticated || !permissions) {
     return null;

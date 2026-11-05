@@ -874,8 +874,9 @@ paths:
       summary: List candidates with coverage for their seat
       description: >-
         Returns principal candidates whose seat contains polling units in the accessible filtered area.
-        Counts are limited to that area. A polling unit is covered when the candidate owns an official
-        assignment on it. Ordered by office hierarchy, then candidate ID. Writes an audit log row.
+        Counts are limited to that area. A polling unit is covered when it has an official
+        assignment, whichever group owns it. Extra agents are counted only when the candidate owns them.
+        Ordered by office hierarchy, then candidate ID. Writes an audit log row.
       security:
         - sessionCookie: []
       parameters:

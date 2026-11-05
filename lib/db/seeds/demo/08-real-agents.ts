@@ -15,6 +15,8 @@ export const TARGET_TOTAL_AGENTS = 100_000;
 export const BATCH_SIZE = 1000;
 
 const WARD_CHUNK = 200;
+// Share of extra agents owned by a candidate whose seat covers the unit (the rest stay group-owned).
+const CANDIDATE_EXTRA_SHARE_PERCENT = 40;
 const SELECTION_SEED = "collate-demo-agents-2026";
 const DEMO_EMAIL_PATTERN = "%@demo.collate.test";
 const DEMO_PHONE_PATTERN = "+234000000%";
@@ -41,7 +43,8 @@ interface PendingAssignment {
   unitId: number;
   kind: AgentKind;
   slot: number;
-  groupId: number;
+  groupId: number | null;
+  candidateId?: number | null;
 }
 
 type GeographyCounts = Record<
@@ -336,8 +339,8 @@ async function insertBatch(
     assignmentRows.push([
       personId,
       assignment.unitId,
-      assignment.groupId,
-      null,
+      assignment.candidateId ? null : assignment.groupId,
+      assignment.candidateId ?? null,
       assignment.kind,
       assignment.slot,
     ]);
@@ -405,6 +408,18 @@ const OFFICIAL_UNITS_SQL = `
 `;
 
 const EXTRA_UNITS_SQL = `
+  SELECT picked.*,
+    (
+      SELECT c.id
+      FROM pu_political_unit ppu
+      JOIN seat st ON st.political_unit_id = ppu.political_unit_id
+      JOIN candidate c ON c.seat_id = st.id
+      WHERE ppu.polling_unit_id = picked.id
+        AND c.principal_candidate_id IS NULL
+      ORDER BY md5(c.id::text || picked.id::text || $3)
+      LIMIT 1
+    ) AS "candidateId"
+  FROM (
   SELECT q.ward_id AS "wardId", picked.id, picked.slots
   FROM unnest($1::int[], $2::int[]) AS q(ward_id, n)
   CROSS JOIN LATERAL (
@@ -429,6 +444,7 @@ const EXTRA_UNITS_SQL = `
         ) < 3
     ) candidate
     WHERE candidate.rn <= q.n
+  ) picked
   ) picked;
 `;
 
@@ -482,12 +498,16 @@ async function seedExtras(
       chunk.map((ward) => ward.id),
       unitsWanted,
       SELECTION_SEED,
-    ])) as Array<{ wardId: number; id: number; slots: number[] }>;
+    ])) as Array<{ wardId: number; id: number; slots: number[]; candidateId: number | null }>;
 
-    const rowsByWard = new Map<number, Array<{ id: number; slots: number[] }>>();
+    const rowsByWard = new Map<number, Array<{ id: number; slots: number[]; candidateId: number | null }>>();
     for (const row of rows) {
       const list = rowsByWard.get(Number(row.wardId)) ?? [];
-      list.push({ id: Number(row.id), slots: row.slots ?? [] });
+      list.push({
+        id: Number(row.id),
+        slots: row.slots ?? [],
+        candidateId: row.candidateId === null ? null : Number(row.candidateId),
+      });
       rowsByWard.set(Number(row.wardId), list);
     }
 
@@ -500,11 +520,17 @@ async function seedExtras(
         const wanted = secondExtras > 0 ? 2 : 1;
         if (wanted === 2) secondExtras -= 1;
         for (const slot of free.slice(0, wanted)) {
+          const candidateOwned =
+            unit.candidateId !== null &&
+            demoFaker.number.int({ min: 0, max: 99 }) < CANDIDATE_EXTRA_SHARE_PERCENT;
           items.push({
             unitId: unit.id,
             kind: AgentKind.EXTRA,
             slot,
-            groupId: groupIds[demoFaker.number.int({ min: 0, max: groupIds.length - 1 })],
+            groupId: candidateOwned
+              ? null
+              : groupIds[demoFaker.number.int({ min: 0, max: groupIds.length - 1 })],
+            candidateId: candidateOwned ? unit.candidateId : null,
           });
         }
       }

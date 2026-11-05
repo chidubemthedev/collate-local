@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { formatCoverage } from "@/lib/coverage/format";
 import { CandidateData } from "@/lib/types";
 import {
   Dialog,
@@ -101,7 +102,7 @@ export function CandidateDetailModal({
                     Official Party Agent Coverage
                   </span>
                   <span className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">
-                    {candidate.coveragePct}%
+                    {formatCoverage(candidate.coveredPUs, candidate.totalPUs, candidate.coveragePct)}
                   </span>
                 </div>
                 <Progress value={candidate.coveragePct} className="h-2 bg-emerald-100 dark:bg-emerald-950/40" />

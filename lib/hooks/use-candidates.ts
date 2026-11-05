@@ -1,14 +1,24 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { apiClient, ApiClientError } from "@/lib/api/client";
-import type { CandidateCoverage } from "@/types/api";
+import type { CandidateCoverage, CandidateOfficeOption } from "@/types/api";
 import type { CandidateData } from "@/lib/types";
 
 export const CANDIDATES_QUERY_KEY = ["candidates"] as const;
 
-const PAGE_SIZE = 500;
-const MAX_PAGES = 20;
+export const CANDIDATES_PAGE_SIZE = 50;
+
+export interface CandidatesPage {
+  items: CandidateData[];
+  nextCursor: string | null;
+  total: number;
+  offices: CandidateOfficeOption[] | null;
+}
+
+export interface CandidatesQueryFilters {
+  officeId?: number;
+}
 
 function toCandidate(item: CandidateCoverage): CandidateData {
   return {
@@ -29,27 +39,29 @@ function toCandidate(item: CandidateCoverage): CandidateData {
 }
 
 /**
- * Fetch the full candidate registry from /api/coverage/candidates,
- * following the keyset cursor until every page is loaded.
+ * One page (50) of /api/coverage/candidates at a time, following the keyset cursor
+ * only when the user asks for more. The office filter is applied by the API.
  */
-export function useCandidates() {
-  return useQuery<CandidateData[], ApiClientError>({
-    queryKey: CANDIDATES_QUERY_KEY,
-    queryFn: async () => {
-      const all: CandidateData[] = [];
-      let cursor: string | null = null;
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const res: { data: CandidateCoverage[]; meta?: { nextCursor?: string | null } } =
-          await apiClient.get<CandidateCoverage[]>("/api/coverage/candidates", {
-            limit: PAGE_SIZE,
-            cursor,
-          });
-        all.push(...res.data.map(toCandidate));
-        cursor = res.meta?.nextCursor ?? null;
-        if (!cursor) break;
-      }
-      return all;
+export function useCandidates(filters: CandidatesQueryFilters = {}) {
+  const officeId = filters.officeId;
+  return useInfiniteQuery<CandidatesPage, ApiClientError>({
+    queryKey: [...CANDIDATES_QUERY_KEY, { officeId: officeId ?? null }],
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) => {
+      const res = await apiClient.get<CandidateCoverage[]>("/api/coverage/candidates", {
+        limit: CANDIDATES_PAGE_SIZE,
+        cursor: pageParam as string | null,
+        officeId,
+      });
+      return {
+        items: res.data.map(toCandidate),
+        nextCursor: res.meta?.nextCursor ?? null,
+        total: res.meta?.total ?? res.data.length,
+        offices: res.meta?.offices ?? null,
+      };
     },
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 2,
   });
 }

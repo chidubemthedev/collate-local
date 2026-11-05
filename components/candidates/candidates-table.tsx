@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { formatCoverage } from "@/lib/coverage/format";
 import { CandidateData } from "@/lib/types";
 import {
   Table,
@@ -194,11 +195,7 @@ export function CandidatesTable({ candidates }: CandidatesTableProps) {
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
                             <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                            {cand.coveragePct}%
-                          </span>
-                          <span className="text-muted-foreground">
-                            {cand.coveredPUs.toLocaleString()} /{" "}
-                            {cand.totalPUs.toLocaleString()} PUs
+                            {formatCoverage(cand.coveredPUs, cand.totalPUs, cand.coveragePct)}
                           </span>
                         </div>
                         <div className="w-full bg-emerald-100 dark:bg-emerald-950/40 rounded-full h-1.5 overflow-hidden">

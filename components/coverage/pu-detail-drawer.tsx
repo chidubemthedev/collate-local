@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { NOT_AVAILABLE_YET } from "@/lib/coverage/format";
 import { PollingUnitData } from "@/lib/types";
 import {
   Dialog,
@@ -190,7 +191,7 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-1.5 text-muted-foreground font-mono">
                     <Phone className="w-3.5 h-3.5 text-foreground/70" />
-                    <span>{pu.officialAgentPhone || "+234 ••• ••• 671"}</span>
+                    <span>{pu.officialAgentPhone || NOT_AVAILABLE_YET}</span>
                   </div>
                   <div className="text-[10px] text-muted-foreground">
                     Secrecy compliance: NDPA 2023 Masked
