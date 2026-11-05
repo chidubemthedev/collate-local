@@ -185,7 +185,7 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
         JOIN ward w ON w.id = pu.ward_id
         JOIN lga l ON l.id = w.lga_id
         JOIN state s ON s.id = l.state_id
-        WHERE aa.owner_candidate_id = page.id AND aa.agent_kind = 'official' AND ${geo}
+        WHERE aa.agent_kind = 'official' AND ${geo}
       ) AS covered_pus,
       (
         SELECT COUNT(DISTINCT aa.id)

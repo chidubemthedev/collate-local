@@ -189,6 +189,9 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
                                 : "Not matched"}
                             </Badge>
                           )}
+                          {!agent.telegramStatus && (
+                            <span className="text-[10px] text-muted-foreground">Not available yet</span>
+                          )}
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-[11px]">—</span>

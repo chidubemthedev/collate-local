@@ -23,7 +23,7 @@ export function RecipientsKPISummary({
   isError,
   onRetry,
 }: RecipientsKPISummaryProps) {
-  if (isError && !summary) {
+  if (isError) {
     return (
       <div
         role="alert"
@@ -43,6 +43,20 @@ export function RecipientsKPISummary({
   const connectedPct = pct(connected, total);
   const notConnectedPct = pct(notConnected, total);
   const pending = isLoading && !summary;
+  const hasData =
+    typeof summary?.total === "number" &&
+    typeof summary.official === "number" &&
+    typeof summary.extra === "number" &&
+    typeof summary.telegramConnected === "number" &&
+    typeof summary.notConnected === "number";
+
+  if (!pending && !hasData) {
+    return (
+      <div className="rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground">
+        Not available yet
+      </div>
+    );
+  }
 
   const value = (count: number, className: string) =>
     pending ? (

@@ -19,6 +19,7 @@
     "db:seed:inec:politics": "tsx ./lib/db/seeds/inec-politics.ts",
     "db:seed:demo": "tsx ./lib/db/seeds/demo/index.ts",
     "db:seed:demo:agents": "tsx ./lib/db/seeds/demo/08-real-agents.ts",
+    "db:seed:demo:agents:reset": "tsx ./lib/db/seeds/demo/reset-agents.ts",
     "db:seed:demo:reset": "tsx ./lib/db/seeds/demo/reset.ts",
     "db:seed:demo:fresh": "tsx ./lib/db/seeds/demo/reset.ts && tsx ./lib/db/seeds/demo/index.ts",
     "db:count:polling-units": "tsx ./scripts/count-polling-units.ts",
