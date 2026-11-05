@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseCoverageFilters } from "./filters";
+import { gpsFilterSql } from "../geography/gps";
+import { parseCoverageFilters, parseCoverageGpsFilter } from "./filters";
 
 describe("parseCoverageFilters", () => {
   it("builds parameterized filters in a stable order", () => {
@@ -35,5 +36,21 @@ describe("parseCoverageFilters", () => {
       clauses: [],
       parameters: [],
     });
+  });
+
+  it.each([
+    ["all", null],
+    ["with", "(pu.latitude IS NOT NULL AND pu.longitude IS NOT NULL AND NOT (pu.latitude = 0 AND pu.longitude = 0))"],
+    ["without", "NOT (pu.latitude IS NOT NULL AND pu.longitude IS NOT NULL AND NOT (pu.latitude = 0 AND pu.longitude = 0))"],
+  ] as const)("parses GPS mode %s", (gps, clause) => {
+    const result = parseCoverageGpsFilter(new URLSearchParams(`gps=${gps}`));
+    expect(result).toBe(gps);
+    expect(gpsFilterSql(gps, "pu")).toBe(clause);
+  });
+
+  it("defaults GPS mode to all and rejects unknown modes", () => {
+    expect(parseCoverageGpsFilter(new URLSearchParams())).toBe("all");
+    const invalid = parseCoverageGpsFilter(new URLSearchParams("gps=unknown"));
+    expect(invalid).toBeNull();
   });
 });

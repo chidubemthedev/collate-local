@@ -55,7 +55,7 @@ describe("ward polling unit route", () => {
     expect(mocks.listWardPollingUnits).toHaveBeenCalledWith(
       "11111111-1111-4111-8111-111111111111",
       7,
-      { limit: 25 },
+      { limit: 25, gps: "all" },
       { ipAddress: "203.0.113.1" },
     );
   }, 15_000);

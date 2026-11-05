@@ -436,6 +436,8 @@ paths:
             example:
               stateId: 1
               lgaId: 12
+              pollingUnitId: 120
+              verificationStatus: verified
               agentKind: all
       responses:
         "200":
@@ -754,6 +756,13 @@ paths:
             minimum: 1
             maximum: 100
             default: 50
+        - name: gps
+          in: query
+          description: GPS presence filter. `with` excludes null and zero coordinates; `without` includes both.
+          schema:
+            type: string
+            enum: [all, with, without]
+            default: all
       responses:
         "200":
           description: A page of polling units with location and agent details.
@@ -925,6 +934,13 @@ paths:
         - $ref: "#/components/parameters/lgaFilter"
         - $ref: "#/components/parameters/wardFilter"
         - $ref: "#/components/parameters/politicalUnitFilter"
+        - name: gps
+          in: query
+          description: GPS presence filter. `with` excludes null and zero coordinates; `without` includes both.
+          schema:
+            type: string
+            enum: [all, with, without]
+            default: all
         - name: limit
           in: query
           description: Maximum number of results (1–500).
@@ -1500,6 +1516,9 @@ components:
         wardId:
           type: integer
           minimum: 1
+        pollingUnitId:
+          type: integer
+          minimum: 1
         politicalUnitId:
           type: integer
           minimum: 1
@@ -1509,6 +1528,9 @@ components:
         ownerGroupId:
           type: integer
           minimum: 1
+        verificationStatus:
+          type: string
+          enum: [unverified, verified, rejected]
         agentKind:
           type: string
           enum: [official, extra, all]
@@ -1822,13 +1844,15 @@ components:
           type: [number, "null"]
         hasGPS:
           type: boolean
+        hasGps:
+          type: boolean
         hasOfficialAgent:
           type: boolean
         agents:
           type: array
           items:
             $ref: "#/components/schemas/PollingUnitAgent"
-      required: [id, code, name, wardCode, lgaCode, stateCode, latitude, longitude, hasGPS, hasOfficialAgent, agents]
+      required: [id, code, name, wardCode, lgaCode, stateCode, latitude, longitude, hasGPS, hasGps, hasOfficialAgent, agents]
       example:
         id: 5082
         code: 01/13/09/001
@@ -1839,6 +1863,7 @@ components:
         latitude: null
         longitude: null
         hasGPS: false
+        hasGps: false
         hasOfficialAgent: true
         agents:
           - assignmentId: 3f2a7c1e-9b4d-4e6f-8a21-5c7d9e0b1a34
@@ -1978,13 +2003,15 @@ components:
           type: [number, "null"]
         hasGPS:
           type: boolean
+        hasGps:
+          type: boolean
         ward:
           $ref: "#/components/schemas/Area"
         lga:
           $ref: "#/components/schemas/Area"
         state:
           $ref: "#/components/schemas/Area"
-      required: [id, code, name, latitude, longitude, hasGPS, ward, lga, state]
+      required: [id, code, name, latitude, longitude, hasGPS, hasGps, ward, lga, state]
     Area:
       type: object
       properties:
