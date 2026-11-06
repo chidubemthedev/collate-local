@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession, usePermissions } from "@/lib/hooks/use-auth";
+import { useSession, usePermissions, useLogout } from "@/lib/hooks/use-auth";
 import { useHasMounted } from "@/lib/hooks/use-has-mounted";
-import { NAV, ViewAsField, accessLabel, sectionOf, type NavSection } from "@/components/layout/nav";
+import { NAV, NavIcon, ViewAsField, accessLabel, sectionOf, type NavSection } from "@/components/layout/nav";
 
 /** Phone header from the wireframes: brand, View as, the two feature tabs, then the views inside the feature. */
 export function MobileNav() {
@@ -14,6 +15,10 @@ export function MobileNav() {
   const { data: permissionsData } = usePermissions();
   const session = hasMounted ? sessionData : undefined;
   const permissions = hasMounted ? permissionsData : undefined;
+  const logoutMutation = useLogout();
+  // The tab tapped last, until the route changes, so the pill moves at the tap rather than when
+  // the next page has loaded.
+  const [tapped, setTapped] = useState<{ from: string; to: NavSection } | null>(null);
 
   if (pathname === "/login") {
     return null;
@@ -25,6 +30,8 @@ export function MobileNav() {
   ];
   const current = sectionOf(pathname);
   const subs = sections.includes(current) ? NAV[current].items : [];
+  const shown = tapped && tapped.from === pathname ? tapped.to : current;
+  const pillIndex = sections.indexOf(shown);
 
   return (
     <header className="flex flex-col gap-2.5 border-b border-[#E5E5E5] bg-white px-4 pt-3 pb-2 text-[#0A0A0A] md:hidden">
@@ -41,7 +48,19 @@ export function MobileNav() {
             <span className="text-[11px] whitespace-nowrap text-[#737373]">NDC Campaign 2027</span>
           </span>
         </div>
-        {!session?.authenticated ? (
+        {session?.authenticated ? (
+          // Same action as the sign-out button at the bottom of the desktop sidebar.
+          <button
+            type="button"
+            onClick={() => logoutMutation.mutate()}
+            disabled={logoutMutation.isPending}
+            className="inline-flex min-h-10 flex-none items-center gap-1.5 rounded-[8px] border border-[#E5E5E5] bg-white px-3 text-[13px] font-semibold text-[#525252] transition-[background-color,transform] duration-150 active:scale-[0.97] active:bg-[#F4F4F5] disabled:opacity-60 motion-reduce:transition-none motion-reduce:active:scale-100"
+          >
+            <NavIcon size={16} path="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+            {logoutMutation.isPending ? "Signing out…" : "Sign out"}
+          </button>
+        ) : null}
+        {session !== undefined && !session.authenticated ? (
           <Link
             href="/login"
             className="inline-flex min-h-10 items-center rounded-[8px] border border-[#E5E5E5] px-3 text-[13px] font-semibold text-[#0A0A0A] no-underline"
@@ -58,16 +77,28 @@ export function MobileNav() {
         ) : null}
 
         {sections.length > 0 ? (
-          <nav aria-label="Sections" className="flex flex-[1_1_100%] gap-1 rounded-[10px] bg-[#F0F0F0] p-1">
+          <nav aria-label="Sections" className="relative flex flex-[1_1_100%] gap-1 rounded-[10px] bg-[#F0F0F0] p-1">
+            {/* One white pill that slides to the chosen tab (each tab is 1/n of the row, 4px apart). */}
+            {pillIndex >= 0 ? (
+              <span
+                aria-hidden="true"
+                className="absolute top-1 bottom-1 left-1 rounded-[8px] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+                style={{
+                  width: `calc((100% - 8px - ${(sections.length - 1) * 4}px) / ${sections.length})`,
+                  transform: `translateX(calc(${pillIndex} * (100% + 4px)))`,
+                }}
+              />
+            ) : null}
             {sections.map((key) => {
-              const on = key === current;
+              const on = key === shown;
               return (
                 <Link
                   key={key}
                   href={NAV[key].href}
-                  aria-current={on ? "page" : undefined}
-                  className={`flex min-h-11 flex-1 items-center justify-center rounded-[8px] text-[14px] font-semibold no-underline ${
-                    on ? "bg-white text-[#1E8A55] shadow-[0_1px_2px_rgba(0,0,0,0.12)] hover:text-[#1E8A55]" : "text-[#525252] hover:text-[#525252]"
+                  aria-current={key === current ? "page" : undefined}
+                  onClick={() => setTapped({ from: pathname, to: key })}
+                  className={`relative flex min-h-11 flex-1 items-center justify-center rounded-[8px] text-[14px] font-semibold no-underline transition-colors duration-300 motion-reduce:transition-none ${
+                    on ? "text-[#1E8A55] hover:text-[#1E8A55]" : "text-[#525252] hover:text-[#525252]"
                   }`}
                 >
                   {NAV[key].label}
