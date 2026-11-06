@@ -5,6 +5,17 @@ const verificationStatus = z.enum(["unverified", "verified", "rejected"]);
 
 export const broadcastIdSchema = z.uuid();
 
+/** Filters for a broadcast's recipient list. */
+export const DELIVERY_STATUSES = [
+  "pending",
+  "sent",
+  "delivered",
+  "delivered_by_sms",
+  "tapped_ok",
+  "failed",
+] as const;
+export const RECIPIENT_GROUPS = ["candidate", "official_agent", "extra_agent"] as const;
+
 export const audienceFilterSchema = z
   .object({
     stateId: idFilter.optional(),

@@ -132,6 +132,12 @@ function BroadcastReport({ id }: { id: string }) {
   const [status, setStatus] = useState<DeliveryStatusFilter>("all");
   const [group, setGroup] = useState<GroupFilter>("all");
   const [search, setSearch] = useState("");
+  // Search runs on the server, so wait for a pause in typing before asking.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const [pageState, setPageState] = useState({ key: "", page: 1 });
   const { data: session } = useSession();
 
@@ -139,53 +145,48 @@ function BroadcastReport({ id }: { id: string }) {
     queryKey: ["broadcast", id],
     queryFn: async () => (await apiClient.get<BroadcastDetail>(`/api/broadcasts/${id}`)).data,
   });
+  // The server filters and pages; each request brings the next 100 matching recipients.
+  const filterParams = useMemo(() => ({
+    ...(status !== "all" ? { status } : {}),
+    ...(group !== "all" ? { group } : {}),
+    ...(debouncedSearch ? { search: debouncedSearch } : {}),
+  }), [status, group, debouncedSearch]);
   const deliveriesQuery = useInfiniteQuery({
-    queryKey: ["broadcast", id, "deliveries"],
+    queryKey: ["broadcast", id, "deliveries", filterParams],
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) => apiClient.get<BroadcastDelivery[]>(
       `/api/broadcasts/${id}/deliveries`,
-      { limit: 100, cursor: pageParam },
+      { limit: 100, cursor: pageParam, ...filterParams },
     ),
+    placeholderData: (previous) => previous,
     getNextPageParam: (lastPage) => lastPage.meta?.nextCursor ?? undefined,
     enabled: detailQuery.isSuccess,
   });
 
   const pages = deliveriesQuery.data?.pages;
   const deliveries = useMemo(() => pages?.flatMap((page) => page.data) ?? [], [pages]);
-  // Search, group and status apply to the delivery records loaded so far.
-  const filteredDeliveries = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase();
-    return deliveries.filter((delivery) => {
-      if (status !== "all" && delivery.status !== status) return false;
-      if (group !== "all" && delivery.recipient?.kind !== group) return false;
-      if (!query) return true;
-      return [
-        delivery.fullName,
-        delivery.maskedPhone ?? "",
-        delivery.recipient?.pollingUnitCode ?? "",
-        delivery.recipient?.seatName ?? "",
-      ].some((value) => value.toLocaleLowerCase().includes(query));
-    });
-  }, [deliveries, search, status, group]);
+  const filtersActive = status !== "all" || group !== "all" || debouncedSearch !== "";
 
   // Pagination: back to page 1 when a filter changes, not when more rows load.
-  const listKey = `${search.trim()}|${status}|${group}`;
+  const listKey = `${debouncedSearch}|${status}|${group}`;
   const currentPage = pageState.key === listKey ? pageState.page : 1;
   const setPage = (page: number) => setPageState({ key: listKey, page });
-  const totalItems = filteredDeliveries.length;
+  const hasMore = Boolean(deliveriesQuery.hasNextPage);
+  // The first response carries the number of matches, so the page count is known up front.
+  const reportedTotal = pages?.[0]?.meta?.total;
+  const totalItems = typeof reportedTotal === "number" ? reportedTotal : deliveries.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const startIndex = (safePage - 1) * PAGE_SIZE;
-  const pageRows = filteredDeliveries.slice(startIndex, startIndex + PAGE_SIZE);
-  const hasMore = Boolean(deliveriesQuery.hasNextPage);
+  const pageRows = deliveries.slice(startIndex, startIndex + PAGE_SIZE);
 
-  // Reaching the last loaded page pulls in the next batch from the server.
+  // Fetch the next batch only when the page being viewed needs rows not loaded yet.
   const { fetchNextPage, isFetchingNextPage } = deliveriesQuery;
   const loadMore = useCallback(() => void fetchNextPage(), [fetchNextPage]);
-  const onLastLoadedPage = safePage === totalPages;
+  const needsMoreRows = startIndex + PAGE_SIZE > deliveries.length;
   useEffect(() => {
-    if (onLastLoadedPage && hasMore && !isFetchingNextPage) loadMore();
-  }, [onLastLoadedPage, hasMore, isFetchingNextPage, loadMore]);
+    if (needsMoreRows && hasMore && !isFetchingNextPage) loadMore();
+  }, [needsMoreRows, hasMore, isFetchingNextPage, loadMore]);
   const deliveriesRefreshing =
     deliveriesQuery.isFetching && !isFetchingNextPage && !deliveriesQuery.isPending;
 
@@ -410,7 +411,7 @@ function BroadcastReport({ id }: { id: string }) {
           <LoadingBox>Loading recipients…</LoadingBox>
         ) : (
           <EmptyBox>
-            {deliveries.length === 0 ? "No one has been sent this broadcast yet." : "Nobody matches these filters."}
+            {filtersActive ? "Nobody matches these filters." : "No one has been sent this broadcast yet."}
           </EmptyBox>
         )
       ) : (
@@ -496,10 +497,10 @@ function BroadcastReport({ id }: { id: string }) {
       {totalItems > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-[12px] text-[#737373]">
-            Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, totalItems)} of {totalItems.toLocaleString()}
-            {hasMore ? "+" : ""} recipient{totalItems === 1 ? "" : "s"}
+            Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, totalItems)} of {totalItems.toLocaleString()}{" "}
+            recipient{totalItems === 1 ? "" : "s"}
           </span>
-          {totalPages > 1 || hasMore ? (
+          {totalPages > 1 ? (
             <span className="flex items-center gap-1.5">
               <button
                 type="button"
@@ -511,7 +512,6 @@ function BroadcastReport({ id }: { id: string }) {
               </button>
               <span className="px-1 text-[12px] text-[#737373]">
                 Page {safePage} of {totalPages}
-                {hasMore ? "+" : ""}
               </span>
               <button
                 type="button"

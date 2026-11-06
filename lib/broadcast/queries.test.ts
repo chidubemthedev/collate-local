@@ -44,6 +44,8 @@ describe("listBroadcastDeliveries paging", () => {
       orderBy: vi.fn().mockReturnThis(),
       addOrderBy: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
+      clone: vi.fn().mockReturnThis(),
+      getCount: vi.fn(async () => 0),
       getOne: vi.fn(async () => ({ id: BROADCAST_ID, broadcastStatus: "completed", createdAt: new Date() })),
       getRawMany: vi.fn(async () => rows),
     };
@@ -73,6 +75,78 @@ describe("listBroadcastDeliveries paging", () => {
     expect(page?.nextCursor).not.toBeNull();
     const cursor = JSON.parse(Buffer.from(page!.nextCursor!, "base64url").toString("utf8"));
     expect(cursor.createdAt).toBe(CREATED_AT);
+  });
+
+  it("counts the matching deliveries on the first page only", async () => {
+    const first = setup(3);
+    first.queryBuilder.getCount.mockImplementation(async () => 250);
+    const page = await listBroadcastDeliveries(user, BROADCAST_ID, { limit: 2 }, first.manager);
+    expect(page?.total).toBe(250);
+
+    const next = setup(1);
+    const nextPage = await listBroadcastDeliveries(
+      user,
+      BROADCAST_ID,
+      { limit: 2, cursor: page!.nextCursor! },
+      next.manager,
+    );
+    expect(nextPage?.total).toBeNull();
+    expect(next.queryBuilder.getCount).not.toHaveBeenCalled();
+  });
+
+  it("filters by status and recipient group on the server", async () => {
+    const { manager, queryBuilder } = setup(1);
+    await listBroadcastDeliveries(
+      user,
+      BROADCAST_ID,
+      { limit: 25, filters: { status: "failed", group: "extra_agent" } },
+      manager,
+    );
+    const conditions = queryBuilder.andWhere.mock.calls.map((call) => call);
+    expect(conditions[0][0]).toBe("delivery.deliveryStatus = :filterStatus");
+    expect(conditions[0][1]).toEqual({ filterStatus: "failed" });
+    // Extra agents: not a candidate, no official role, and an extra-agent role.
+    const groupSql = String(conditions[1][0]);
+    expect(groupSql).toMatch(/^NOT EXISTS[\s\S]*FROM candidate filter_c/);
+    expect(groupSql).toContain("AND NOT EXISTS");
+    expect(groupSql).toContain("filter_aa.agent_kind = 'official'");
+    expect(groupSql).toContain("filter_aa.agent_kind = 'extra'");
+  });
+
+  it("searches names, polling units and seats, escaping LIKE wildcards", async () => {
+    const { manager, queryBuilder } = setup(1);
+    await listBroadcastDeliveries(
+      user,
+      BROADCAST_ID,
+      { limit: 25, filters: { search: "50%_off" } },
+      manager,
+    );
+    const brackets = queryBuilder.andWhere.mock.calls[0][0] as {
+      whereFactory: (where: unknown) => void;
+    };
+    let captured: { sql: string; params: Record<string, unknown> } | null = null;
+    brackets.whereFactory({
+      where: (sql: string, params: Record<string, unknown>) => {
+        captured = { sql, params };
+      },
+    });
+    const { sql, params } = captured as unknown as { sql: string; params: Record<string, unknown> };
+    expect(sql).toContain("person.full_name ILIKE :filterSearch");
+    expect(sql).toContain("search_pu.inec_polling_unit_code ILIKE :filterSearch");
+    expect(sql).toContain("search_unit.political_unit_name ILIKE :filterSearch");
+    expect(sql).not.toContain("search_phone");
+    expect(params.filterSearch).toBe("%50\\%\\_off%");
+  });
+
+  it("matches only the visible last four digits of a phone number", async () => {
+    const { manager, queryBuilder } = setup(1);
+    await listBroadcastDeliveries(user, BROADCAST_ID, { limit: 25, filters: { search: "5678" } }, manager);
+    const brackets = queryBuilder.andWhere.mock.calls[0][0] as {
+      whereFactory: (where: unknown) => void;
+    };
+    let sql = "";
+    brackets.whereFactory({ where: (text: string) => { sql = text; } });
+    expect(sql).toContain("RIGHT(search_phone.e164_number, 4) LIKE :filterDigits");
   });
 
   it("compares the cursor's text directly, not through a JavaScript Date", async () => {
@@ -121,6 +195,8 @@ describe("listBroadcastDeliveries audit", () => {
       orderBy: vi.fn().mockReturnThis(),
       addOrderBy: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
+      clone: vi.fn().mockReturnThis(),
+      getCount: vi.fn(async () => 0),
       getOne: vi.fn(async () => ({
         id: "44444444-4444-4444-8444-444444444444",
         broadcastStatus: "completed",
@@ -217,6 +293,10 @@ describe("listBroadcastDeliveries audit", () => {
         orderBy: vi.fn().mockReturnThis(),
         addOrderBy: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
+        clone: vi.fn().mockReturnThis(),
+        getCount: vi.fn(async () => 0),
+      clone: vi.fn().mockReturnThis(),
+      getCount: vi.fn(async () => 0),
         getOne: vi.fn(async () => ({ id: BROADCAST_ID, broadcastStatus: "completed", createdAt: new Date() })),
         getRawMany: vi.fn(async () => rows),
       };
@@ -378,6 +458,10 @@ describe("listBroadcastDeliveries audit", () => {
         orderBy: vi.fn().mockReturnThis(),
         addOrderBy: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
+        clone: vi.fn().mockReturnThis(),
+        getCount: vi.fn(async () => 0),
+      clone: vi.fn().mockReturnThis(),
+      getCount: vi.fn(async () => 0),
         getRawMany: vi.fn(async () => [{
           id: "44444444-4444-4444-8444-444444444444",
           status: "completed",

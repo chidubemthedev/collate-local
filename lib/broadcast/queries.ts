@@ -5,6 +5,7 @@ import { Broadcast } from "../db/entities/broadcast.entity";
 import { Delivery } from "../db/entities/delivery.entity";
 import { PhoneNumber } from "../db/entities/phone-number.entity";
 import { maskPhoneNumber } from "../policy/core/list-agents";
+import type { DELIVERY_STATUSES, RECIPIENT_GROUPS } from "./schemas";
 import { resolveManager } from "../policy/core/database";
 import type { PolicyUser } from "../policy/core/policy-user";
 
@@ -85,6 +86,87 @@ export interface DeliveryListItem {
 export interface DeliveryPage {
   items: DeliveryListItem[];
   nextCursor: string | null;
+  /** Deliveries matching the filters; only worked out for the first page (no cursor). */
+  total: number | null;
+}
+
+export interface DeliveryFilters {
+  status?: (typeof DELIVERY_STATUSES)[number];
+  group?: (typeof RECIPIENT_GROUPS)[number];
+  /** Name, polling-unit code, seat name, or the visible last digits of the phone number. */
+  search?: string;
+}
+
+// Same rules as resolveDeliveryRecipients: a candidate (or running mate) first, then the
+// person's official agent role, then an extra agent role.
+const IS_CANDIDATE_SQL = `EXISTS (
+  SELECT 1
+  FROM candidate filter_c
+  LEFT JOIN candidate filter_principal ON filter_principal.id = filter_c.principal_candidate_id
+  JOIN seat filter_seat ON filter_seat.id = COALESCE(filter_c.seat_id, filter_principal.seat_id)
+  WHERE filter_c.person_id = person.id
+)`;
+const HAS_AGENT_KIND_SQL = (kind: "official" | "extra") => `EXISTS (
+  SELECT 1 FROM agent_assignment filter_aa
+  WHERE filter_aa.person_id = person.id AND filter_aa.agent_kind = '${kind}'
+)`;
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
+}
+
+function applyDeliveryFilters<T extends ObjectLiteral>(
+  query: SelectQueryBuilder<T>,
+  { status, group, search }: DeliveryFilters,
+): void {
+  if (status) {
+    query.andWhere("delivery.deliveryStatus = :filterStatus", { filterStatus: status });
+  }
+  if (group === "candidate") {
+    query.andWhere(IS_CANDIDATE_SQL);
+  } else if (group === "official_agent") {
+    query.andWhere(`NOT ${IS_CANDIDATE_SQL} AND ${HAS_AGENT_KIND_SQL("official")}`);
+  } else if (group === "extra_agent") {
+    query.andWhere(
+      `NOT ${IS_CANDIDATE_SQL} AND NOT ${HAS_AGENT_KIND_SQL("official")} AND ${HAS_AGENT_KIND_SQL("extra")}`,
+    );
+  }
+  const text = search?.trim();
+  if (text) {
+    const conditions = [
+      "person.full_name ILIKE :filterSearch",
+      `EXISTS (
+        SELECT 1
+        FROM agent_assignment search_aa
+        JOIN polling_unit search_pu ON search_pu.id = search_aa.polling_unit_id
+        WHERE search_aa.person_id = person.id
+          AND search_pu.inec_polling_unit_code ILIKE :filterSearch
+      )`,
+      `EXISTS (
+        SELECT 1
+        FROM candidate search_c
+        LEFT JOIN candidate search_principal ON search_principal.id = search_c.principal_candidate_id
+        JOIN seat search_seat ON search_seat.id = COALESCE(search_c.seat_id, search_principal.seat_id)
+        JOIN political_unit search_unit ON search_unit.id = search_seat.political_unit_id
+        WHERE search_c.person_id = person.id
+          AND search_unit.political_unit_name ILIKE :filterSearch
+      )`,
+    ];
+    // Only the last four digits are shown (the rest is masked), so only those can be searched.
+    if (/^\d{1,4}$/.test(text)) {
+      conditions.push(`EXISTS (
+        SELECT 1 FROM phone_number search_phone
+        WHERE search_phone.person_id = person.id
+          AND RIGHT(search_phone.e164_number, 4) LIKE :filterDigits
+      )`);
+    }
+    query.andWhere(new Brackets((where) => {
+      where.where(conditions.join(" OR "), {
+        filterSearch: `%${escapeLike(text)}%`,
+        filterDigits: `%${text}%`,
+      });
+    }));
+  }
 }
 
 /**
@@ -565,7 +647,8 @@ export async function listBroadcastDeliveries(
     limit,
     cursor,
     ipAddress,
-  }: { limit: number; cursor?: string; ipAddress?: string | null },
+    filters = {},
+  }: { limit: number; cursor?: string; ipAddress?: string | null; filters?: DeliveryFilters },
   manager?: EntityManager,
 ): Promise<DeliveryPage | null> {
   const entityManager = await resolveManager(manager);
@@ -604,6 +687,10 @@ export async function listBroadcastDeliveries(
       .addSelect("delivery.createdAt", "createdAt")
       .addSelect(exactCreatedAtSql("delivery"), "cursorCreatedAt")
       .where("delivery.broadcastId = :broadcastId", { broadcastId });
+
+    applyDeliveryFilters(query, filters);
+    // The total is counted once, with the first page, so each later page stays a single query.
+    const total = parsedCursor ? null : await query.clone().getCount();
 
     applyBroadcastCursor(query, parsedCursor, "delivery");
 
@@ -661,6 +748,7 @@ export async function listBroadcastDeliveries(
         hasNextPage && lastRow
           ? encodeCursor({ createdAt: lastRow.cursorCreatedAt, id: lastRow.id })
           : null,
+      total,
     };
   };
 

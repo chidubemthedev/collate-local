@@ -135,6 +135,43 @@ describe("broadcast routes", () => {
     expect(mocks.listBroadcasts).not.toHaveBeenCalled();
   });
 
+  it("passes the recipient filters to the deliveries query and returns the total", async () => {
+    mocks.listBroadcastDeliveries.mockResolvedValue({ items: [], nextCursor: null, total: 42 });
+    const { GET } = await import("./[id]/deliveries/route");
+    const response = await GET(
+      new Request(
+        "http://localhost/api/broadcasts/22222222-2222-4222-8222-222222222222/deliveries" +
+          "?limit=100&status=failed&group=extra_agent&search=%20Kano%20",
+      ),
+      { params: Promise.resolve({ id: "22222222-2222-4222-8222-222222222222" }) },
+    );
+    expect(response.status).toBe(200);
+    expect(mocks.listBroadcastDeliveries).toHaveBeenCalledWith(
+      user,
+      "22222222-2222-4222-8222-222222222222",
+      expect.objectContaining({
+        limit: 100,
+        filters: { status: "failed", group: "extra_agent", search: "Kano" },
+      }),
+    );
+    const body = await response.json();
+    expect(body.meta).toEqual({ nextCursor: null, limit: 100, total: 42 });
+  });
+
+  it("rejects an unknown delivery status or group", async () => {
+    const { GET } = await import("./[id]/deliveries/route");
+    for (const query of ["status=lost", "group=everyone"]) {
+      const response = await GET(
+        new Request(
+          `http://localhost/api/broadcasts/22222222-2222-4222-8222-222222222222/deliveries?${query}`,
+        ),
+        { params: Promise.resolve({ id: "22222222-2222-4222-8222-222222222222" }) },
+      );
+      expect(response.status).toBe(400);
+    }
+    expect(mocks.listBroadcastDeliveries).not.toHaveBeenCalled();
+  });
+
   it("does not expose a full phone number in the deliveries response", async () => {
     mocks.listBroadcastDeliveries.mockResolvedValue({
       items: [
