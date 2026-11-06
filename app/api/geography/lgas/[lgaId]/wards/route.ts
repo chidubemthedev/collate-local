@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
 import { failure, internalError, success } from "@/lib/api/response";
 import { hasGpsSql } from "@/lib/geography/gps";
+import { extraAgentsByAreaSql } from "@/lib/coverage/area-coverage-sql";
 import { parsePollingUnitFilter, pollingUnitFilterClauses } from "@/lib/coverage/pu-filter";
 
 export async function GET(request: Request, { params }: { params: Promise<{ lgaId: string }> }) {
@@ -40,19 +41,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ lgaI
       gps_pus: string;
       extra_agents: string;
     }>>(`
+      -- A polling unit has at most one official agent, so that join never repeats a row;
+      -- extra agents are counted separately.
+      WITH extras AS (${extraAgentsByAreaSql("w.id", `w.lga_id = $6 AND ${scope.sql}${puSql}`)})
       SELECT
         w.id,
         w.inec_ward_code AS code,
         w.ward_name AS name,
-        COUNT(DISTINCT pu.id) AS total_pus,
-        COUNT(DISTINCT CASE WHEN aa.person_id IS NOT NULL THEN pu.id END) AS covered_pus,
-        COUNT(DISTINCT CASE WHEN ${hasGpsSql("pu")} THEN pu.id END) AS gps_pus,
-        COUNT(DISTINCT CASE WHEN aa.agent_kind = 'extra' THEN aa.person_id END) AS extra_agents
+        COUNT(pu.id) AS total_pus,
+        COUNT(aa.polling_unit_id) AS covered_pus,
+        COUNT(pu.id) FILTER (WHERE ${hasGpsSql("pu")}) AS gps_pus,
+        COALESCE(MAX(e.extra_agents), 0) AS extra_agents
       FROM ward w
       JOIN lga l ON l.id = w.lga_id
       JOIN state s ON s.id = l.state_id
       LEFT JOIN polling_unit pu ON pu.ward_id = w.id
       LEFT JOIN agent_assignment aa ON aa.polling_unit_id = pu.id AND aa.agent_kind = 'official'
+      LEFT JOIN extras e ON e.area_id = w.id
       WHERE w.lga_id = $6 AND ${scope.sql}${puSql}
       GROUP BY w.id, w.inec_ward_code, w.ward_name
       ORDER BY w.ward_name ASC;

@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
-import { SESSION_IDLE_TIMEOUT_MS } from "./config";
+import { SESSION_ACTIVITY_REFRESH_MS, SESSION_IDLE_TIMEOUT_MS } from "./config";
 
 export function createSessionToken(): string {
   return randomBytes(32).toString("base64url");
@@ -8,6 +8,11 @@ export function createSessionToken(): string {
 
 export function hashSessionToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
+}
+
+/** True when last_active_at is old enough to be worth writing again. */
+export function shouldRefreshSessionActivity(lastActiveAt: Date | string, now = Date.now()): boolean {
+  return now - new Date(lastActiveAt).getTime() >= SESSION_ACTIVITY_REFRESH_MS;
 }
 
 export function isSessionValid(session: {

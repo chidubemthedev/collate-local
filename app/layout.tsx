@@ -6,7 +6,6 @@ import { AppProvider } from "@/lib/context/app-context";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNav } from "@/components/layout/mobile-nav";
-import { MobileBottomBar } from "@/components/layout/mobile-bottom-bar";
 import { ViewAsBar } from "@/components/layout/view-as-bar";
 import { Suspense } from "react";
 
@@ -27,12 +26,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="min-h-screen bg-background text-foreground antialiased font-sans flex flex-col md:flex-row">
+      <body className="min-h-screen bg-white text-foreground antialiased font-sans flex flex-col md:flex-row">
         <QueryProvider>
           <AppProvider>
             <TooltipProvider>
             {/* Desktop Left Sidebar */}
-            <Suspense fallback={<div className="w-64 hidden md:block bg-card border-r border-border" />}>
+            <Suspense fallback={<div className="w-64 hidden md:block bg-[#FAFAFA] border-r border-[#E5E5E5]" />}>
               <Sidebar />
             </Suspense>
 
@@ -44,12 +43,9 @@ export default function RootLayout({
               <Suspense fallback={null}>
                 <ViewAsBar />
               </Suspense>
-              <main className="flex-1 min-w-0 px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8 pb-20 md:pb-10">
+              <main className="flex-1 min-w-0 p-4 md:px-8 md:pt-6 md:pb-10">
                 {children}
               </main>
-              <Suspense fallback={null}>
-                <MobileBottomBar />
-              </Suspense>
             </div>
           </TooltipProvider>
         </AppProvider>

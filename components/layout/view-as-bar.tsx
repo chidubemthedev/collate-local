@@ -1,12 +1,11 @@
 "use client";
 
-import React from "react";
 import { usePathname } from "next/navigation";
 import { useSession, usePermissions } from "@/lib/hooks/use-auth";
 import { useHasMounted } from "@/lib/hooks/use-has-mounted";
-import { Eye } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { EyeIcon, accessLabel } from "@/components/layout/nav";
 
+/** The desktop "Current access" bar above every page. Phones show access in the header instead. */
 export function ViewAsBar() {
   const pathname = usePathname();
   const hasMounted = useHasMounted();
@@ -19,28 +18,15 @@ export function ViewAsBar() {
     return null;
   }
 
-  const roles = permissions.roles.join(", ") || (permissions.isAdmin ? "Admin" : "Account");
+  const access = accessLabel(permissions.roles, permissions.isAdmin);
 
   return (
-    <div className="bg-muted/40 border-b border-border px-4 sm:px-6 lg:px-8 py-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Eye className="w-4 h-4 shrink-0" />
-        <div>
-          <span className="font-semibold text-foreground">Current access: </span>
-          <span>{roles}</span>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 ml-auto">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled
-          title="Not available yet"
-          className="h-6 text-[11px] px-2"
-        >
-          View as · Not available yet
-        </Button>
-      </div>
+    <div className="hidden min-h-11 flex-wrap items-center justify-between gap-3 border-b border-[#EDEDED] bg-white px-8 py-2 text-[12px] text-[#737373] md:flex">
+      <span className="flex items-center gap-1.5">
+        <EyeIcon size={14} />
+        <span className="font-semibold text-[#0A0A0A]">Current access:</span> {access}
+      </span>
+      <span className="rounded-[8px] border border-[#E5E5E5] bg-[#FAFAFA] px-2 py-[3px]">View as · {access}</span>
     </div>
   );
 }

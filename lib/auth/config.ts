@@ -37,9 +37,11 @@ export const OTP_VERIFY_LIMIT_PER_IP = 10;
 export const OTP_VERIFY_LIMIT_PER_EMAIL = 10;
 export const OTP_VERIFY_WINDOW_MS = 15 * 60 * 1000;
 
-// ASSUMPTION: session lifetime is 12 hours absolute and idle timeout is 2 hours.
-export const SESSION_LIFETIME_MS = 12 * 60 * 60 * 1000;
-export const SESSION_IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+// Session lifetime is 14 days absolute and the idle timeout is 7 days.
+export const SESSION_LIFETIME_MS = 14 * 24 * 60 * 60 * 1000;
+export const SESSION_IDLE_TIMEOUT_MS = 7 * 24 * 60 * 60 * 1000;
+// A session's last activity is written at most once a minute, not on every API call.
+export const SESSION_ACTIVITY_REFRESH_MS = 60 * 1000;
 
 // ASSUMPTION: the OTP request endpoint should never answer faster than 400 ms.
 export const OTP_REQUEST_MIN_RESPONSE_MS = 400;

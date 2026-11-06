@@ -6,21 +6,13 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { ApiClientError, apiClient } from "@/lib/api/client";
 import { useSession } from "@/lib/hooks/use-auth";
 import type { BroadcastDelivery, BroadcastDetail } from "@/types/api";
-import { AlertCircle, ArrowLeft, ChevronLeft, ChevronRight, Loader2, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { toTitleCase } from "@/components/candidates/candidates-filters";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableToolbar, type ActiveTableFilter } from "@/components/ui/table-toolbar";
-import { Skeleton, StatCardSkeleton, TableSkeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { WF, PageHeader, StatTile, LoadingBox, CenterSpinner, EmptyBox, FILTER_GRID } from "@/components/ui/wf";
 
 type DeliveryStatusFilter = "all" | BroadcastDelivery["status"];
 type GroupFilter = "all" | "candidate" | "official_agent" | "extra_agent";
@@ -32,35 +24,39 @@ const GROUP_OPTIONS: Array<{ value: GroupFilter; label: string }> = [
   { value: "extra_agent", label: "Extra agents" },
 ];
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
+
+const PILL = "inline-block rounded-full px-[9px] py-[3px] text-[12px] font-semibold whitespace-nowrap";
 
 const STATUS_PILL: Record<BroadcastDelivery["status"], { label: string; className: string }> = {
-  tapped_ok: { label: "Tapped OK", className: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" },
-  delivered: { label: "Delivered", className: "bg-muted text-foreground" },
-  delivered_by_sms: { label: "Delivered by SMS", className: "bg-muted text-foreground" },
-  sent: { label: "No report yet", className: "bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300" },
-  pending: { label: "Pending", className: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300" },
-  failed: { label: "Failed", className: "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300" },
+  tapped_ok: { label: "Tapped OK", className: "bg-[#E8F5EE] text-[#1E8A55]" },
+  delivered: { label: "Delivered", className: "bg-[#F4F4F5] text-[#0A0A0A]" },
+  delivered_by_sms: { label: "Delivered by SMS", className: "bg-[#E0F2FE] text-[#075985]" },
+  sent: { label: "No report yet", className: "bg-[#FEF3C7] text-[#92400E]" },
+  pending: { label: "Pending", className: "bg-[#FEF3C7] text-[#92400E]" },
+  failed: { label: "Failed", className: "bg-[#FDECEC] text-[#B42318]" },
 };
 
-/** Group pill: NDC office for candidates, otherwise the agent type. */
+const BADGE = "inline-block max-w-[220px] rounded-[4px] px-1.5 py-px text-[12px] font-semibold leading-snug";
+
+/** Group badge: NDC office for candidates, otherwise the agent type (dashed). */
 function groupPill(recipient: BroadcastDelivery["recipient"]): { label: string; className: string } | null {
   if (recipient.kind === "candidate" && recipient.officeName) {
     return {
       label: `NDC · ${recipient.officeName}${recipient.isRunningMate ? " (running mate)" : ""}`,
-      className: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
+      className: "bg-[#E8F5EE] text-[#1E8A55]",
     };
   }
   if (recipient.kind === "official_agent") {
     return {
       label: "Official agent",
-      className: "border border-dashed border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
+      className: "border border-dashed border-[#1E8A55] bg-[#E8F5EE] text-[#1E8A55]",
     };
   }
   if (recipient.kind === "extra_agent") {
     return {
       label: recipient.ownerName ? `Extra · ${recipient.ownerName}` : "Extra agent",
-      className: "bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300",
+      className: "border border-dashed border-[#6D28D9] bg-[#F3E8FF] text-[#6D28D9]",
     };
   }
   return null;
@@ -102,16 +98,14 @@ const STATUS_OPTIONS: Array<{ value: DeliveryStatusFilter; label: string }> = [
   { value: "failed", label: "Failed" },
 ];
 
-const LABEL_CLASS =
-  "flex items-center gap-1.5 truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground";
-const TRIGGER_CLASS = "h-8 w-full bg-background text-xs data-[disabled]:bg-muted data-[disabled]:opacity-70";
+const LABEL_CLASS = `${WF.label} flex items-center gap-1.5 truncate`;
+const TRIGGER_CLASS = "w-full";
 
-const KPI_CARD = "flex h-full flex-col rounded-xl border border-border/60 bg-card p-4";
-const KPI_LABEL = "text-[11px] font-medium text-foreground/80";
-const KPI_VALUE = "mt-3 text-xl md:text-2xl font-bold tracking-tight tabular-nums";
-const KPI_NOTE = "mt-3 text-[10px] leading-snug text-muted-foreground";
+const TH = "sticky top-0 z-[1] border-b border-[#E5E5E5] bg-white px-3.5 py-2.5 text-left text-[12px] font-bold whitespace-nowrap text-[#525252]";
+const TD = "px-3.5 py-2.5";
 
-const TABLE_COLUMNS = ["Name", "Group", "Area", "Time", "Status", "Source"];
+const BACK_LINK =
+  "inline-flex min-h-10 items-center self-start text-[14px] font-semibold text-[#1F5FBF] no-underline hover:text-[#0A0A0A]";
 
 function formatStatus(status: string): string {
   return STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status.replaceAll("_", " ");
@@ -132,10 +126,6 @@ function formatWhen(value: string): string {
 
 function percent(part: number, whole: number): number {
   return whole > 0 ? Math.round((part / whole) * 100) : 0;
-}
-
-function SkeletonHeading({ className = "h-7 w-72" }: { className?: string }) {
-  return <Skeleton className={className} />;
 }
 
 function BroadcastReport({ id }: { id: string }) {
@@ -201,14 +191,11 @@ function BroadcastReport({ id }: { id: string }) {
 
   if (detailQuery.isPending) {
     return (
-      <div aria-busy="true" className="mx-auto max-w-7xl space-y-5">
-        <div className="space-y-2">
-          <SkeletonHeading />
-          <SkeletonHeading className="h-4 w-96" />
-        </div>
-        <Skeleton className="h-28 w-full rounded-xl" />
-        <StatCardSkeleton count={5} className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" />
-        <TableSkeleton columns={TABLE_COLUMNS} />
+      <div className="flex flex-col gap-4">
+        <Link href="/broadcasts" className={BACK_LINK}>
+          ← All broadcasts
+        </Link>
+        <LoadingBox>Loading the report…</LoadingBox>
       </div>
     );
   }
@@ -216,18 +203,23 @@ function BroadcastReport({ id }: { id: string }) {
     const notFound = detailQuery.error instanceof ApiClientError &&
       (detailQuery.error.status === 404 || detailQuery.error.code === "validation_failed");
     return (
-      <div className="mx-auto mt-12 max-w-xl space-y-3 rounded-lg border p-8 text-center">
-        <AlertCircle className="mx-auto h-6 w-6 text-destructive" />
-        <h1 className="font-semibold">{notFound ? "Broadcast not found" : "Could not load broadcast"}</h1>
-        <p className="text-sm text-muted-foreground">
+      <div className={`${WF.card} mx-auto mt-12 max-w-xl space-y-3 p-8 text-center`}>
+        <AlertCircle className="mx-auto h-6 w-6 text-[#B42318]" />
+        <h1 className="m-0 text-[15px] font-semibold">{notFound ? "Broadcast not found" : "Could not load broadcast"}</h1>
+        <p className="m-0 text-[13px] text-[#737373]">
           {notFound ? "This broadcast does not exist or you do not have access to it." : detailQuery.error.message}
         </p>
         {!notFound && (
-          <Button variant="outline" onClick={() => void detailQuery.refetch()}>
-            <RefreshCw className="mr-2 h-4 w-4" />Retry
-          </Button>
+          <button type="button" className={WF.btnOutline} onClick={() => void detailQuery.refetch()}>
+            <RefreshCw className="h-3.5 w-3.5" />
+            Retry
+          </button>
         )}
-        <div><Link href="/broadcasts" className="text-sm text-primary underline-offset-4 hover:underline">Back to broadcasts</Link></div>
+        <div>
+          <Link href="/broadcasts" className={BACK_LINK}>
+            ← All broadcasts
+          </Link>
+        </div>
       </div>
     );
   }
@@ -261,316 +253,279 @@ function BroadcastReport({ id }: { id: string }) {
     ...(status !== "all" ? [{ id: "status", label: `Status: ${formatStatus(status)}`, onRemove: () => setStatus("all") }] : []),
   ];
 
-  return (
-    <div className="mx-auto max-w-7xl space-y-5">
-      <div className="space-y-3">
-        <Link
-          href="/broadcasts"
-          className="-ml-2 inline-flex h-7 items-center rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />Broadcasts
-        </Link>
-        <div>
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
-            {broadcast.title || "Broadcast"}
-          </h1>
-          <p className="mt-0.5 text-[11px] sm:text-xs text-muted-foreground">{subtitle}</p>
-        </div>
-        {/* Neither action has an API yet. */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" disabled title="Not available yet" className="h-8 px-3 text-xs">
-            Resend failed by SMS
-          </Button>
-          <Button
-            disabled
-            title="Not available yet"
-            className="h-8 bg-foreground px-3 text-xs text-background hover:bg-foreground/90"
-          >
-            Remind those not OK yet
-          </Button>
-        </div>
-      </div>
+  // Neither action has an API yet.
+  const notYet = (label: string, dark = false) => (
+    <Tooltip>
+      <TooltipTrigger render={<span tabIndex={0} className="inline-flex cursor-not-allowed" />}>
+        <button type="button" disabled className={dark ? WF.btnDark : WF.btnOutline}>
+          {label}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>Not available yet</TooltipContent>
+    </Tooltip>
+  );
 
-      {/* Filter panel: collapses behind a Filters button on phones, like the Coverage page. */}
-      <div className="rounded-xl border border-border/70 bg-card p-4">
+  const nameCell = (delivery: BroadcastDelivery) =>
+    PLACEHOLDER_NAME.test(delivery.fullName) ? (
+      <span className="text-[#6B4A2B] italic">{delivery.fullName}</span>
+    ) : (
+      <span className="font-semibold">{toTitleCase(delivery.fullName)}</span>
+    );
+
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-3.5 text-[#0A0A0A] sm:gap-4">
+      <Link href="/broadcasts" className={BACK_LINK}>
+        ← All broadcasts
+      </Link>
+
+      <PageHeader
+        title={broadcast.title || "Broadcast"}
+        subtitle={subtitle}
+        actions={
+          <>
+            {notYet("Resend failed by SMS")}
+            {notYet("Remind those not OK yet", true)}
+          </>
+        }
+      />
+
+      <section aria-label="Filters" className={`${WF.card} p-3 sm:p-4`}>
         <TableToolbar
-          inlineMobile
           activeFilters={activeFilters}
           onClear={() => {
             setSearch("");
             setStatus("all");
             setGroup("all");
           }}
+          summary={activeFilters.length ? "Filtered" : "None set"}
         >
-        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="min-w-0 space-y-1.5">
-            <label className={LABEL_CLASS}>Search</label>
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Name or INEC code"
-              className="h-8 w-full bg-background text-xs"
-            />
-          </div>
+          <div className={FILTER_GRID}>
+            <div className="flex min-w-0 flex-col gap-1">
+              <label htmlFor="report-search" className={LABEL_CLASS}>
+                Search
+              </label>
+              <Input
+                id="report-search"
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Name or INEC code"
+              />
+            </div>
 
-          <div className="min-w-0 space-y-1.5">
-            <label className={LABEL_CLASS}>Group</label>
-            <Select
-              value={group}
-              onValueChange={(val) => {
-                if (val) setGroup(val as GroupFilter);
-              }}
-            >
-              <SelectTrigger className={TRIGGER_CLASS}>
-                <SelectValue placeholder="Everyone">
-                  {(val) => GROUP_OPTIONS.find((option) => option.value === val)?.label ?? "Everyone"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {GROUP_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <label className={LABEL_CLASS}>Group</label>
+              <Select
+                value={group}
+                onValueChange={(val) => {
+                  if (val) setGroup(val as GroupFilter);
+                }}
+              >
+                <SelectTrigger className={TRIGGER_CLASS}>
+                  <SelectValue>{(val) => GROUP_OPTIONS.find((option) => option.value === val)?.label ?? "Everyone"}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {GROUP_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          {/* Delivery records carry no ward yet. */}
-          <div className="min-w-0 space-y-1.5" title="Not available yet">
-            <label className={LABEL_CLASS}>Ward</label>
-            <Select value="all" disabled>
-              <SelectTrigger className={TRIGGER_CLASS}>
-                <SelectValue placeholder="All wards">{() => "All wards"}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All wards</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            {/* Delivery records carry no ward yet. */}
+            <div className="flex min-w-0 flex-col gap-1" title="Not available yet">
+              <label className={LABEL_CLASS}>Ward</label>
+              <Select value="all" disabled>
+                <SelectTrigger className={TRIGGER_CLASS}>
+                  <SelectValue>{() => "Select"}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All wards</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="min-w-0 space-y-1.5">
-            <label className={LABEL_CLASS}>Delivery status</label>
-            <Select
-              value={status}
-              onValueChange={(val) => {
-                if (val) setStatus(val as DeliveryStatusFilter);
-              }}
-            >
-              <SelectTrigger className={TRIGGER_CLASS}>
-                <SelectValue placeholder="Any status">{(val) => formatStatus((val as string) ?? "all")}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex min-w-0 flex-col gap-1">
+              <label className={LABEL_CLASS}>Delivery status</label>
+              <Select
+                value={status}
+                onValueChange={(val) => {
+                  if (val) setStatus(val as DeliveryStatusFilter);
+                }}
+              >
+                <SelectTrigger className={TRIGGER_CLASS}>
+                  <SelectValue>{(val) => formatStatus((val as string) ?? "all")}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
         </TableToolbar>
-      </div>
+      </section>
 
-      {/* Delivery cards */}
-      <div
+      <section
+        aria-label="Delivery summary"
         aria-busy={detailQuery.isFetching}
-        className={`grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 transition-opacity ${
+        className={`grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2 transition-opacity sm:grid-cols-[repeat(auto-fit,minmax(170px,1fr))] sm:gap-3 ${
           detailQuery.isFetching ? "opacity-60" : ""
         }`}
       >
-        <div className={KPI_CARD}>
-          <div className={KPI_LABEL}>Sent</div>
-          <div className={`${KPI_VALUE} text-foreground`}>{total.toLocaleString()}</div>
-          <div className={KPI_NOTE}>people in the audience</div>
-        </div>
-        <div className={KPI_CARD}>
-          <div className={KPI_LABEL}>Delivered</div>
-          <div className={`${KPI_VALUE} text-foreground`}>{delivered.toLocaleString()}</div>
-          <div className={KPI_NOTE}>
-            {percent(delivered, total)}%, {counts.deliveredBySms.toLocaleString()} by SMS
-          </div>
-        </div>
-        <div className={KPI_CARD}>
-          <div className={KPI_LABEL}>Tapped OK</div>
-          <div className={`${KPI_VALUE} text-emerald-600 dark:text-emerald-400`}>
-            {counts.tappedOk.toLocaleString()}
-          </div>
-          <div className={KPI_NOTE}>{percent(counts.tappedOk, total)}% of sent</div>
-        </div>
-        <div className={KPI_CARD}>
-          <div className={KPI_LABEL}>Pending</div>
-          <div className={`${KPI_VALUE} text-yellow-700 dark:text-yellow-500`}>{pending.toLocaleString()}</div>
-          <div className={KPI_NOTE}>no report yet</div>
-        </div>
-        <div className={KPI_CARD}>
-          <div className={KPI_LABEL}>Failed</div>
-          <div className={`${KPI_VALUE} text-red-700 dark:text-red-400`}>{counts.failed.toLocaleString()}</div>
-          <div className={KPI_NOTE}>Telegram and SMS</div>
-        </div>
-      </div>
+        <StatTile label="Sent" value={total.toLocaleString()} note="people in the audience" />
+        <StatTile
+          label="Delivered"
+          value={delivered.toLocaleString()}
+          note={`${percent(delivered, total)}%, ${counts.deliveredBySms.toLocaleString()} by SMS`}
+        />
+        <StatTile
+          label="Tapped OK"
+          value={counts.tappedOk.toLocaleString()}
+          color="#1E8A55"
+          note={`${percent(counts.tappedOk, total)}% of sent`}
+        />
+        <StatTile label="Pending" value={pending.toLocaleString()} color="#7A5A00" note="no report yet" />
+        <StatTile label="Failed" value={counts.failed.toLocaleString()} color="#9B1C1C" note="Telegram and SMS" />
+      </section>
 
-      {/* Delivery records */}
-      <section
-        aria-busy={deliveriesRefreshing}
-        className="relative min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card"
-      >
-        {deliveriesQuery.isPending ? (
-          <div className="p-3 sm:p-4">
-            <TableSkeleton columns={TABLE_COLUMNS} />
-          </div>
-        ) : deliveriesQuery.isError && deliveries.length === 0 ? (
-          <div className="space-y-3 p-8 text-center">
-            <AlertCircle className="mx-auto h-6 w-6 text-destructive" />
-            <p className="text-sm text-destructive">{deliveriesQuery.error.message}</p>
-            <Button variant="outline" size="sm" onClick={() => void deliveriesQuery.refetch()}>
-              <RefreshCw className="mr-2 h-4 w-4" />Retry
-            </Button>
-          </div>
+      {deliveriesQuery.isPending ? (
+        <LoadingBox>Loading recipients…</LoadingBox>
+      ) : deliveriesQuery.isError && deliveries.length === 0 ? (
+        <div className={`${WF.card} space-y-3 p-8 text-center`}>
+          <AlertCircle className="mx-auto h-6 w-6 text-[#B42318]" />
+          <p className="m-0 text-[13px] text-[#B42318]">{deliveriesQuery.error.message}</p>
+          <button type="button" className={WF.btnOutline} onClick={() => void deliveriesQuery.refetch()}>
+            <RefreshCw className="h-3.5 w-3.5" />
+            Retry
+          </button>
+        </div>
+      ) : pageRows.length === 0 ? (
+        hasMore && isFetchingNextPage ? (
+          <LoadingBox>Loading recipients…</LoadingBox>
         ) : (
-          <>
-            <div className={`overflow-x-auto transition-opacity ${deliveriesRefreshing ? "pointer-events-none opacity-40" : ""}`}>
-              <Table>
-                <TableHeader className="text-[11px]">
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="min-w-[160px] pl-4 font-semibold text-foreground">Name</TableHead>
-                    <TableHead className="font-semibold text-foreground">Group</TableHead>
-                    <TableHead className="min-w-[220px] font-semibold text-foreground">Area</TableHead>
-                    <TableHead
-                      className="font-semibold text-foreground whitespace-nowrap"
-                      title="When the latest update happened: tapped OK, delivered, failed or sent"
-                    >
+          <EmptyBox>
+            {deliveries.length === 0 ? "No one has been sent this broadcast yet." : "Nobody matches these filters."}
+          </EmptyBox>
+        )
+      ) : (
+        <section aria-busy={deliveriesRefreshing} className="relative min-w-0">
+          <CenterSpinner show={deliveriesRefreshing} />
+          <div className={`transition-opacity ${deliveriesRefreshing ? "pointer-events-none opacity-40" : ""}`}>
+            <div className={`${WF.card} hidden max-h-[640px] overflow-auto md:block`}>
+              <table className={WF.table}>
+                <thead>
+                  <tr>
+                    <th scope="col" className={TH}>
+                      Name
+                    </th>
+                    <th scope="col" className={TH}>
+                      Group
+                    </th>
+                    <th scope="col" className={TH}>
+                      Area
+                    </th>
+                    <th scope="col" className={TH} title="When the latest update happened: tapped OK, delivered, failed or sent">
                       Time *
-                    </TableHead>
-                    <TableHead
-                      className="font-semibold text-foreground whitespace-nowrap"
-                      title="Where this message is now"
-                    >
+                    </th>
+                    <th scope="col" className={TH} title="Where this message is now">
                       Status *
-                    </TableHead>
-                    <TableHead className="pr-4 font-semibold text-foreground">Source</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody className="text-xs">
-                  {pageRows.length === 0 ? (
-                    <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
-                        {hasMore && isFetchingNextPage ? (
-                          <span className="inline-flex items-center gap-2">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            Loading recipients…
-                          </span>
-                        ) : deliveries.length === 0 ? (
-                          "No one has been sent this broadcast yet."
-                        ) : (
-                          "No recipients match these filters."
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    pageRows.map((delivery) => {
-                      const recipient = delivery.recipient;
-                      const pill = recipient ? groupPill(recipient) : null;
-                      const statusPill = STATUS_PILL[delivery.status];
-                      const isPlaceholder = PLACEHOLDER_NAME.test(delivery.fullName);
-
-                      return (
-                        <TableRow key={delivery.id} className="hover:bg-muted/30">
-                          <TableCell className="pl-4">
-                            {isPlaceholder ? (
-                              <span className="italic text-muted-foreground">{delivery.fullName}</span>
-                            ) : (
-                              <span className="font-semibold text-foreground">{toTitleCase(delivery.fullName)}</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {pill ? (
-                              <span className={`inline-flex max-w-[180px] rounded-md px-2 py-0.5 text-[11px] font-medium leading-snug ${pill.className}`}>
-                                {pill.label}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-foreground">
-                            {recipient ? areaLabel(recipient) : "—"}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap tabular-nums text-foreground">
-                            {eventTime(delivery)}
-                          </TableCell>
-                          <TableCell>
-                            <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-medium ${statusPill.className}`}>
-                              {statusPill.label}
-                            </span>
-                          </TableCell>
-                          <TableCell className="pr-4 whitespace-nowrap text-muted-foreground">
-                            {recipient?.source ?? "—"}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
+                    </th>
+                    <th scope="col" className={TH}>
+                      Source
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((delivery) => {
+                    const recipient = delivery.recipient;
+                    const pill = recipient ? groupPill(recipient) : null;
+                    const statusPill = STATUS_PILL[delivery.status];
+                    return (
+                      <tr key={delivery.id} className={WF.tr}>
+                        <td className={TD}>{nameCell(delivery)}</td>
+                        <td className={TD}>
+                          {pill ? (
+                            <span className={`${BADGE} ${pill.className}`}>{pill.label}</span>
+                          ) : (
+                            <span className="text-[#A3A3A3]">—</span>
+                          )}
+                        </td>
+                        <td className={`${TD} tabular-nums`}>{recipient ? areaLabel(recipient) : "—"}</td>
+                        <td className={`${TD} whitespace-nowrap tabular-nums`}>{eventTime(delivery)}</td>
+                        <td className={`${TD} whitespace-nowrap`}>
+                          <span className={`${PILL} ${statusPill.className}`}>{statusPill.label}</span>
+                        </td>
+                        <td className={`${TD} text-[12px] whitespace-nowrap text-[#737373]`}>{recipient?.source ?? "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
 
-            {deliveriesRefreshing && (
-              <div role="status" className="absolute inset-0 z-10 flex items-center justify-center">
-                <span className="inline-flex items-center gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-xs text-muted-foreground shadow-sm">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  Loading recipients…
-                </span>
-              </div>
-            )}
-
-            {totalItems > 0 && (
-              <div className="flex flex-col items-center justify-between gap-2.5 border-t border-border/60 px-4 py-3 text-xs sm:flex-row">
-                <div className="text-muted-foreground">
-                  Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, totalItems)} of{" "}
-                  {totalItems.toLocaleString()}
-                  {hasMore ? "+" : ""} recipient{totalItems === 1 ? "" : "s"}
-                </div>
-                {(totalPages > 1 || hasMore) && (
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(Math.max(1, safePage - 1))}
-                      disabled={safePage <= 1}
-                      className="h-7 gap-1 px-2.5 text-xs"
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5" />
-                      Previous
-                    </Button>
-                    <span className="px-2 font-medium text-muted-foreground">
-                      Page <span className="font-semibold text-foreground">{safePage}</span> of{" "}
-                      <span className="font-semibold text-foreground">
-                        {totalPages}
-                        {hasMore ? "+" : ""}
-                      </span>
+            <div className="flex flex-col gap-2 md:hidden">
+              {pageRows.map((delivery) => {
+                const recipient = delivery.recipient;
+                const pill = recipient ? groupPill(recipient) : null;
+                const statusPill = STATUS_PILL[delivery.status];
+                return (
+                  <div key={delivery.id} className="flex flex-col gap-1.5 rounded-[10px] border border-[#E5E5E5] bg-white px-3.5 py-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-[15px]">{nameCell(delivery)}</span>
+                      <span className={`${PILL} ${statusPill.className}`}>{statusPill.label}</span>
+                    </div>
+                    <span className="text-[13px] text-[#525252]">
+                      {pill ? <span className={`${BADGE} ${pill.className}`}>{pill.label}</span> : null}
+                      {recipient ? ` · ${areaLabel(recipient)}` : ""}
                     </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(Math.min(totalPages, safePage + 1))}
-                      disabled={safePage >= totalPages}
-                      className="h-7 gap-1 px-2.5 text-xs"
-                    >
-                      Next
-                      {isFetchingNextPage ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
+                    <span className="text-[13px] text-[#6B4A2B] tabular-nums">{eventTime(delivery)}</span>
                   </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </section>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {totalItems > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-[12px] text-[#737373]">
+            Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, totalItems)} of {totalItems.toLocaleString()}
+            {hasMore ? "+" : ""} recipient{totalItems === 1 ? "" : "s"}
+          </span>
+          {totalPages > 1 || hasMore ? (
+            <span className="flex items-center gap-1.5">
+              <button
+                type="button"
+                className={WF.btnOutline}
+                onClick={() => setPage(Math.max(1, safePage - 1))}
+                disabled={safePage <= 1}
+              >
+                Previous
+              </button>
+              <span className="px-1 text-[12px] text-[#737373]">
+                Page {safePage} of {totalPages}
+                {hasMore ? "+" : ""}
+              </span>
+              <button
+                type="button"
+                className={WF.btnOutline}
+                onClick={() => setPage(Math.min(totalPages, safePage + 1))}
+                disabled={safePage >= totalPages}
+              >
+                Next
+                {isFetchingNextPage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              </button>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -582,7 +537,7 @@ function ReportPageContent({ params }: { params: Promise<{ id: string }> }) {
 
 export default function LiveBroadcastReport({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <Suspense fallback={<div aria-busy="true" className="mx-auto max-w-7xl space-y-5 p-4"><SkeletonHeading /><StatCardSkeleton count={5} /><TableSkeleton columns={TABLE_COLUMNS} /></div>}>
+    <Suspense fallback={<LoadingBox>Loading the report…</LoadingBox>}>
       <ReportPageContent params={params} />
     </Suspense>
   );

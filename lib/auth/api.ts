@@ -3,15 +3,11 @@ import { cookies } from "next/headers";
 import type { DataSource } from "typeorm";
 import { getDataSource } from "@/lib/db";
 import { getSessionCookieName } from "@/lib/auth/config";
-import { hashSessionToken, isSessionValid } from "@/lib/auth/session";
+import { hashSessionToken, isSessionValid, shouldRefreshSessionActivity } from "@/lib/auth/session";
 import { failure } from "@/lib/api/response";
+import type { MembershipScope } from "@/lib/auth/coverage-scope";
 
-type MembershipScope = {
-  stateId: number | null;
-  lgaId: number | null;
-  wardId: number | null;
-  politicalUnitId: number | null;
-};
+export { getCoverageScopeFilter } from "@/lib/auth/coverage-scope";
 
 export type ApiAuthContext = {
   dataSource: DataSource;
@@ -27,6 +23,20 @@ export type ApiAuthResult =
   | { ok: true; context: ApiAuthContext }
   | { ok: false; response: Response };
 
+type SessionMembershipRow = {
+  id: string;
+  person_id: string;
+  expires_at: Date;
+  last_active_at: Date;
+  revoked_at: Date | null;
+  group_name: string | null;
+  group_type: string | null;
+  scope_state_id: number | null;
+  scope_lga_id: number | null;
+  scope_ward_id: number | null;
+  scope_political_unit_id: number | null;
+};
+
 export async function requireApiAuth(): Promise<ApiAuthResult> {
   const token = (await cookies()).get(getSessionCookieName())?.value;
   if (!token) {
@@ -34,24 +44,36 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
   }
 
   const dataSource = await getDataSource();
-  const sessionRows = await dataSource.query<Array<{
-    id: string;
-    person_id: string;
-    expires_at: Date;
-    last_active_at: Date;
-    revoked_at: Date | null;
-  }>>(
+  // The session and the person's groups and scopes in one round trip (this runs on every call).
+  const rows = await dataSource.query<SessionMembershipRow[]>(
     `
-      SELECT id, person_id, expires_at, last_active_at, revoked_at
-      FROM auth_session
-      WHERE session_token_hash = $1
-      ORDER BY created_at DESC
-      LIMIT 1;
+      SELECT
+        session.id,
+        session.person_id,
+        session.expires_at,
+        session.last_active_at,
+        session.revoked_at,
+        g.group_name,
+        g.group_type,
+        ms.scope_state_id,
+        ms.scope_lga_id,
+        ms.scope_ward_id,
+        ms.scope_political_unit_id
+      FROM (
+        SELECT id, person_id, expires_at, last_active_at, revoked_at
+        FROM auth_session
+        WHERE session_token_hash = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) session
+      LEFT JOIN membership m ON m.person_id = session.person_id
+      LEFT JOIN groups g ON g.id = m.group_id
+      LEFT JOIN membership_scope_unit ms ON ms.membership_id = m.id;
     `,
     [hashSessionToken(token)],
   );
 
-  const session = sessionRows[0];
+  const session = rows[0];
   if (
     !session ||
     !isSessionValid({
@@ -66,35 +88,17 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
     return { ok: false, response: failure("unauthorized", "Authentication is required") };
   }
 
-  const membershipRows = await dataSource.query<Array<{
-    group_name: string;
-    group_type: string;
-    scope_state_id: number | null;
-    scope_lga_id: number | null;
-    scope_ward_id: number | null;
-    scope_political_unit_id: number | null;
-  }>>(
-    `
-      SELECT
-        g.group_name,
-        g.group_type,
-        ms.scope_state_id,
-        ms.scope_lga_id,
-        ms.scope_ward_id,
-        ms.scope_political_unit_id
-      FROM membership m
-      JOIN groups g ON g.id = m.group_id
-      LEFT JOIN membership_scope_unit ms ON ms.membership_id = m.id
-      WHERE m.person_id = $1;
-    `,
-    [session.person_id],
+  const membershipRows = rows.filter(
+    (row): row is SessionMembershipRow & { group_name: string; group_type: string } =>
+      row.group_type !== null,
   );
-
   if (membershipRows.length === 0) {
     return { ok: false, response: failure("forbidden", "Access is not permitted") };
   }
 
-  await dataSource.query(`UPDATE auth_session SET last_active_at = NOW() WHERE id = $1;`, [session.id]);
+  if (shouldRefreshSessionActivity(session.last_active_at)) {
+    await dataSource.query(`UPDATE auth_session SET last_active_at = NOW() WHERE id = $1;`, [session.id]);
+  }
 
   return {
     ok: true,
@@ -124,56 +128,5 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
           politicalUnitId: row.scope_political_unit_id,
         })),
     },
-  };
-}
-
-export function getCoverageScopeFilter(
-  context: ApiAuthContext,
-  aliases: { state: string; lga: string; ward: string; pollingUnit: string },
-  firstParameter = 1,
-): { sql: string; parameters: unknown[] } {
-  const stateIds = [
-    ...new Set(context.scopes.flatMap((scope) => scope.stateId === null ? [] : [scope.stateId])),
-  ];
-  const lgaIds = [
-    ...new Set(context.scopes.flatMap((scope) => scope.lgaId === null ? [] : [scope.lgaId])),
-  ];
-  const wardIds = [
-    ...new Set(context.scopes.flatMap((scope) => scope.wardId === null ? [] : [scope.wardId])),
-  ];
-  const politicalUnitIds = [
-    ...new Set(
-      context.scopes.flatMap((scope) =>
-        scope.politicalUnitId === null ? [] : [scope.politicalUnitId],
-      ),
-    ),
-  ];
-
-  const globalParameter = firstParameter;
-  const stateParameter = firstParameter + 1;
-  const lgaParameter = firstParameter + 2;
-  const wardParameter = firstParameter + 3;
-  const politicalUnitParameter = firstParameter + 4;
-
-  return {
-    sql: `(
-      $${globalParameter}::boolean
-      OR ${aliases.state}.id = ANY($${stateParameter}::int[])
-      OR ${aliases.lga}.id = ANY($${lgaParameter}::int[])
-      OR ${aliases.ward}.id = ANY($${wardParameter}::int[])
-      OR EXISTS (
-        SELECT 1
-        FROM pu_political_unit scope_ppu
-        WHERE scope_ppu.polling_unit_id = ${aliases.pollingUnit}.id
-          AND scope_ppu.political_unit_id = ANY($${politicalUnitParameter}::int[])
-      )
-    )`,
-    parameters: [
-      context.hasGlobalCoverageAccess,
-      stateIds,
-      lgaIds,
-      wardIds,
-      politicalUnitIds,
-    ],
   };
 }

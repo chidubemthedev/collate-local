@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn
@@ -10,6 +11,7 @@ import type { Relation } from "typeorm";
 import { Person } from "./person.entity";
 
 @Entity("consent")
+@Index("ix_consent_person_id_created_at", ["personId", "createdAt", "id"])
 export class Consent {
   @PrimaryGeneratedColumn("uuid")
   id: string;

@@ -14,10 +14,9 @@ import { AgentsKPISummary } from "@/components/agents/agents-kpi-summary";
 import { AgentsFilters, type AgentTypeFilter } from "@/components/agents/agents-filters";
 import { AgentsTable } from "@/components/agents/agents-table";
 import { UnifiedAgentRecord } from "@/components/agents/agent-detail-modal";
-import { AgentsDirectorySkeleton } from "@/components/agents/agents-skeletons";
 import { toTitleCase } from "@/components/candidates/candidates-filters";
-import { Button } from "@/components/ui/button";
-import { Users, Send, AlertCircle, Loader2 } from "lucide-react";
+import { WF, PageHeader, LoadingBox, CenterSpinner, CountTabs } from "@/components/ui/wf";
+import { Users, Send, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
 export default function AgentsPage() {
@@ -153,8 +152,8 @@ export default function AgentsPage() {
       limit: 100,
     },
     {
-      // Gaps are not agents and have no owner: they show only with Any type and Anyone.
-      enabled: selectedTypeTab === "all" && ownerGroupId === undefined,
+      // Gaps are not agents and have no owner: they show only with All records or Gaps, and Anyone.
+      enabled: (selectedTypeTab === "all" || selectedTypeTab === "gaps") && ownerGroupId === undefined,
     },
   );
 
@@ -223,7 +222,7 @@ export default function AgentsPage() {
     }
 
     // B. Map gaps returned from API (unassigned PUs)
-    if (gapsData?.items && selectedTypeTab === "all" && ownerGroupId === undefined) {
+    if (gapsData?.items && (selectedTypeTab === "all" || selectedTypeTab === "gaps") && ownerGroupId === undefined) {
       for (const gap of gapsData.items) {
         list.push({
           id: `gap-${gap.id}`,
@@ -280,6 +279,7 @@ export default function AgentsPage() {
       if (selectedTypeTab === "official" && record.type !== "official")
         return false;
       if (selectedTypeTab === "extra" && record.type !== "extra") return false;
+      if (selectedTypeTab === "gaps" && record.type !== "gap") return false;
 
       // Sponsor / owner is applied by the agents API (ownerGroupId).
 
@@ -348,18 +348,15 @@ export default function AgentsPage() {
 
   if (queryErrors.length > 0) {
     return (
-      <div className="max-w-xl mx-auto mt-16 p-6 rounded-xl border border-border bg-card text-center space-y-3">
-        <AlertCircle className="w-6 h-6 text-amber-600 mx-auto" />
-        <p className="text-sm font-semibold text-foreground">
-          Could not load agents data
+      <div className={`${WF.card} mx-auto mt-16 max-w-xl space-y-3 p-6 text-center`}>
+        <AlertCircle className="mx-auto h-6 w-6 text-[#B45309]" />
+        <p className="text-[14px] font-semibold text-[#0A0A0A]">Could not load agents data</p>
+        <p className="text-[12px] text-[#737373]">
+          {(queryErrors[0] as Error).message || "The server did not respond. Try again."}
         </p>
-        <p className="text-xs text-muted-foreground">
-          {(queryErrors[0] as Error).message ||
-            "The server did not respond. Try again."}
-        </p>
-        <Button size="sm" onClick={handleRetry}>
+        <button type="button" className={WF.btnDark} onClick={handleRetry}>
           Retry
-        </Button>
+        </button>
       </div>
     );
   }
@@ -371,17 +368,20 @@ export default function AgentsPage() {
       !summary);
 
   if (isInitialLoading) {
-    return <AgentsDirectorySkeleton />;
+    return (
+      <div className="flex flex-col gap-4">
+        <PageHeader title="Polling Unit Agents Directory" subtitle="Loading…" />
+        <LoadingBox>Loading agents…</LoadingBox>
+      </div>
+    );
   }
 
   if (apiStates.length === 0) {
     return (
-      <div className="max-w-xl mx-auto mt-16 p-6 rounded-xl border border-border bg-card text-center space-y-2">
-        <Users className="w-6 h-6 text-muted-foreground mx-auto" />
-        <p className="text-sm font-semibold text-foreground">
-          No polling units available
-        </p>
-        <p className="text-xs text-muted-foreground">
+      <div className={`${WF.card} mx-auto mt-16 max-w-xl space-y-2 p-6 text-center`}>
+        <Users className="mx-auto h-6 w-6 text-[#737373]" />
+        <p className="text-[14px] font-semibold text-[#0A0A0A]">No polling units available</p>
+        <p className="text-[12px] text-[#737373]">
           Your account has no geography in scope, so there are no agents to
           show.
         </p>
@@ -390,37 +390,24 @@ export default function AgentsPage() {
   }
 
   return (
-    <div className="space-y-5 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
-            Polling Unit Agents Directory
-          </h1>
-          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
-            One row per agent record · coverage = one official party agent at the unit
-          </p>
-        </div>
+    <div className="flex w-full min-w-0 flex-col gap-3 text-[#0A0A0A] sm:gap-4">
+      <PageHeader
+        title="Polling Unit Agents Directory"
+        subtitle="One row per agent record · coverage = one official party agent at the unit"
+        actions={
+          <>
+            <button type="button" onClick={handleExportCSV} className={WF.btnOutline}>
+              Export CSV
+            </button>
+            <Link href="/broadcasts/new?group=agents" className={WF.btnDark}>
+              <Send className="h-3.5 w-3.5" />
+              Message these agents
+            </Link>
+          </>
+        }
+      />
 
-        <div className="flex shrink-0 items-center gap-2">
-          <Button variant="outline" onClick={handleExportCSV} className="h-8 px-3 text-xs">
-            Export CSV
-          </Button>
-          <Link
-            href="/broadcasts/new?group=agents"
-            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-medium text-background transition-colors hover:bg-foreground/90"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Message these agents</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Top Metric Cards */}
-      <div
-        aria-busy={isFetchingSummary}
-        className={`transition-opacity ${isFetchingSummary ? "opacity-60" : ""}`}
-      >
+      <div aria-busy={isFetchingSummary} className={`transition-opacity ${isFetchingSummary ? "opacity-60" : ""}`}>
         <AgentsKPISummary
           totalPUs={summary?.totalPUs ?? 0}
           officialCount={counts.official}
@@ -430,40 +417,48 @@ export default function AgentsPage() {
         />
       </div>
 
-      <AgentsFilters
-          selectedState={selectedStateCode}
-          setSelectedState={setSelectedStateCode}
-          selectedLga={selectedLgaCode}
-          setSelectedLga={setSelectedLgaCode}
-          selectedWard={selectedWardCode}
-          setSelectedWard={setSelectedWardCode}
-          selectedSponsor={selectedSponsor}
-          setSelectedSponsor={setSelectedSponsor}
-          selectedType={selectedTypeTab}
-          setSelectedType={setSelectedTypeTab}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          totalFilteredCount={filteredAgents.length}
-          isRefreshing={isSyncing}
-          onClear={handleClearFilters}
-        />
+      <CountTabs<AgentTypeFilter>
+        label="Records"
+        value={selectedTypeTab}
+        onChange={setSelectedTypeTab}
+        dim={isFetchingSummary}
+        tabs={[
+          { id: "all", label: "All records", count: counts.all },
+          { id: "official", label: "Official", count: counts.official },
+          { id: "extra", label: "Extra", count: counts.extra },
+          { id: "gaps", label: "Gaps", count: counts.gaps },
+        ]}
+      />
 
-      <section
-        aria-busy={isSyncing}
-        className="relative min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card p-3 sm:p-4"
-      >
+      <AgentsFilters
+        selectedState={selectedStateCode}
+        setSelectedState={setSelectedStateCode}
+        selectedLga={selectedLgaCode}
+        setSelectedLga={setSelectedLgaCode}
+        selectedWard={selectedWardCode}
+        setSelectedWard={setSelectedWardCode}
+        selectedSponsor={selectedSponsor}
+        setSelectedSponsor={setSelectedSponsor}
+        selectedType={selectedTypeTab}
+        setSelectedType={setSelectedTypeTab}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        totalFilteredCount={filteredAgents.length}
+        isRefreshing={isSyncing}
+        onClear={handleClearFilters}
+      />
+
+      <section aria-busy={isSyncing} className="relative min-w-0">
+        <CenterSpinner show={isSyncing} />
         <div className={`transition-opacity ${isSyncing ? "pointer-events-none opacity-40" : ""}`}>
           <AgentsTable agents={filteredAgents} />
         </div>
-        {isSyncing && (
-          <div role="status" className="absolute inset-0 z-10 flex items-center justify-center">
-            <span className="inline-flex items-center gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-xs text-muted-foreground shadow-sm">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              Loading agents…
-            </span>
-          </div>
-        )}
       </section>
+
+      <p className={WF.note}>
+        * Sponsors: NDC (the party) for the one official agent per unit; extra agents belong to support groups and
+        candidates and never change coverage.
+      </p>
     </div>
   );
 }

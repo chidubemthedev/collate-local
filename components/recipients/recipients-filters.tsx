@@ -14,6 +14,7 @@ import { useGeographyLgas, useGeographyStates, useGeographyWards } from "@/lib/h
 import { FieldSpinner } from "@/components/ui/field-spinner";
 import { TableToolbar, type ActiveTableFilter } from "@/components/ui/table-toolbar";
 import { toTitleCase } from "@/components/candidates/candidates-filters";
+import { WF, FILTER_GRID } from "@/components/ui/wf";
 
 export type RecipientGroupFilter = "all" | "official" | "extra";
 export type TelegramStatusFilter = "all" | "telegram" | "sms_only" | "not_matched";
@@ -31,9 +32,8 @@ const STATUS_OPTIONS: Array<{ value: TelegramStatusFilter; label: string }> = [
   { value: "not_matched", label: "Not matched" },
 ];
 
-const LABEL_CLASS =
-  "flex items-center gap-1.5 truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground";
-const TRIGGER_CLASS = "h-8 w-full bg-background text-xs data-[disabled]:bg-muted data-[disabled]:opacity-70";
+const LABEL_CLASS = `${WF.label} flex items-center gap-1.5 truncate`;
+const TRIGGER_CLASS = "w-full";
 
 interface RecipientsFiltersProps {
   searchQuery: string;
@@ -131,22 +131,25 @@ export function RecipientsFilters({
   ];
 
   return (
-    <div className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
+    <section aria-label="Filters" className={`${WF.card} p-3 sm:p-4`}>
       {/* Collapses behind a Filters button on phones, like the Coverage page. */}
-      <TableToolbar inlineMobile activeFilters={activeFilters} onClear={onReset}>
-      <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="min-w-0 space-y-1.5">
+      <TableToolbar
+        activeFilters={activeFilters}
+        onClear={onReset}
+        summary={activeFilters.length ? "Filtered" : "None set"}
+      >
+      <div className={FILTER_GRID}>
+        <div className="flex min-w-0 flex-col gap-1">
           <label className={LABEL_CLASS}>Search</label>
           <Input
             type="text"
             placeholder="Name or INEC code"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="h-8 w-full bg-background text-xs"
           />
         </div>
 
-        <div className="min-w-0 space-y-1.5">
+        <div className="flex min-w-0 flex-col gap-1">
           <label className={LABEL_CLASS}>Group</label>
           <Select value={group} onValueChange={(val) => val && onGroupChange(val as RecipientGroupFilter)}>
             <SelectTrigger className={TRIGGER_CLASS}>
@@ -164,7 +167,7 @@ export function RecipientsFilters({
           </Select>
         </div>
 
-        <div className="min-w-0 space-y-1.5">
+        <div className="flex min-w-0 flex-col gap-1">
           <label className={LABEL_CLASS}>
             State
             <FieldSpinner loading={statesBusy} />
@@ -198,7 +201,7 @@ export function RecipientsFilters({
             </SelectContent>
           </Select>
           {statesQuery.isError && (
-            <div role="alert" className="flex items-center gap-2 text-xs text-destructive">
+            <div role="alert" className="flex items-center gap-2 text-[12px] text-[#B42318]">
               <span>Could not load states.</span>
               <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={() => void statesQuery.refetch()}>
                 Retry
@@ -207,7 +210,7 @@ export function RecipientsFilters({
           )}
         </div>
 
-        <div className="min-w-0 space-y-1.5">
+        <div className="flex min-w-0 flex-col gap-1">
           <label className={LABEL_CLASS}>
             LGA
             <FieldSpinner loading={lgasBusy} />
@@ -240,7 +243,7 @@ export function RecipientsFilters({
             </SelectContent>
           </Select>
           {stateId !== "all" && lgasQuery.isError && (
-            <div role="alert" className="flex items-center gap-2 text-xs text-destructive">
+            <div role="alert" className="flex items-center gap-2 text-[12px] text-[#B42318]">
               <span>Could not load LGAs.</span>
               <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={() => void lgasQuery.refetch()}>
                 Retry
@@ -249,7 +252,7 @@ export function RecipientsFilters({
           )}
         </div>
 
-        <div className="min-w-0 space-y-1.5">
+        <div className="flex min-w-0 flex-col gap-1">
           <label className={LABEL_CLASS}>
             Ward
             <FieldSpinner loading={wardsBusy} />
@@ -278,7 +281,7 @@ export function RecipientsFilters({
             </SelectContent>
           </Select>
           {lgaId !== "all" && wardsQuery.isError && (
-            <div role="alert" className="flex items-center gap-2 text-xs text-destructive">
+            <div role="alert" className="flex items-center gap-2 text-[12px] text-[#B42318]">
               <span>Could not load wards.</span>
               <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={() => void wardsQuery.refetch()}>
                 Retry
@@ -287,7 +290,7 @@ export function RecipientsFilters({
           )}
         </div>
 
-        <div className="min-w-0 space-y-1.5">
+        <div className="flex min-w-0 flex-col gap-1">
           <label className={LABEL_CLASS}>Telegram status</label>
           <Select value={status} onValueChange={(val) => val && onStatusChange(val as TelegramStatusFilter)}>
             <SelectTrigger className={TRIGGER_CLASS}>
@@ -307,6 +310,6 @@ export function RecipientsFilters({
 
       </div>
       </TableToolbar>
-    </div>
+    </section>
   );
 }

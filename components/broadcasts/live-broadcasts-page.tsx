@@ -3,21 +3,26 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { AlertCircle, ChevronLeft, ChevronRight, Loader2, Plus, RefreshCw, Search } from "lucide-react";
+import { AlertCircle, Loader2, Plus, RefreshCw } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { useSession } from "@/lib/hooks/use-auth";
 import type { BroadcastListItem, BroadcastStatus } from "@/types/api";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { StatCardSkeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TableToolbar } from "@/components/ui/table-toolbar";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  WF,
+  PageHeader,
+  Pill,
+  StatTile,
+  CountTabs,
+  CenterSpinner,
+  LoadingBox,
+  EmptyBox,
+  Field,
+  FILTER_GRID,
+  type Tone,
+} from "@/components/ui/wf";
 
 type BroadcastTab = "all" | "sent" | "scheduled" | "draft";
 
@@ -36,21 +41,16 @@ function tabOf(status: BroadcastStatus): BroadcastTab | null {
   return null;
 }
 
-const STATUS_PILL: Record<BroadcastStatus, { label: string; className: string }> = {
-  completed: { label: "Sent", className: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" },
-  sending: { label: "Sending", className: "bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300" },
-  scheduled: { label: "Scheduled", className: "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300" },
-  draft: { label: "Draft", className: "bg-muted text-muted-foreground" },
-  failed: { label: "Failed", className: "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300" },
-  cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground" },
+const STATUS_PILL: Record<BroadcastStatus, { label: string; tone: Tone }> = {
+  completed: { label: "Sent", tone: "green" },
+  sending: { label: "Sending", tone: "sky" },
+  scheduled: { label: "Scheduled", tone: "blue" },
+  draft: { label: "Draft", tone: "grey" },
+  failed: { label: "Failed", tone: "red" },
+  cancelled: { label: "Cancelled", tone: "grey" },
 };
 
-const PAGE_SIZE = 10;
-
-const KPI_CARD = "flex h-full flex-col rounded-xl border border-border/60 bg-card p-4";
-const KPI_LABEL = "text-[11px] font-medium text-foreground/80";
-const KPI_VALUE = "mt-3 text-xl md:text-2xl font-bold tracking-tight text-foreground tabular-nums";
-const KPI_NOTE = "mt-3 text-[10px] text-muted-foreground";
+const PAGE_SIZE = 25;
 
 function deliveryTotal(item: BroadcastListItem): number {
   const counts = item.deliveryCounts;
@@ -79,6 +79,7 @@ function formatDate(value: string): string {
 export default function LiveBroadcastsPage() {
   const [tab, setTab] = useState<BroadcastTab>("all");
   const [search, setSearch] = useState("");
+  const [sender, setSender] = useState("all");
   const [pageState, setPageState] = useState({ key: "", page: 1 });
   const { data: session } = useSession();
   const myPersonId = session?.person?.id ?? null;
@@ -119,18 +120,29 @@ export default function LiveBroadcastsPage() {
     };
   }, [broadcasts]);
 
+  // "Sent by" choices: everyone who sent one of the broadcasts loaded so far.
+  const senders = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const broadcast of broadcasts) byId.set(String(broadcast.sender.id), broadcast.sender.displayName);
+    return [...byId.entries()].map(([id, name]) => ({ id, name })).sort((x, y) => x.name.localeCompare(y.name));
+  }, [broadcasts]);
+  const bySender = useMemo(
+    () => (sender === "all" ? broadcasts : broadcasts.filter((b) => String(b.sender.id) === sender)),
+    [broadcasts, sender],
+  );
+
   const tabCounts = useMemo(() => {
-    const counts: Record<BroadcastTab, number> = { all: broadcasts.length, sent: 0, scheduled: 0, draft: 0 };
-    for (const broadcast of broadcasts) {
+    const counts: Record<BroadcastTab, number> = { all: bySender.length, sent: 0, scheduled: 0, draft: 0 };
+    for (const broadcast of bySender) {
       const owner = tabOf(broadcast.status);
       if (owner) counts[owner] += 1;
     }
     return counts;
-  }, [broadcasts]);
+  }, [bySender]);
 
   const filteredBroadcasts = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
-    return broadcasts.filter((broadcast) => {
+    return bySender.filter((broadcast) => {
       if (tab !== "all" && tabOf(broadcast.status) !== tab) return false;
       if (!query) return true;
       return [
@@ -140,10 +152,10 @@ export default function LiveBroadcastsPage() {
         ...broadcast.audienceSummary,
       ].some((value) => value.toLocaleLowerCase().includes(query));
     });
-  }, [broadcasts, search, tab]);
+  }, [bySender, search, tab]);
 
   // Pagination: back to page 1 when the tab or search changes, not when more rows load.
-  const listKey = `${tab}|${search.trim()}`;
+  const listKey = `${tab}|${sender}|${search.trim()}`;
   const currentPage = pageState.key === listKey ? pageState.page : 1;
   const setPage = (page: number) => setPageState({ key: listKey, page });
   const hasMore = Boolean(broadcastsQuery.hasNextPage);
@@ -164,303 +176,274 @@ export default function LiveBroadcastsPage() {
 
   const isRefreshing = broadcastsQuery.isFetching && !isFetchingNextPage && !broadcastsQuery.isPending;
 
+  const senderName = (id: string) => senders.find((item) => item.id === id)?.name ?? "Selected";
+  const activeFilters = [
+    ...(search.trim() ? [{ id: "search", label: `Search: ${search.trim()}`, onRemove: () => setSearch("") }] : []),
+    ...(sender !== "all" ? [{ id: "sender", label: `Sent by: ${senderName(sender)}`, onRemove: () => setSender("all") }] : []),
+  ];
+
+  const rowView = (broadcast: BroadcastListItem) => {
+    const counts = broadcast.deliveryCounts;
+    const total = deliveryTotal(broadcast);
+    const delivered = deliveredCount(broadcast);
+    const waiting = counts.pending + counts.sent;
+    const notYetSent = broadcast.status === "draft" || broadcast.status === "scheduled";
+    const hasBar = !notYetSent && total > 0;
+    const by = myPersonId && broadcast.sender.id === myPersonId ? "you" : broadcast.sender.displayName;
+    return {
+      pill: STATUS_PILL[broadcast.status],
+      hasBar,
+      total,
+      audience: broadcast.audienceSummary.join(", "),
+      by,
+      delT: hasBar ? `${percent(delivered, total)}%` : "—",
+      okT: hasBar ? `${percent(counts.tappedOk, total)}%` : "—",
+      failT: `${counts.failed.toLocaleString()} failed · ${waiting.toLocaleString()} pending`,
+      okPct: percent(counts.tappedOk, total),
+      delPct: percent(delivered - counts.tappedOk, total),
+      failPct: percent(counts.failed, total),
+      when: formatDate(broadcast.scheduledSendAt ?? broadcast.createdAt),
+      href: `/broadcasts/${broadcast.id}`,
+    };
+  };
+
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
-      <header className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">Broadcasts</h1>
-          <p className="mt-0.5 text-[11px] sm:text-xs text-muted-foreground">
-            Broadcasts you sent to people below you
-          </p>
-        </div>
-        <Link
-          href="/broadcasts/new"
-          className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-medium text-background transition-colors hover:bg-foreground/90"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          New broadcast
-        </Link>
-      </header>
+    <div className="flex w-full min-w-0 flex-col gap-3 text-[#0A0A0A] sm:gap-4">
+      <PageHeader
+        title="Broadcasts"
+        subtitle="Every message sent down the tree, with its delivery report"
+        actions={
+          <Link href="/broadcasts/new" className={WF.btnDark}>
+            <Plus className="h-3.5 w-3.5" />
+            New broadcast
+          </Link>
+        }
+      />
 
       {broadcastsQuery.isPending ? (
-        <StatCardSkeleton count={4} />
+        <LoadingBox>Loading broadcasts…</LoadingBox>
       ) : (
-        <div
+        <section
+          aria-label="Summary"
           aria-busy={isRefreshing}
-          className={`grid grid-cols-2 gap-3 lg:grid-cols-4 transition-opacity ${isRefreshing ? "opacity-60" : ""}`}
+          className={`grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2 transition-opacity sm:grid-cols-[repeat(auto-fit,minmax(190px,1fr))] sm:gap-3 ${
+            isRefreshing ? "opacity-60" : ""
+          }`}
         >
-          <div className={KPI_CARD}>
-            <div className={KPI_LABEL}>Broadcasts</div>
-            <div className={KPI_VALUE}>{kpis.broadcasts.toLocaleString()}</div>
-            <div className={KPI_NOTE}>{kpis.sentBroadcasts.toLocaleString()} sent</div>
-          </div>
-          <div className={KPI_CARD}>
-            <div className={KPI_LABEL}>Messages sent</div>
-            <div className={KPI_VALUE}>{kpis.messages.toLocaleString()}</div>
-            <div className={KPI_NOTE}>in this list</div>
-          </div>
-          <div className={KPI_CARD}>
-            <div className={KPI_LABEL}>Delivered</div>
-            <div className={KPI_VALUE}>{kpis.deliveredPct}%</div>
-            <div className={KPI_NOTE}>{kpis.delivered.toLocaleString()} people</div>
-          </div>
-          <div className={KPI_CARD}>
-            <div className={KPI_LABEL}>Tapped OK</div>
-            <div className={KPI_VALUE}>{kpis.tappedOkPct}%</div>
-            <div className={KPI_NOTE}>{kpis.tappedOk.toLocaleString()} people</div>
-          </div>
-        </div>
+          <StatTile label="Broadcasts" value={kpis.broadcasts.toLocaleString()} note={`${kpis.sentBroadcasts.toLocaleString()} sent`} />
+          <StatTile label="Messages sent" value={kpis.messages.toLocaleString()} note="in this list" />
+          <StatTile label="Delivered" value={`${kpis.deliveredPct}%`} note={`${kpis.delivered.toLocaleString()} people`} />
+          <StatTile label="Tapped OK" value={`${kpis.tappedOkPct}%`} note={`${kpis.tappedOk.toLocaleString()} people`} />
+        </section>
       )}
 
-      {/* Status tabs */}
-      <div className="flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-xl bg-muted/70 p-1 scrollbar-none">
-        {TABS.map((item) => {
-          const active = tab === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setTab(item.id)}
-              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs transition-colors ${
-                active
-                  ? "bg-background font-semibold text-foreground shadow-sm"
-                  : "font-medium text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <span>{item.label}</span>
-              <span
-                className={`rounded-full px-1.5 py-px text-[10px] font-medium tabular-nums ${
-                  active ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {tabCounts[item.id].toLocaleString()}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <CountTabs<BroadcastTab>
+        label="Status"
+        value={tab}
+        onChange={setTab}
+        tabs={TABS.map((item) => ({ id: item.id, label: item.label, count: tabCounts[item.id] }))}
+      />
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search title, message, audience or sender"
-          aria-label="Search broadcasts"
-          className="h-10 w-full rounded-full border-border/70 bg-card pl-10 text-xs"
-        />
-      </div>
+      <section aria-label="Filters" className={`${WF.card} p-3 sm:px-4 sm:py-3.5`}>
+        <TableToolbar
+          activeFilters={activeFilters}
+          onClear={() => {
+            setSearch("");
+            setSender("all");
+          }}
+        >
+          <div className={FILTER_GRID}>
+            <Field label="Search" htmlFor="bl-search">
+              <Input
+                id="bl-search"
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Title, message, audience or sender"
+              />
+            </Field>
+            <Field label="Sent by">
+              <Select value={sender} onValueChange={(value) => setSender(value ? String(value) : "all")}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>{(value) => (!value || value === "all" ? "Anyone" : senderName(String(value)))}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Anyone</SelectItem>
+                  {senders.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {myPersonId && item.id === String(myPersonId) ? `${item.name} (you)` : item.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+        </TableToolbar>
+      </section>
 
-      {/* Table */}
-      <section
-        aria-busy={isRefreshing}
-        className="relative min-w-0 overflow-hidden rounded-xl border border-border/70 bg-card"
-      >
-        {broadcastsQuery.isPending ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-xs text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            Loading broadcasts…
-          </div>
-        ) : broadcastsQuery.isError && broadcasts.length === 0 ? (
-          <div className="space-y-3 p-8 text-center">
-            <AlertCircle className="mx-auto h-6 w-6 text-destructive" />
-            <p className="text-sm text-destructive">{broadcastsQuery.error.message}</p>
-            <Button variant="outline" size="sm" onClick={() => void broadcastsQuery.refetch()}>
-              <RefreshCw className="mr-2 h-4 w-4" />Retry
-            </Button>
-          </div>
+      {broadcastsQuery.isPending ? null : broadcastsQuery.isError && broadcasts.length === 0 ? (
+        <div className={`${WF.card} space-y-3 p-8 text-center`}>
+          <AlertCircle className="mx-auto h-6 w-6 text-[#B42318]" />
+          <p className="text-[13px] text-[#B42318]">{broadcastsQuery.error.message}</p>
+          <button type="button" className={WF.btnOutline} onClick={() => void broadcastsQuery.refetch()}>
+            <RefreshCw className="h-3.5 w-3.5" />
+            Retry
+          </button>
+        </div>
+      ) : pageRows.length === 0 ? (
+        hasMore && isFetchingNextPage ? (
+          <LoadingBox>Loading broadcasts…</LoadingBox>
         ) : (
-          <>
-            <div className={`overflow-x-auto transition-opacity ${isRefreshing ? "pointer-events-none opacity-40" : ""}`}>
-              <Table>
-                <TableHeader className="text-[11px]">
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="min-w-[260px] pl-4 font-semibold text-foreground">Broadcast</TableHead>
-                    <TableHead className="font-semibold text-foreground">Status</TableHead>
-                    <TableHead
-                      className="font-semibold text-foreground whitespace-nowrap"
-                      title="Everyone the broadcast went to"
-                    >
+          <EmptyBox>{broadcasts.length === 0 ? "No broadcasts yet." : "No broadcasts match these filters."}</EmptyBox>
+        )
+      ) : (
+        <section aria-busy={isRefreshing} className="relative min-w-0">
+          <CenterSpinner show={isRefreshing} />
+          <div className={`transition-opacity ${isRefreshing ? "pointer-events-none opacity-40" : ""}`}>
+            <div className={`${WF.card} hidden overflow-x-auto md:block`}>
+              <table className={`${WF.table} min-w-[900px]`}>
+                <thead>
+                  <tr>
+                    <th scope="col" className={`${WF.th} pl-4`}>
+                      Broadcast
+                    </th>
+                    <th scope="col" className={WF.th}>
+                      Status
+                    </th>
+                    <th scope="col" className={WF.th} title="Everyone the broadcast went to">
                       Audience *
-                    </TableHead>
-                    <TableHead
-                      className="min-w-[140px] font-semibold text-foreground whitespace-nowrap"
-                      title="Delivered by Telegram or SMS, out of everyone in the audience"
-                    >
+                    </th>
+                    <th scope="col" className={WF.th} title="Delivered by Telegram or SMS, out of everyone in the audience">
                       Delivered *
-                    </TableHead>
-                    <TableHead
-                      className="font-semibold text-foreground whitespace-nowrap"
-                      title="Tapped the OK button, out of everyone in the audience"
-                    >
+                    </th>
+                    <th scope="col" className={WF.th} title="Tapped the OK button, out of everyone in the audience">
                       Tapped OK *
-                    </TableHead>
-                    <TableHead className="font-semibold text-foreground">Date</TableHead>
-                    <TableHead className="pr-4 text-right font-semibold text-foreground">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody className="text-xs">
-                  {pageRows.length === 0 ? (
-                    <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
-                        {hasMore && isFetchingNextPage ? (
-                          <span className="inline-flex items-center gap-2">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            Loading broadcasts…
-                          </span>
-                        ) : broadcasts.length === 0 ? (
-                          "No broadcasts yet."
-                        ) : (
-                          "No broadcasts match."
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    pageRows.map((broadcast) => {
-                      const counts = broadcast.deliveryCounts;
-                      const total = deliveryTotal(broadcast);
-                      const delivered = deliveredCount(broadcast);
-                      const waiting = counts.pending + counts.sent;
-                      const pill = STATUS_PILL[broadcast.status];
-                      const notYetSent = broadcast.status === "draft" || broadcast.status === "scheduled";
-                      const sender = myPersonId && broadcast.sender.id === myPersonId
-                        ? "you"
-                        : broadcast.sender.displayName;
-                      const audience = broadcast.audienceSummary.join(", ");
-
-                      return (
-                        <TableRow key={broadcast.id} className="hover:bg-muted/30">
-                          <TableCell className="max-w-[360px] pl-4">
-                            <div className="truncate font-semibold text-foreground">
-                              {broadcast.title || "Broadcast"}
-                            </div>
-                            <div className="mt-0.5 truncate text-muted-foreground" title={broadcast.messageText}>
+                    </th>
+                    <th scope="col" className={WF.th}>
+                      Date
+                    </th>
+                    <th scope="col" className={`${WF.th} pr-4 text-right`}>
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((broadcast) => {
+                    const r = rowView(broadcast);
+                    return (
+                      <tr key={broadcast.id} className={`${WF.tr} align-top`}>
+                        <td className="max-w-[360px] py-3 pr-2 pl-4">
+                          <span className="flex flex-col gap-[3px]">
+                            <span className="font-semibold">{broadcast.title || "Broadcast"}</span>
+                            <span className="truncate text-[12px] text-[#525252]" title={broadcast.messageText}>
                               {broadcast.messageText}
-                            </div>
-                            <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                              {audience ? `${audience} · ` : ""}Sent by {sender}
-                            </div>
-                          </TableCell>
-
-                          <TableCell>
-                            <span
-                              className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-medium ${pill.className}`}
-                            >
-                              {pill.label}
                             </span>
-                          </TableCell>
-
-                          <TableCell className="whitespace-nowrap font-semibold text-foreground tabular-nums">
-                            {total.toLocaleString()} {total === 1 ? "person" : "people"}
-                          </TableCell>
-
-                          <TableCell>
-                            {notYetSent || total === 0 ? (
-                              <span className="text-muted-foreground">—</span>
-                            ) : (
-                              <div className="w-[130px] space-y-1">
-                                <div className="font-semibold text-foreground tabular-nums">
-                                  {percent(delivered, total)}%
-                                </div>
-                                <div className="flex h-1 w-full overflow-hidden rounded-full bg-muted">
-                                  <div className="h-full bg-emerald-600" style={{ width: `${percent(delivered, total)}%` }} />
-                                  <div className="h-full bg-muted-foreground/40" style={{ width: `${percent(waiting, total)}%` }} />
-                                  <div className="h-full bg-red-500" style={{ width: `${percent(counts.failed, total)}%` }} />
-                                </div>
-                                <div className="whitespace-nowrap text-[10px] text-muted-foreground">
-                                  {counts.failed.toLocaleString()} failed · {waiting.toLocaleString()} pending
-                                </div>
-                              </div>
-                            )}
-                          </TableCell>
-
-                          <TableCell className="font-semibold tabular-nums">
-                            {notYetSent || total === 0 ? (
-                              <span className="font-normal text-muted-foreground">—</span>
-                            ) : (
-                              <span className="text-emerald-600 dark:text-emerald-400">
-                                {percent(counts.tappedOk, total)}%
+                            <span className="text-[11px] text-[#737373]">
+                              {r.audience ? `${r.audience} · ` : ""}Sent by {r.by}
+                            </span>
+                          </span>
+                        </td>
+                        <td className="px-2 py-3">
+                          <Pill tone={r.pill.tone}>{r.pill.label}</Pill>
+                        </td>
+                        <td className="px-2 py-3 tabular-nums">
+                          <span className="font-semibold">
+                            {r.total.toLocaleString()} {r.total === 1 ? "person" : "people"}
+                          </span>
+                        </td>
+                        <td className="min-w-[110px] px-2 py-3">
+                          {r.hasBar ? (
+                            <span className="flex flex-col gap-[3px]">
+                              <span className="font-semibold tabular-nums">{r.delT}</span>
+                              <span aria-hidden="true" className="flex h-1 overflow-hidden rounded-[2px] bg-[#F0F0F0]">
+                                <span className="bg-[#22A06B]" style={{ width: `${r.okPct}%` }} />
+                                <span className="bg-[#A3A3A3]" style={{ width: `${r.delPct}%` }} />
+                                <span className="bg-[#E5484D]" style={{ width: `${r.failPct}%` }} />
                               </span>
-                            )}
-                          </TableCell>
-
-                          <TableCell className="whitespace-nowrap text-foreground">
-                            {formatDate(broadcast.scheduledSendAt ?? broadcast.createdAt)}
-                          </TableCell>
-
-                          <TableCell className="pr-4 text-right">
-                            <Link
-                              href={`/broadcasts/${broadcast.id}`}
-                              className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-                            >
-                              View report
-                            </Link>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
+                              <span className="text-[11px] whitespace-nowrap text-[#737373]">{r.failT}</span>
+                            </span>
+                          ) : (
+                            <span className="text-[#A3A3A3]">—</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-3 font-semibold tabular-nums text-[#1E8A55]">
+                          {r.hasBar ? r.okT : <span className="font-normal text-[#A3A3A3]">—</span>}
+                        </td>
+                        <td className="px-2 py-3 whitespace-nowrap text-[#525252]">{r.when}</td>
+                        <td className="py-3 pr-4 pl-2 text-right">
+                          <Link href={r.href} className={`${WF.btnRow} whitespace-nowrap no-underline`}>
+                            View report
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
 
-            {isRefreshing && (
-              <div role="status" className="absolute inset-0 z-10 flex items-center justify-center">
-                <span className="inline-flex items-center gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-xs text-muted-foreground shadow-sm">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  Loading broadcasts…
-                </span>
-              </div>
-            )}
-
-            {totalItems > 0 && (
-              <div className="flex flex-col items-center justify-between gap-2.5 border-t border-border/60 px-4 py-3 text-xs sm:flex-row">
-                <div className="text-muted-foreground">
-                  Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, totalItems)} of{" "}
-                  {totalItems.toLocaleString()}
-                  {hasMore ? "+" : ""} broadcast{totalItems === 1 ? "" : "s"}
-                </div>
-                {(totalPages > 1 || hasMore) && (
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(Math.max(1, safePage - 1))}
-                      disabled={safePage <= 1}
-                      className="h-7 gap-1 px-2.5 text-xs"
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5" />
-                      Previous
-                    </Button>
-                    <span className="px-2 font-medium text-muted-foreground">
-                      Page <span className="font-semibold text-foreground">{safePage}</span> of{" "}
-                      <span className="font-semibold text-foreground">
-                        {totalPages}
-                        {hasMore ? "+" : ""}
-                      </span>
+            <div className="flex flex-col gap-2 md:hidden">
+              {pageRows.map((broadcast) => {
+                const r = rowView(broadcast);
+                return (
+                  <Link
+                    key={broadcast.id}
+                    href={r.href}
+                    className={`${WF.card} flex flex-col gap-1.5 px-3.5 py-3 text-[#0A0A0A] no-underline hover:text-[#0A0A0A]`}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="text-[14px] font-bold">{broadcast.title || "Broadcast"}</span>
+                      <Pill tone={r.pill.tone}>{r.pill.label}</Pill>
                     </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(Math.min(totalPages, safePage + 1))}
-                      disabled={safePage >= totalPages}
-                      className="h-7 gap-1 px-2.5 text-xs"
-                    >
-                      Next
-                      {isFetchingNextPage ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </section>
+                    <span className="text-[12px] text-[#525252]">{broadcast.messageText}</span>
+                    <span className="text-[11px] text-[#737373]">
+                      {r.audience ? `${r.audience} · ` : ""}
+                      {r.when}
+                    </span>
+                    <span className="text-[12px] tabular-nums">
+                      {r.total.toLocaleString()} people · {r.delT} delivered · {r.okT} OK
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {totalItems > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[12px] text-[#737373]">
+            Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, totalItems)} of {totalItems.toLocaleString()}
+            {hasMore ? "+" : ""} broadcast{totalItems === 1 ? "" : "s"}
+          </span>
+          {totalPages > 1 || hasMore ? (
+            <span className="flex items-center gap-1.5">
+              <button
+                type="button"
+                className={WF.btnOutline}
+                onClick={() => setPage(Math.max(1, safePage - 1))}
+                disabled={safePage <= 1}
+              >
+                Previous
+              </button>
+              <span className="px-1 text-[12px] text-[#737373]">
+                Page {safePage} of {totalPages}
+                {hasMore ? "+" : ""}
+              </span>
+              <button
+                type="button"
+                className={WF.btnOutline}
+                onClick={() => setPage(Math.min(totalPages, safePage + 1))}
+                disabled={safePage >= totalPages}
+              >
+                Next
+                {isFetchingNextPage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              </button>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

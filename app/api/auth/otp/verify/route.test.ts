@@ -227,6 +227,20 @@ describe("OTP verification", () => {
     ).toBe(true);
   });
 
+  it("starts a session that lasts 14 days", async () => {
+    mocks.setSessionCookie.mockClear();
+    const before = Date.now();
+    const response = await post(validCode);
+    const after = Date.now();
+
+    expect(response.status).toBe(200);
+    expect(mocks.setSessionCookie).toHaveBeenCalledTimes(1);
+    const expiresAt = mocks.setSessionCookie.mock.calls[0][1] as Date;
+    const fourteenDays = 14 * 24 * 60 * 60 * 1000;
+    expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + fourteenDays);
+    expect(expiresAt.getTime()).toBeLessThanOrEqual(after + fourteenDays);
+  });
+
   it("does not allow parallel wrong-code attempts to exceed the limit", async () => {
     const responses = await Promise.all(
       Array.from({ length: 8 }, () => post()),

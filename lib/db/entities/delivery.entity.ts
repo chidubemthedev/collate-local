@@ -28,6 +28,7 @@ export enum DeliveryStatus {
 
 @Entity("delivery")
 @Unique("uq_delivery_broadcast_person", ["broadcastId", "personId"])
+@Index("ix_delivery_broadcast_id_created_at", ["broadcastId", "createdAt", "id"])
 export class Delivery {
   @PrimaryGeneratedColumn("uuid")
   id: string;

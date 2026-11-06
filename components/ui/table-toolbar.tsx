@@ -1,97 +1,60 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { SlidersHorizontal, ChevronDown } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 
 import { ActiveFilterChips, type ActiveTableFilter } from "@/components/ui/active-filter-chips";
 
 export type { ActiveTableFilter };
 
+/**
+ * Filter area from the wireframes. On phones the fields fold behind a full-width "Filters" bar
+ * (the summary on its right); from `sm` up they are always shown. Chips and "Clear filters" go below.
+ */
 export function TableToolbar({
   children,
   actions,
   activeFilters = [],
   onClear,
-  inlineMobile = false,
+  summary,
+  meta,
+  showClear,
 }: {
   children: ReactNode;
   actions?: ReactNode;
   activeFilters?: ActiveTableFilter[];
   onClear?: () => void;
+  /** Right-hand text on the phone "Filters" bar. Defaults to the number of filters set. */
+  summary?: ReactNode;
+  /** Text before the chips, for example "135 candidates match". */
+  meta?: ReactNode;
+  /** Show "Clear filters" even when no chip is set. */
+  showClear?: boolean;
+  /** Kept for older callers; the phone layout is always inline now. */
   inlineMobile?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const summaryText =
+    summary ?? (activeFilters.length ? `${activeFilters.length} set` : "None set");
 
   return (
-    <div className="space-y-2.5">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <div className="hidden min-w-0 flex-1 items-center gap-2 sm:flex">
-          {children}
-        </div>
-        {inlineMobile ? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="sm:hidden"
-            aria-expanded={open}
-            onClick={() => setOpen((value) => !value)}
-          >
-            <SlidersHorizontal className="mr-2 h-4 w-4" />
-            Filters
-            <Badge variant="secondary" className="ml-1 px-1.5">
-              {activeFilters.length}
-            </Badge>
-            <ChevronDown
-              className={`ml-1 h-4 w-4 transition-transform duration-300 ${open ? "rotate-180" : ""}`}
-            />
-          </Button>
-        ) : (
-        <Sheet>
-          <SheetTrigger
-            render={
-              <Button variant="outline" size="sm" className="sm:hidden">
-                <SlidersHorizontal className="mr-2 h-4 w-4" />
-                Filters
-                <Badge variant="secondary" className="ml-1 px-1.5">
-                  {activeFilters.length}
-                </Badge>
-              </Button>
-            }
-          />
-          <SheetContent side="right" className="w-[min(90vw,24rem)] overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>Filters</SheetTitle>
-            </SheetHeader>
-            <div className="space-y-3 px-4 pb-4">{children}</div>
-          </SheetContent>
-        </Sheet>
-        )}
-        {actions && <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">{actions}</div>}
+    <div className="flex min-w-0 flex-col gap-3">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex min-h-10 w-full items-center justify-between rounded-[8px] border border-[#E5E5E5] bg-white px-3 text-[13px] font-semibold text-[#0A0A0A] sm:hidden"
+      >
+        <span>{open ? "Hide filters" : "Filters"}</span>
+        <span className="text-[12px] font-medium text-[#737373]">{summaryText}</span>
+      </button>
+
+      <div className={`${open ? "block" : "hidden"} min-w-0 sm:block`}>{children}</div>
+
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+
+      <div className={`${open ? "block" : "hidden"} sm:block`}>
+        <ActiveFilterChips filters={activeFilters} onClear={onClear} meta={meta} showClear={showClear} />
       </div>
-
-      {inlineMobile && (
-        <div
-          className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out sm:hidden ${
-            open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-          }`}
-          aria-hidden={!open}
-        >
-          <div className="min-h-0 overflow-hidden">
-            <div className="space-y-3 pb-1 pt-0.5">{children}</div>
-          </div>
-        </div>
-      )}
-
-      <ActiveFilterChips filters={activeFilters} onClear={onClear} />
     </div>
   );
 }

@@ -5,10 +5,8 @@ import { useGeographyStates, useGeographyLgas, useGeographyWards } from "@/lib/h
 import { Persona } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TableToolbar } from "@/components/ui/table-toolbar";
-import { Search, ChevronRight, Lock } from "lucide-react";
+import { Field, FILTER_GRID } from "@/components/ui/wf";
 import type { CandidateOfficeOption } from "@/types/api";
 import { FieldSpinner } from "@/components/ui/field-spinner";
 
@@ -23,27 +21,35 @@ const FILTER_PILLS: Array<{ mode: CoverageFilterMode; label: string }> = [
 ];
 
 const VIEW_BY_LABELS: Record<CoverageViewBy, string> = {
-  administrative: "Administrative Units",
-  political: "Political Units",
+  administrative: "Administrative units",
+  political: "Political units",
 };
 
 const SORT_LABELS: Record<string, string> = {
-  inec: "INEC Code",
-  "pus-desc": "Most Polling Units",
-  "gaps-desc": "Most Gaps",
-  "coverage-asc": "Lowest Coverage",
-  "extra-desc": "Most Extra Agents",
+  inec: "INEC code",
+  "pus-desc": "Most polling units",
+  "gaps-desc": "Most gaps",
+  "coverage-asc": "Lowest coverage",
+  "extra-desc": "Most extra agents",
 };
 
 function titleCase(value: string): string {
   return value
     .toLowerCase()
-    .replace(/(^|[\s(/.-])([a-z])/g, (_, sep: string, ch: string) => sep + ch.toUpperCase());
+    .replace(/(^|[\s(/.-])([a-z])/g, (_, sep: string, ch: string) => sep + ch.toUpperCase())
+    .replace(/\bFct\b/g, "FCT");
 }
 
-const LABEL_CLASS =
-  "text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5";
-const TRIGGER_CLASS = "w-full h-8 text-[11px] bg-background";
+const TRIGGER_CLASS = "w-full";
+
+function pillClass(on: boolean, mode: CoverageFilterMode) {
+  const base =
+    "inline-flex min-h-7 items-center rounded-full border px-3 text-[12px] font-semibold transition-colors";
+  if (!on) return `${base} border-[#E5E5E5] bg-white text-[#0A0A0A] hover:bg-[#FAFAFA]`;
+  return mode === "gaps"
+    ? `${base} border-[#D97706] bg-[#F59E0B] text-white`
+    : `${base} border-[#171717] bg-[#171717] text-[#FAFAFA]`;
+}
 
 interface CoverageFiltersProps {
   stateCode: string;
@@ -99,333 +105,301 @@ export function CoverageFilters({
   const selectedStateId = selectedState ? selectedState.id : null;
 
   const { data: apiLgas = [], isFetching: lgasLoading } = useGeographyLgas(selectedStateId);
-  const availableLGAs = React.useMemo(
-    () => (stateCode === "all" ? [] : byCode(apiLgas)),
-    [stateCode, apiLgas],
-  );
+  const availableLGAs = React.useMemo(() => (stateCode === "all" ? [] : byCode(apiLgas)), [stateCode, apiLgas]);
   const selectedLga = availableLGAs.find((l) => l.code === lgaCode || String(l.id) === lgaCode);
   const selectedLgaId = selectedLga ? selectedLga.id : null;
 
   const { data: apiWards = [], isFetching: wardsLoading } = useGeographyWards(selectedLgaId);
-  const availableWards = React.useMemo(
-    () => (lgaCode === "all" ? [] : byCode(apiWards)),
-    [lgaCode, apiWards],
-  );
+  const availableWards = React.useMemo(() => (lgaCode === "all" ? [] : byCode(apiWards)), [lgaCode, apiWards]);
   const selectedWard = availableWards.find((w) => w.code === wardCode || String(w.id) === wardCode);
 
   const selectedOffice = offices.find((office) => office.id === officeId);
   const lgaBusy = stateCode !== "all" && lgasLoading;
   const wardBusy = lgaCode !== "all" && wardsLoading;
   const isPolitical = viewBy === "political";
+  const stateLocked = Boolean(activePersona.stateCode);
 
-  const stateField = (
-    <div className="space-y-1">
-      <label className={`${LABEL_CLASS} justify-between`}>
-        <span>State</span>
-        {activePersona.stateCode && (
-          <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 gap-0.5 text-amber-700 bg-amber-50 dark:bg-amber-950/40">
-            <Lock className="w-2 h-2" /> Scoped
-          </Badge>
-        )}
-      </label>
-      <Select
-        value={stateCode}
-        onValueChange={(val) => {
-          if (val) {
-            setStateCode(val);
-            setLgaCode("all");
-            setWardCode("all");
-          }
-        }}
-        disabled={!!activePersona.stateCode}
-      >
-        <SelectTrigger className={TRIGGER_CLASS}>
-          <SelectValue placeholder="All States">
-            {(val) => {
-              if (!val || val === "all") return "All States";
-              const found = statesList.find((s) => s.code === val || String(s.id) === val);
-              return found ? `${found.code} · ${titleCase(found.name)}` : val;
-            }}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All States</SelectItem>
-          {statesList.map((st) => (
-            <SelectItem key={st.code} value={st.code}>
-              {st.code} · {titleCase(st.name)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
+  const stateLabel = selectedState ? titleCase(selectedState.name) : stateCode;
+  const lgaLabel = selectedLga ? titleCase(selectedLga.name) : lgaCode;
+  const wardLabel = selectedWard ? titleCase(selectedWard.name) : wardCode;
 
-  const lgaField = (
-    <div className="space-y-1">
-      <label className={`${LABEL_CLASS} justify-between`}>
-        <span className="flex items-center gap-1.5">
-          LGA
-          <FieldSpinner loading={lgaBusy} />
-        </span>
-        {!activePersona.canFilterByLGA && (
-          <Tooltip>
-            <TooltipTrigger>
-              <span className="text-[9px] text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
-                <Lock className="w-2.5 h-2.5" /> Locked
-              </span>
-            </TooltipTrigger>
-            <TooltipContent className="text-xs max-w-xs">
-              Candidates cannot filter by single LGA since constituency may span across multiple LGAs or sub-units.
-            </TooltipContent>
-          </Tooltip>
-        )}
-      </label>
-      <Select
-        value={lgaCode}
-        onValueChange={(val) => {
-          if (val) {
-            setLgaCode(val);
-            setWardCode("all");
-          }
-        }}
-        disabled={stateCode === "all" || !activePersona.canFilterByLGA || lgaBusy}
-      >
-        <SelectTrigger className={TRIGGER_CLASS}>
-          <SelectValue placeholder="All LGAs">
-            {(val) => {
-              if (lgaBusy) return "Loading LGAs…";
-              if (!val || val === "all") return "All LGAs";
-              const found = availableLGAs.find((l) => l.code === val || String(l.id) === val);
-              return found ? `${found.code} · ${titleCase(found.name)}` : val;
-            }}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All LGAs</SelectItem>
-          {availableLGAs.map((lga) => (
-            <SelectItem key={lga.code} value={lga.code}>
-              {lga.code} · {titleCase(lga.name)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
+  // Breadcrumb: each level above the current one is a link back up.
+  const crumbs: Array<{ label: string; go?: () => void }> = [
+    {
+      label: "Nigeria",
+      go: () => {
+        if (!stateLocked) setStateCode("all");
+        setLgaCode("all");
+        setWardCode("all");
+      },
+    },
+    ...(stateCode !== "all"
+      ? [
+          {
+            label: stateLabel,
+            go: () => {
+              setLgaCode("all");
+              setWardCode("all");
+            },
+          },
+        ]
+      : []),
+    ...(lgaCode !== "all" ? [{ label: lgaLabel, go: () => setWardCode("all") }] : []),
+    ...(wardCode !== "all" ? [{ label: wardLabel }] : []),
+  ];
+  const summary = crumbs.map((c) => c.label).join(" / ");
 
-  const wardField = (
-    <div className="space-y-1">
-      <label className={LABEL_CLASS}>
-        Ward / area
-        <FieldSpinner loading={wardBusy} />
-      </label>
-      <Select
-        value={wardCode}
-        onValueChange={(val) => {
-          if (val) setWardCode(val);
-        }}
-        disabled={lgaCode === "all" || wardBusy}
-      >
-        <SelectTrigger className={TRIGGER_CLASS}>
-          <SelectValue placeholder="All Wards">
-            {(val) => {
-              if (wardBusy) return "Loading wards…";
-              if (!val || val === "all") return "All Wards";
-              const found = availableWards.find((w) => w.code === val || String(w.id) === val);
-              return found ? `${found.code} · ${titleCase(found.name)}` : val;
-            }}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Wards</SelectItem>
-          {availableWards.map((w) => (
-            <SelectItem key={w.code} value={w.code}>
-              {w.code} · {titleCase(w.name)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
+  const activeFilters = [
+    ...(stateCode !== "all" && !stateLocked
+      ? [
+          {
+            id: "state",
+            label: `State: ${stateLabel}`,
+            onRemove: () => {
+              setStateCode("all");
+              setLgaCode("all");
+              setWardCode("all");
+            },
+          },
+        ]
+      : []),
+    ...(lgaCode !== "all"
+      ? [
+          {
+            id: "lga",
+            label: `LGA: ${lgaLabel}`,
+            onRemove: () => {
+              setLgaCode("all");
+              setWardCode("all");
+            },
+          },
+        ]
+      : []),
+    ...(wardCode !== "all" ? [{ id: "ward", label: `Ward: ${wardLabel}`, onRemove: () => setWardCode("all") }] : []),
+    ...(officeId !== null
+      ? [{ id: "office", label: `Office: ${selectedOffice ? titleCase(selectedOffice.name) : "Selected"}`, onRemove: () => setOfficeId(null) }]
+      : []),
+    ...(searchQuery ? [{ id: "search", label: `Search: ${searchQuery}`, onRemove: () => setSearchQuery("") }] : []),
+  ];
 
-  const officeField = (
-    <div className="space-y-1">
-      <label className={LABEL_CLASS}>
-        Office
-        <FieldSpinner loading={officesLoading} />
-      </label>
-      <Select
-        value={officeId === null ? "all" : String(officeId)}
-        onValueChange={(val) => setOfficeId(val && val !== "all" ? Number(val) : null)}
-        disabled={offices.length === 0 || officesLoading}
-      >
-        <SelectTrigger className={TRIGGER_CLASS}>
-          <SelectValue placeholder="All Offices">
-            {() => (officesLoading ? "Loading offices…" : selectedOffice ? titleCase(selectedOffice.name) : "All Offices")}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Offices</SelectItem>
-          {offices.map((office) => (
-            <SelectItem key={office.id} value={String(office.id)}>
-              {titleCase(office.name)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-
-  const sortField = (
-    <div className="space-y-1">
-      <label className={LABEL_CLASS}>Sort order</label>
-      <Select
-        value={sortBy}
-        onValueChange={(val) => {
-          if (val) setSortBy(val);
-        }}
-      >
-        <SelectTrigger className={TRIGGER_CLASS}>
-          <SelectValue placeholder="INEC Code">{(val) => SORT_LABELS[val ?? ""] ?? "INEC Code"}</SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {Object.entries(SORT_LABELS).map(([value, label]) => (
-            <SelectItem key={value} value={value}>
-              {label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+  const pills = (
+    <div role="group" aria-label="Show" className="contents">
+      {FILTER_PILLS.map(({ mode, label }) => (
+        <button
+          key={mode}
+          type="button"
+          aria-pressed={filterMode === mode}
+          onClick={() => setFilterMode(mode)}
+          className={pillClass(filterMode === mode, mode)}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-1.5 text-[11px] overflow-x-auto py-1 text-muted-foreground scrollbar-none">
-          <button
-            onClick={() => {
-              if (!activePersona.stateCode) setStateCode("all");
-              setLgaCode("all");
-              setWardCode("all");
-            }}
-            className="text-xs font-semibold text-foreground hover:text-primary hover:underline flex items-center gap-1 shrink-0"
-          >
-            Nigeria
-          </button>
-
-          {stateCode !== "all" && (
-            <>
-              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-              <button
-                onClick={() => {
-                  setLgaCode("all");
-                  setWardCode("all");
-                }}
-                className={`hover:text-primary font-medium hover:underline shrink-0 ${
-                  lgaCode === "all" ? "text-foreground font-semibold" : ""
-                }`}
-              >
-                {selectedState?.name || stateCode} ({stateCode})
-              </button>
-            </>
-          )}
-
-          {lgaCode !== "all" && (
-            <>
-              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-              <button
-                onClick={() => setWardCode("all")}
-                className={`hover:text-primary font-medium hover:underline shrink-0 ${
-                  wardCode === "all" ? "text-foreground font-semibold" : ""
-                }`}
-              >
-                {selectedLga?.name || lgaCode} ({lgaCode})
-              </button>
-            </>
-          )}
-
-          {wardCode !== "all" && (
-            <>
-              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-              <span className="text-foreground font-semibold shrink-0">
-                {selectedWard?.name || wardCode} ({wardCode})
-              </span>
-            </>
-          )}
-        </div>
-      </div>
+    <div className="flex flex-col gap-3">
+      <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-[12px] text-[#737373]">
+        {crumbs.map((c, i) => {
+          const last = i === crumbs.length - 1;
+          return (
+            <React.Fragment key={`${c.label}-${i}`}>
+              {i > 0 ? <span aria-hidden="true">›</span> : null}
+              {last ? (
+                <span className="font-semibold text-[#0A0A0A]">{c.label}</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={c.go}
+                  className="min-h-6 border-0 bg-transparent px-0.5 text-[12px] text-[#737373] hover:text-[#0A0A0A]"
+                >
+                  {c.label}
+                </button>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </nav>
 
       <TableToolbar
-        inlineMobile
-        onClear={onReset}
-        activeFilters={[
-          ...(stateCode !== "all" ? [{ id: "state", label: `State: ${selectedState?.name ?? stateCode}`, onRemove: () => { setStateCode(activePersona.stateCode || "all"); setLgaCode("all"); setWardCode("all"); } }] : []),
-          ...(lgaCode !== "all" ? [{ id: "lga", label: `LGA: ${selectedLga?.name ?? lgaCode}`, onRemove: () => { setLgaCode("all"); setWardCode("all"); } }] : []),
-          ...(wardCode !== "all" ? [{ id: "ward", label: `Ward: ${selectedWard?.name ?? wardCode}`, onRemove: () => setWardCode("all") }] : []),
-          ...(officeId !== null ? [{ id: "office", label: `Office: ${selectedOffice?.name ?? "Selected"}`, onRemove: () => setOfficeId(null) }] : []),
-          ...(searchQuery ? [{ id: "search", label: `Search: ${searchQuery}`, onRemove: () => setSearchQuery("") }] : []),
-          ...(filterMode !== "all" ? [{ id: "coverage", label: `Show: ${FILTER_PILLS.find((p) => p.mode === filterMode)?.label ?? filterMode}`, onRemove: () => setFilterMode("all") }] : []),
-        ]}
+        summary={summary}
+        onClear={() => {
+          onReset();
+          setFilterMode("all");
+        }}
+        activeFilters={activeFilters}
+        meta={pills}
+        showClear={activeFilters.length > 0 || filterMode !== "all"}
       >
-        <div className="w-full space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-3 items-end">
-            <div className="space-y-1">
-              <label className={LABEL_CLASS}>Search</label>
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Unit, ward, LGA or code"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-8 text-[11px] bg-background w-full"
-                />
-              </div>
-            </div>
+        <div className={FILTER_GRID}>
+          <Field label="Search" htmlFor="pu-search">
+            <Input
+              id="pu-search"
+              type="search"
+              autoComplete="off"
+              placeholder="Unit, ward, LGA or code"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </Field>
 
-            <div className="space-y-1">
-              <label className={LABEL_CLASS}>View by</label>
+          <Field label="View by">
+            <Select
+              value={viewBy}
+              onValueChange={(val) => {
+                if (val === "administrative" || val === "political") setViewBy(val);
+              }}
+            >
+              <SelectTrigger className={TRIGGER_CLASS}>
+                <SelectValue>{(val) => VIEW_BY_LABELS[val as CoverageViewBy] ?? "Administrative units"}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="administrative">Administrative units</SelectItem>
+                <SelectItem value="political">Political units</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field label="State">
+            <Select
+              value={stateCode}
+              onValueChange={(val) => {
+                if (val) {
+                  setStateCode(val);
+                  setLgaCode("all");
+                  setWardCode("all");
+                }
+              }}
+              disabled={stateLocked}
+            >
+              <SelectTrigger className={TRIGGER_CLASS} title={stateLocked ? "Your access is limited to this state" : undefined}>
+                <SelectValue>
+                  {(val) => {
+                    if (!val || val === "all") return "All states";
+                    const found = statesList.find((s) => s.code === val || String(s.id) === val);
+                    return found ? `${found.code} · ${titleCase(found.name)}` : val;
+                  }}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All states</SelectItem>
+                {statesList.map((st) => (
+                  <SelectItem key={st.code} value={st.code}>
+                    {st.code} · {titleCase(st.name)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+
+          {isPolitical ? (
+            <Field label="Office" extra={<FieldSpinner loading={officesLoading} />}>
               <Select
-                value={viewBy}
-                onValueChange={(val) => {
-                  if (val === "administrative" || val === "political") setViewBy(val);
-                }}
+                value={officeId === null ? "all" : String(officeId)}
+                onValueChange={(val) => setOfficeId(val && val !== "all" ? Number(val) : null)}
+                disabled={offices.length === 0 || officesLoading}
               >
                 <SelectTrigger className={TRIGGER_CLASS}>
-                  <SelectValue placeholder="Administrative Units">
-                    {(val) => VIEW_BY_LABELS[val as CoverageViewBy] ?? "Administrative Units"}
+                  <SelectValue>
+                    {() => (officesLoading ? "Loading offices…" : selectedOffice ? titleCase(selectedOffice.name) : "All offices")}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="administrative">Administrative Units</SelectItem>
-                  <SelectItem value="political">Political Units</SelectItem>
+                  <SelectItem value="all">All offices</SelectItem>
+                  {offices.map((office) => (
+                    <SelectItem key={office.id} value={String(office.id)}>
+                      {titleCase(office.name)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
+          ) : null}
 
-            {stateField}
-            {isPolitical && officeField}
-            {lgaField}
-            {wardField}
-            {sortField}
-          </div>
-
-          <div className="flex flex-wrap items-center justify-start gap-2 text-[11px]">
-            {FILTER_PILLS.map(({ mode, label }) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setFilterMode(mode)}
-                className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-colors ${
-                  filterMode === mode
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background text-foreground border-border hover:bg-muted"
-                }`}
+          <Field label="LGA" extra={<FieldSpinner loading={lgaBusy} />}>
+            <Select
+              value={lgaCode}
+              onValueChange={(val) => {
+                if (val) {
+                  setLgaCode(val);
+                  setWardCode("all");
+                }
+              }}
+              disabled={stateCode === "all" || !activePersona.canFilterByLGA || lgaBusy}
+            >
+              <SelectTrigger
+                className={TRIGGER_CLASS}
+                title={!activePersona.canFilterByLGA ? "A constituency can span several LGAs, so this filter is locked" : undefined}
               >
-                {label}
-              </button>
-            ))}
-          </div>
+                <SelectValue>
+                  {(val) => {
+                    if (lgaBusy) return "Loading LGAs…";
+                    if (!val || val === "all") return "All LGAs";
+                    const found = availableLGAs.find((l) => l.code === val || String(l.id) === val);
+                    return found ? `${found.code} · ${titleCase(found.name)}` : val;
+                  }}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All LGAs</SelectItem>
+                {availableLGAs.map((lga) => (
+                  <SelectItem key={lga.code} value={lga.code}>
+                    {lga.code} · {titleCase(lga.name)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field label="Ward / area" extra={<FieldSpinner loading={wardBusy} />}>
+            <Select
+              value={wardCode}
+              onValueChange={(val) => {
+                if (val) setWardCode(val);
+              }}
+              disabled={lgaCode === "all" || wardBusy}
+            >
+              <SelectTrigger className={TRIGGER_CLASS}>
+                <SelectValue>
+                  {(val) => {
+                    if (wardBusy) return "Loading wards…";
+                    if (!val || val === "all") return "All wards";
+                    const found = availableWards.find((w) => w.code === val || String(w.id) === val);
+                    return found ? `${found.code} · ${titleCase(found.name)}` : val;
+                  }}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All wards</SelectItem>
+                {availableWards.map((w) => (
+                  <SelectItem key={w.code} value={w.code}>
+                    {w.code} · {titleCase(w.name)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field label="Sort order">
+            <Select
+              value={sortBy}
+              onValueChange={(val) => {
+                if (val) setSortBy(val);
+              }}
+            >
+              <SelectTrigger className={TRIGGER_CLASS}>
+                <SelectValue>{(val) => SORT_LABELS[val ?? ""] ?? "INEC code"}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(SORT_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
         </div>
       </TableToolbar>
     </div>

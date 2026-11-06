@@ -2,6 +2,7 @@ import {
   Check,
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn
@@ -19,6 +20,7 @@ export class MembershipScopeUnit {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index("ix_membership_scope_unit_membership_id")
   @Column({ name: "membership_id", type: "int" })
   membershipId: number;
 

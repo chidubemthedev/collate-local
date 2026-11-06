@@ -5,6 +5,7 @@ import {
   OTP_VERIFY_LIMIT_PER_EMAIL,
   OTP_VERIFY_LIMIT_PER_IP,
   OTP_VERIFY_WINDOW_MS,
+  SESSION_LIFETIME_MS,
 } from "@/lib/auth/config";
 import { OtpVerifyBodySchema } from "@/lib/auth/schemas";
 import { getClientIp } from "@/lib/auth/request";
@@ -87,7 +88,7 @@ export async function POST(request: Request) {
 
     const sessionToken = createSessionToken();
     const sessionHash = hashSessionToken(sessionToken);
-    const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + SESSION_LIFETIME_MS);
     const lastActiveAt = new Date();
 
     await dataSource.query(

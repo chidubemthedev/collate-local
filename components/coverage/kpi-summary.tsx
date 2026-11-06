@@ -2,6 +2,7 @@
 
 import React from "react";
 import { AnimatedNumber } from "@/components/ui/animated-number";
+import { InecTag } from "@/components/ui/wf";
 
 interface KPISummaryProps {
   levelName: string;
@@ -16,25 +17,58 @@ interface KPISummaryProps {
   statesCount?: number;
 }
 
-function SourceTag({ children }: { children: React.ReactNode }) {
+/** One summary tile from the wireframes: label, value on a shared baseline, optional bar, note. */
+function Tile({
+  label,
+  value,
+  suffix,
+  bar,
+  fill = "#0A0A0A",
+  color = "#0A0A0A",
+  inec = false,
+  note,
+}: {
+  label: string;
+  value: React.ReactNode;
+  suffix?: React.ReactNode;
+  bar?: number;
+  fill?: string;
+  color?: string;
+  inec?: boolean;
+  note: React.ReactNode;
+}) {
+  const hasBar = typeof bar === "number";
   return (
-    <span className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold leading-none bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-      {children}
-    </span>
-  );
-}
-
-function Note({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mt-3 flex items-start gap-1.5 text-[10px] leading-snug text-muted-foreground">
-      {children}
+    <div className="flex min-w-0 flex-col rounded-[14px] border border-[#E5E5E5] bg-white p-3.5">
+      <span className="block h-[18px] truncate text-[12px] font-medium text-[#525252]">{label}</span>
+      <span className="mt-2.5 flex h-8 items-baseline gap-1.5">
+        <span className="text-[24px] leading-8 font-bold tabular-nums" style={{ color }}>
+          {value}
+        </span>
+        {suffix ? <span className="text-[12px] whitespace-nowrap tabular-nums text-[#737373]">{suffix}</span> : null}
+      </span>
+      <span
+        className="mt-1.5 block h-1 overflow-hidden rounded-[2px]"
+        style={{ background: hasBar ? "#F0F0F0" : "transparent" }}
+      >
+        {hasBar ? (
+          <span
+            className="block h-1 transition-[width] duration-500"
+            style={{ width: `${Math.min(100, Math.max(0, bar))}%`, background: fill }}
+          />
+        ) : null}
+      </span>
+      <span className="mt-2 text-[11px] leading-[15px] text-[#737373]">
+        {inec ? (
+          <>
+            <InecTag />{" "}
+          </>
+        ) : null}
+        {note}
+      </span>
     </div>
   );
 }
-
-const CARD = "bg-card border border-border/60 rounded-xl p-4 flex flex-col h-full";
-const LABEL = "text-[11px] text-muted-foreground font-medium";
-const VALUE = "mt-3 text-xl md:text-2xl font-bold tracking-tight";
 
 export function KPISummary({
   totalPUs,
@@ -49,93 +83,66 @@ export function KPISummary({
 }: KPISummaryProps) {
   const gpsPct = totalPUs > 0 ? Math.round((gpsPUs / totalPUs) * 100) : 0;
   const noGpsPUs = Math.max(0, totalPUs - gpsPUs);
+  const national = statesCount !== undefined;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-      <div className={CARD}>
-        <div className={LABEL}>Polling Units</div>
-        <div className={`${VALUE} text-foreground`}>
-          <AnimatedNumber value={totalPUs} />
-        </div>
-        <Note>
-          <SourceTag>INEC</SourceTag>
-          <span>INEC register total</span>
-        </Note>
-      </div>
-
-      <div className={CARD}>
-        <div className={LABEL}>With GPS Position</div>
-        <div className={`${VALUE} text-foreground flex items-baseline gap-2`}>
-          <AnimatedNumber value={gpsPUs} />
-          <span className="text-xs font-medium text-muted-foreground">
-            <AnimatedNumber value={gpsPct} />%
-          </span>
-        </div>
-        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted">
-          <div className="h-1 rounded-full bg-foreground" style={{ width: `${Math.min(100, gpsPct)}%` }} />
-        </div>
-        <Note>
-          <SourceTag>INEC</SourceTag>
-          <span>
-            <AnimatedNumber value={noGpsPUs} /> with no GPS in INEC&apos;s register
-          </span>
-        </Note>
-      </div>
-
-      <div className={CARD}>
-        <div className={LABEL}>{wardsCount !== undefined ? "Wards" : "Sub-units"}</div>
-        <div className={`${VALUE} text-foreground`}>
-          <AnimatedNumber value={wardsCount ?? (statesCount !== undefined ? statesCount : 1)} />
-        </div>
-        <Note>
-          <SourceTag>INEC</SourceTag>
-          <span>{wardsCount !== undefined ? "registration areas" : "administrative units"}</span>
-        </Note>
-      </div>
-
-      <div className={CARD}>
-        <div className={LABEL}>LGAs / Areas</div>
-        <div className={`${VALUE} text-foreground`}>
-          <AnimatedNumber value={lgasCount ?? (statesCount !== undefined ? statesCount : 1)} />
-        </div>
-        <Note>
-          <SourceTag>INEC</SourceTag>
-          <span>
-            {statesCount !== undefined && statesCount > 1
-              ? `${statesCount - 1} states + FCT`
-              : "local govt councils"}
-          </span>
-        </Note>
-      </div>
-
-      <div className={CARD}>
-        <div className={LABEL}>Official Coverage</div>
-        <div className={`${VALUE} text-emerald-600 dark:text-emerald-400`}>
-          <AnimatedNumber value={officialAgentPct} />%
-        </div>
-        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-1 rounded-full bg-emerald-600 dark:bg-emerald-500 transition-all duration-500"
-            style={{ width: `${Math.min(100, officialAgentPct)}%` }}
-          />
-        </div>
-        <Note>
-          <span>
+    <section
+      aria-label="Summary"
+      className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(170px,1fr))] sm:gap-3"
+    >
+      <Tile
+        label="Polling Units"
+        value={<AnimatedNumber value={totalPUs} />}
+        inec
+        note={national ? "INEC register total" : "in this area"}
+      />
+      <Tile
+        label="With GPS Position"
+        value={<AnimatedNumber value={gpsPUs} />}
+        suffix={<>{gpsPct}%</>}
+        bar={gpsPct}
+        inec
+        note={
+          <>
+            <AnimatedNumber value={noGpsPUs} /> with no GPS in INEC&rsquo;s register
+          </>
+        }
+      />
+      <Tile
+        label="Wards"
+        value={<AnimatedNumber value={wardsCount ?? 1} />}
+        inec
+        note="registration areas"
+      />
+      <Tile
+        label="LGAs / Areas"
+        value={<AnimatedNumber value={lgasCount ?? 1} />}
+        inec
+        note={national && statesCount > 1 ? `${statesCount - 1} states + FCT` : "in this area"}
+      />
+      <Tile
+        label="Official Coverage"
+        value={
+          <>
+            <AnimatedNumber value={officialAgentPct} />%
+          </>
+        }
+        bar={officialAgentPct}
+        fill="#22A06B"
+        color="#1E8A55"
+        note={
+          <>
             <AnimatedNumber value={coveredPUs} /> of <AnimatedNumber value={totalPUs} /> covered ·{" "}
             <AnimatedNumber value={noCoveragePUs} /> gaps
-          </span>
-        </Note>
-      </div>
-
-      <div className={CARD}>
-        <div className={LABEL}>Extra Agents</div>
-        <div className={`${VALUE} text-violet-600 dark:text-violet-400`}>
-          <AnimatedNumber value={extraAgentsCount} />
-        </div>
-        <Note>
-          <span>Split by support group and candidate: Not available yet · not coverage</span>
-        </Note>
-      </div>
-    </div>
+          </>
+        }
+      />
+      <Tile
+        label="Extra Agents"
+        value={<AnimatedNumber value={extraAgentsCount} />}
+        color="#6D28D9"
+        note="support groups and candidates · not coverage"
+      />
+    </section>
   );
 }

@@ -8,24 +8,23 @@ import { FieldSpinner } from "@/components/ui/field-spinner";
 import { TableToolbar, type ActiveTableFilter } from "@/components/ui/table-toolbar";
 import { toTitleCase } from "@/components/candidates/candidates-filters";
 import { useOwnerGroups } from "@/lib/hooks/use-groups";
-import { Button } from "@/components/ui/button";
+import { WF, Field, FILTER_GRID } from "@/components/ui/wf";
 
-export type AgentTypeFilter = "all" | "official" | "extra";
+export type AgentTypeFilter = "all" | "official" | "extra" | "gaps";
 
 // Agent kind as stored on the assignment (official or extra).
 const TYPE_OPTIONS = [
   { value: "all", label: "Any type" },
   { value: "official", label: "Official" },
   { value: "extra", label: "Extra" },
+  { value: "gaps", label: "Gaps (no official agent)" },
 ] as const;
 
 function labelFor(options: ReadonlyArray<{ value: string; label: string }>, value: string | null) {
   return options.find((option) => option.value === value)?.label ?? options[0].label;
 }
 
-const LABEL_CLASS =
-  "flex items-center gap-1.5 truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground";
-const TRIGGER_CLASS = "h-8 w-full bg-background text-xs data-[disabled]:bg-muted data-[disabled]:opacity-70";
+const TRIGGER_CLASS = "w-full";
 
 interface AgentsFiltersProps {
   selectedState: string;
@@ -147,28 +146,42 @@ export function AgentsFilters({
   ];
 
   return (
-    <div className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
-      {/* Collapses behind a Filters button on phones, like the Coverage page. */}
-      <TableToolbar inlineMobile activeFilters={activeFilters} onClear={onClear}>
-      <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Search */}
-        <div className="min-w-0 space-y-1.5">
-          <label className={LABEL_CLASS}>Search</label>
+    <section aria-label="Filters" className={`${WF.card} p-3 sm:px-4 sm:py-3.5`}>
+      {/* Collapses behind a Filters bar on phones. */}
+      <TableToolbar
+        activeFilters={activeFilters}
+        onClear={onClear}
+        summary={activeFilters.length ? "Filtered" : "None set"}
+        meta={
+          <span className="inline-flex items-center gap-1.5 text-[12px] text-[#737373]" aria-live="polite">
+            {isRefreshing ? (
+              <>
+                <FieldSpinner loading />
+                Updating results…
+              </>
+            ) : selectedState === "all" ? (
+              "Pick a state to list agent records"
+            ) : (
+              `${totalFilteredCount.toLocaleString()} record${totalFilteredCount === 1 ? "" : "s"} match${
+                totalFilteredCount === 1 ? "es" : ""
+              }`
+            )}
+          </span>
+        }
+      >
+      <div className={FILTER_GRID}>
+        <Field label="Search" htmlFor="ag-search">
           <Input
-            type="text"
+            id="ag-search"
+            type="search"
+            autoComplete="off"
             placeholder="Unit, code or sponsor"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 w-full bg-background text-xs"
           />
-        </div>
+        </Field>
 
-        {/* State */}
-        <div className="min-w-0 space-y-1.5">
-          <label className={LABEL_CLASS}>
-            State
-            <FieldSpinner loading={statesPending} />
-          </label>
+        <Field label="State" extra={<FieldSpinner loading={statesPending} />}>
           <Select
             value={selectedState}
             disabled={statesPending}
@@ -198,14 +211,9 @@ export function AgentsFilters({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
 
-        {/* LGA */}
-        <div className="min-w-0 space-y-1.5">
-          <label className={LABEL_CLASS}>
-            LGA
-            <FieldSpinner loading={lgaBusy} />
-          </label>
+        <Field label="LGA" extra={<FieldSpinner loading={lgaBusy} />}>
           <Select
             value={selectedLga}
             disabled={selectedState === "all" || lgaBusy}
@@ -234,14 +242,9 @@ export function AgentsFilters({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
 
-        {/* Ward */}
-        <div className="min-w-0 space-y-1.5">
-          <label className={LABEL_CLASS}>
-            Ward
-            <FieldSpinner loading={wardBusy} />
-          </label>
+        <Field label="Ward" extra={<FieldSpinner loading={wardBusy} />}>
           <Select
             value={selectedWard}
             disabled={selectedLga === "all" || wardBusy}
@@ -268,14 +271,9 @@ export function AgentsFilters({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
 
-        {/* Sponsor / owner */}
-        <div className="min-w-0 space-y-1.5">
-          <label className={LABEL_CLASS}>
-            Sponsor / owner
-            <FieldSpinner loading={groupsBusy} />
-          </label>
+        <Field label="Sponsor / owner" extra={<FieldSpinner loading={groupsBusy} />}>
           <Select
             value={selectedSponsor}
             disabled={groupsBusy || groupsQuery.isError}
@@ -298,28 +296,24 @@ export function AgentsFilters({
             </SelectContent>
           </Select>
           {groupsQuery.isError && (
-            <div role="alert" className="flex items-center gap-2 text-xs text-destructive">
+            <div role="alert" className="flex items-center gap-2 text-[12px] text-[#B42318]">
               <span>Could not load groups.</span>
-              <Button
+              <button
                 type="button"
-                variant="link"
-                size="sm"
-                className="h-auto p-0"
+                className="border-0 bg-transparent p-0 font-semibold underline"
                 onClick={() => void groupsQuery.refetch()}
               >
                 Retry
-              </Button>
+              </button>
             </div>
           )}
-        </div>
+        </Field>
 
-        {/* Type */}
-        <div className="min-w-0 space-y-1.5">
-          <label className={LABEL_CLASS}>Type</label>
+        <Field label="Type">
           <Select
             value={selectedType}
             onValueChange={(val) => {
-              if (val === "all" || val === "official" || val === "extra") setSelectedType(val);
+              if (val === "all" || val === "official" || val === "extra" || val === "gaps") setSelectedType(val);
             }}
           >
             <SelectTrigger className={TRIGGER_CLASS}>
@@ -335,24 +329,9 @@ export function AgentsFilters({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
       </div>
       </TableToolbar>
-
-      <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground" aria-live="polite">
-        {isRefreshing ? (
-          <>
-            <FieldSpinner loading />
-            Updating results…
-          </>
-        ) : selectedState === "all" ? (
-          "Pick a state to list agent records"
-        ) : (
-          `${totalFilteredCount.toLocaleString()} record${totalFilteredCount === 1 ? "" : "s"} match${
-            totalFilteredCount === 1 ? "es" : ""
-          }`
-        )}
-      </p>
-    </div>
+    </section>
   );
 }
