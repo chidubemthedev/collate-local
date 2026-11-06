@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Map, { NavigationControl, useControl, type MapRef } from "react-map-gl/maplibre";
 import { MapboxOverlay, type MapboxOverlayProps } from "@deck.gl/mapbox";
-import { ColumnLayer, GeoJsonLayer, PolygonLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { ColumnLayer, GeoJsonLayer, PolygonLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { Layer, PickingInfo } from "@deck.gl/core";
 import mapLibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import type { CoverageMapPoint } from "@/types/api";
@@ -75,6 +75,68 @@ function pct(covered: number, total: number) {
   return total > 0 ? Math.round((covered / total) * 100) : 0;
 }
 
+interface AreaLabel {
+  position: [number, number];
+  text: string;
+}
+
+/** Signed-area centroid of a ring, with its size, for placing a label inside the shape. */
+function ringCentroid(ring: GeoJSON.Position[]): { position: [number, number]; area: number } {
+  let twiceArea = 0;
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0; i < ring.length - 1; i += 1) {
+    const [x0, y0] = ring[i];
+    const [x1, y1] = ring[i + 1];
+    const cross = x0 * y1 - x1 * y0;
+    twiceArea += cross;
+    cx += (x0 + x1) * cross;
+    cy += (y0 + y1) * cross;
+  }
+  if (twiceArea === 0) {
+    const [x, y] = ring[0];
+    return { position: [x, y], area: 0 };
+  }
+  return { position: [cx / (3 * twiceArea), cy / (3 * twiceArea)], area: Math.abs(twiceArea) / 2 };
+}
+
+function pointInRing([x, y]: [number, number], ring: GeoJSON.Position[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * A point inside the ring for its label: the centroid, or for curved shapes whose centroid falls
+ * outside (Kebbi, some LGAs), the middle of the widest stretch of the shape at that height.
+ */
+function labelPoint(ring: GeoJSON.Position[]): { position: [number, number]; area: number } {
+  const centroid = ringCentroid(ring);
+  if (centroid.area === 0 || pointInRing(centroid.position, ring)) return centroid;
+  const y = centroid.position[1];
+  const crossings: number[] = [];
+  for (let i = 0; i < ring.length - 1; i += 1) {
+    const [x0, y0] = ring[i];
+    const [x1, y1] = ring[i + 1];
+    if (y0 > y !== y1 > y) crossings.push(x0 + ((y - y0) * (x1 - x0)) / (y1 - y0));
+  }
+  crossings.sort((a, b) => a - b);
+  let bestX = centroid.position[0];
+  let bestWidth = -1;
+  for (let i = 0; i + 1 < crossings.length; i += 2) {
+    const width = crossings[i + 1] - crossings[i];
+    if (width > bestWidth) {
+      bestWidth = width;
+      bestX = (crossings[i] + crossings[i + 1]) / 2;
+    }
+  }
+  return { position: [bestX, y], area: centroid.area };
+}
+
 function titleCase(value: string) {
   return value
     .toLowerCase()
@@ -82,8 +144,10 @@ function titleCase(value: string) {
     .replace(/\bFct\b/g, "FCT");
 }
 
-/** deck.gl drawn on top of MapLibre, sharing its camera. */
-function DeckOverlay(props: MapboxOverlayProps) {
+const getCursor = ({ isHovering }: { isHovering: boolean }) => (isHovering ? "pointer" : "grab");
+
+/** deck.gl drawn on top of MapLibre, sharing its camera. Pass memoised props: any change re-syncs. */
+function DeckOverlay({ props }: { props: MapboxOverlayProps }) {
   const overlay = useControl<MapboxOverlay>(() => new MapboxOverlay(props));
   useEffect(() => {
     overlay.setProps(props);
@@ -111,7 +175,9 @@ function pointsBounds(points: CoverageMapPoint[]): LngLatBounds | null {
 
 /**
  * Builds a CSS clip-path that covers the whole map except the focused area, so a blur can be laid
- * over everything outside it. Points are projected to screen pixels on every camera move.
+ * over everything outside it. It is worked out once the camera stops, and the blur is hidden while
+ * the map moves (the faded wash drawn by deck.gl stays): projecting thousands of border points and
+ * re-blurring the map on every frame is what made panning and zooming lag.
  */
 function useOutsideClipPath(mapRef: React.RefObject<MapRef | null>, focusShape: BoundaryFeature | null) {
   const [clipPath, setClipPath] = useState<string | null>(null);
@@ -128,27 +194,39 @@ function useOutsideClipPath(mapRef: React.RefObject<MapRef | null>, focusShape: 
       const canvas = map.getCanvas();
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
-      let path = `M0 0H${w}V${h}H0Z`;
+      const parts = [`M0 0H${w}V${h}H0Z`];
       for (const ring of outerRings(focusShape.geometry)) {
         let d = "";
+        let lastX = Infinity;
+        let lastY = Infinity;
         ring.forEach(([lng, lat], i) => {
           const { x, y } = map.project([lng, lat]);
-          d += `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+          // Points closer than a pixel to the last one add nothing on screen.
+          if (i > 0 && i < ring.length - 1 && Math.abs(x - lastX) < 1 && Math.abs(y - lastY) < 1) return;
+          d += `${d ? "L" : "M"}${Math.round(x)} ${Math.round(y)}`;
+          lastX = x;
+          lastY = y;
         });
-        path += `${d}Z`;
+        parts.push(`${d}Z`);
       }
-      setClipPath(`path(evenodd, "${path}")`);
+      setClipPath(`path(evenodd, "${parts.join("")}")`);
     });
   }, [mapRef, focusShape]);
 
   useEffect(() => {
     const map = mapRef.current?.getMap();
     if (!map) return;
-    map.on("move", update);
+    const hide = () => {
+      cancelAnimationFrame(frame.current);
+      setClipPath(null);
+    };
+    map.on("movestart", hide);
+    map.on("moveend", update);
     map.on("resize", update);
-    update();
+    if (!map.isMoving()) update();
     return () => {
-      map.off("move", update);
+      map.off("movestart", hide);
+      map.off("moveend", update);
       map.off("resize", update);
       cancelAnimationFrame(frame.current);
     };
@@ -172,13 +250,12 @@ export function CoverageDeckMap({
   const mapRef = useRef<MapRef>(null);
   const instructionsId = useId();
   const [loaded, setLoaded] = useState(false);
-  const [hoverCode, setHoverCode] = useState<string | null>(null);
   const { clipPath, update: updateClip } = useOutsideClipPath(mapRef, loaded ? focusShape : null);
 
   const statByCode = useMemo(() => new globalThis.Map(areaStats.map((s) => [s.code, s])), [areaStats]);
   const visiblePoints = useMemo(
-    () => points.filter((p) => visibleCategories[categoryOf(p)]),
-    [points, visibleCategories],
+    () => (mode === "areas" ? [] : points.filter((p) => visibleCategories[categoryOf(p)])),
+    [mode, points, visibleCategories],
   );
   const hexes = useMemo(
     () => (mode === "hexagons" ? hexBin(visiblePoints, HEX_RADIUS_METRES[level]) : []),
@@ -216,15 +293,11 @@ export function CoverageDeckMap({
     [statByCode],
   );
 
-  const layers = useMemo(() => {
-    const list: Layer[] = [];
-
-    // 1. Wash over everything outside the focused area (the CSS blur sits on top of it).
-    if (focusShape) {
-      list.push(
-        new PolygonLayer<{ polygon: number[][][] }>({
-          id: "focus-mask",
-          data: [
+  // Same objects across renders, so deck.gl does not re-tessellate every polygon each time.
+  const maskData = useMemo(
+    () =>
+      focusShape
+        ? [
             {
               polygon: [
                 [
@@ -237,7 +310,54 @@ export function CoverageDeckMap({
                 ...outerRings(focusShape.geometry).map((ring) => ring.map(([x, y]) => [x, y])),
               ],
             },
-          ],
+          ]
+        : [],
+    [focusShape],
+  );
+  const areaData = useMemo(
+    () => ({ type: "FeatureCollection" as const, features: areaShapes }),
+    [areaShapes],
+  );
+  const focusData = useMemo(
+    () => ({ type: "FeatureCollection" as const, features: focusShape ? [focusShape] : [] }),
+    [focusShape],
+  );
+  // One label per area, at the middle of its largest piece (GRID3 can split one INEC ward into
+  // several shapes; those share a code and get a single label).
+  const labelData = useMemo<AreaLabel[]>(() => {
+    const best = new globalThis.Map<string, AreaLabel & { area: number }>();
+    for (const feature of areaShapes) {
+      const code = feature.properties[areaCodeKey] ?? null;
+      const key = code ?? `name:${feature.properties.name}`;
+      for (const ring of outerRings(feature.geometry)) {
+        const { position, area } = labelPoint(ring);
+        const current = best.get(key);
+        if (!current || area > current.area) {
+          const name = (code ? statByCode.get(code)?.name : undefined) ?? feature.properties.name;
+          best.set(key, { position, area, text: titleCase(name) });
+        }
+      }
+    }
+    return [...best.values()].map(({ position, text }) => ({ position, text }));
+  }, [areaShapes, areaCodeKey, statByCode]);
+
+  // The page passes a new click handler on every render; read it through a ref so that does not
+  // rebuild the layers.
+  const pickRef = useRef(onPickArea);
+  useEffect(() => {
+    pickRef.current = onPickArea;
+  }, [onPickArea]);
+  const canPick = Boolean(onPickArea);
+
+  const layers = useMemo(() => {
+    const list: Layer[] = [];
+
+    // 1. Wash over everything outside the focused area (the CSS blur sits on top of it).
+    if (focusShape) {
+      list.push(
+        new PolygonLayer<{ polygon: number[][][] }>({
+          id: "focus-mask",
+          data: maskData,
           getPolygon: (d) => d.polygon,
           getFillColor: [250, 250, 250, 150],
           stroked: false,
@@ -251,30 +371,24 @@ export function CoverageDeckMap({
       list.push(
         new GeoJsonLayer<BoundaryProps>({
           id: "areas",
-          data: { type: "FeatureCollection", features: areaShapes },
+          data: areaData,
           filled: true,
           stroked: true,
           pickable: level !== "ward",
-          getFillColor: (f): RGBA => {
-            const code = f.properties[areaCodeKey] ?? null;
-            if (mode !== "areas") return [255, 255, 255, code && code === hoverCode ? 70 : 0];
-            return fillFor(code, code && code === hoverCode ? 235 : 175);
-          },
-          getLineColor: (f): RGBA => {
-            const code = f.properties[areaCodeKey] ?? null;
-            return code && code === hoverCode ? [10, 10, 10, 255] : mode === "areas" ? [255, 255, 255, 230] : [82, 82, 82, 160];
-          },
-          getLineWidth: (f) => (f.properties[areaCodeKey] && f.properties[areaCodeKey] === hoverCode ? 2.5 : 1),
+          // Hover highlight is done on the GPU, so moving the mouse never re-renders or recolours.
+          autoHighlight: true,
+          highlightColor: mode === "areas" ? [10, 10, 10, 60] : [255, 255, 255, 90],
+          getFillColor: (f): RGBA =>
+            mode === "areas" ? fillFor(f.properties[areaCodeKey] ?? null, 175) : [255, 255, 255, 0],
+          getLineColor: mode === "areas" ? [255, 255, 255, 230] : [82, 82, 82, 160],
+          getLineWidth: 1,
           lineWidthUnits: "pixels",
-          onHover: (info: PickingInfo<BoundaryFeature>) => setHoverCode(info.object?.properties[areaCodeKey] ?? null),
           onClick: (info: PickingInfo<BoundaryFeature>) => {
             const code = info.object?.properties[areaCodeKey];
-            if (code && onPickArea) onPickArea(code);
+            if (code) pickRef.current?.(code);
           },
           updateTriggers: {
-            getFillColor: [mode, hoverCode, statByCode, areaCodeKey],
-            getLineColor: [mode, hoverCode, areaCodeKey],
-            getLineWidth: [hoverCode, areaCodeKey],
+            getFillColor: [mode, statByCode, areaCodeKey],
           },
           transitions: { getFillColor: 300 },
         }),
@@ -287,7 +401,7 @@ export function CoverageDeckMap({
       list.push(
         new GeoJsonLayer<BoundaryProps>({
           id: "focus-outline",
-          data: { type: "FeatureCollection", features: [focusShape] },
+          data: focusData,
           filled: false,
           stroked: true,
           getLineColor: [10, 10, 10, 255],
@@ -343,8 +457,33 @@ export function CoverageDeckMap({
       );
     }
 
+    // 5. Area names, on top of everything else.
+    if (labelData.length) {
+      list.push(
+        new TextLayer<AreaLabel>({
+          id: "area-labels",
+          data: labelData,
+          getPosition: (d) => d.position,
+          getText: (d) => d.text,
+          getSize: level === "national" ? 11 : 12,
+          sizeUnits: "pixels",
+          getColor: [23, 23, 23, 235],
+          fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+          fontWeight: 600,
+          characterSet: "auto",
+          // A white halo keeps names readable over any fill colour.
+          fontSettings: { sdf: true },
+          outlineWidth: 3,
+          outlineColor: [255, 255, 255, 230],
+          getTextAnchor: "middle",
+          getAlignmentBaseline: "center",
+          pickable: false,
+        }),
+      );
+    }
+
     return list;
-  }, [focusShape, areaShapes, level, mode, areaCodeKey, hoverCode, fillFor, statByCode, onPickArea, hexes, maxHexTotal, visiblePoints]);
+  }, [focusShape, maskData, areaData, focusData, areaShapes.length, level, mode, areaCodeKey, fillFor, statByCode, hexes, maxHexTotal, visiblePoints, labelData]);
 
   const getTooltip = useCallback(
     ({ object, layer }: PickingInfo) => {
@@ -366,7 +505,7 @@ export function CoverageDeckMap({
         const stat = code ? statByCode.get(code) : undefined;
         const name = titleCase(stat?.name ?? props.name);
         if (!stat) return { html: `<b>${name}</b><br/><span style="color:#737373">No coverage data</span>`, style };
-        const hint = level !== "ward" && onPickArea ? `<br/><span style="color:#737373">Click to open</span>` : "";
+        const hint = level !== "ward" && canPick ? `<br/><span style="color:#737373">Click to open</span>` : "";
         return {
           html: `<b>${name}</b><br/><span style="color:#1E8A55;font-weight:600">${pct(stat.coveredPUs, stat.totalPUs)}%</span> covered · ${stat.coveredPUs.toLocaleString()} of ${stat.totalPUs.toLocaleString()} units${hint}`,
           style,
@@ -388,8 +527,10 @@ export function CoverageDeckMap({
       }
       return null;
     },
-    [areaCodeKey, statByCode, level, onPickArea],
+    [areaCodeKey, statByCode, level, canPick],
   );
+
+  const overlayProps = useMemo(() => ({ layers, getTooltip, getCursor }), [layers, getTooltip]);
 
   return (
     <div
@@ -418,11 +559,7 @@ export function CoverageDeckMap({
         attributionControl={{ compact: true }}
       >
         <NavigationControl position="top-right" showCompass={mode === "hexagons"} visualizePitch />
-        <DeckOverlay
-          layers={layers}
-          getTooltip={getTooltip}
-          getCursor={({ isHovering }) => (isHovering ? "pointer" : "grab")}
-        />
+        <DeckOverlay props={overlayProps} />
       </Map>
       {clipPath ? (
         <div

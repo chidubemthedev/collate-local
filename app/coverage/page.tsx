@@ -26,6 +26,10 @@ import { Send, Building, AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { WF, PageHeader, LoadingBox, CenterSpinner } from "@/components/ui/wf";
+import type { CoverageMapPoint } from "@/types/api";
+
+// One shared empty list, so the map sees the same array while nothing is loaded.
+const NO_MAP_POINTS: CoverageMapPoint[] = [];
 
 interface SortableRow {
   code: string;
@@ -182,6 +186,9 @@ export default function CoveragePage() {
   }, {
     enabled: !isStateDetailEnabled,
   });
+  // Points are only downloaded when the map view draws them (Hexagons / Points); the default
+  // Areas view needs none, and the national list is ~130k points.
+  const [mapNeedsPoints, setMapNeedsPoints] = useState(false);
   const coordinatesEnabled =
     (selectedStateCode === "all" || selectedStateId !== null) &&
     (selectedLgaCode === "all" || selectedLgaId !== null) &&
@@ -192,7 +199,7 @@ export default function CoveragePage() {
       lgaId: selectedLgaId,
       wardId: selectedWardId,
     },
-    { enabled: coordinatesEnabled },
+    { enabled: coordinatesEnabled && mapNeedsPoints },
   );
   const summaryData = isStateDetailEnabled ? stateDetailQuery.data : coverageSummaryQuery.data;
   const isLoadingSummary = isStateDetailEnabled
@@ -629,8 +636,9 @@ export default function CoveragePage() {
         stateName={selectedState?.name}
         lgaName={selectedLga?.name}
         wardName={selectedWard?.name}
-        coordinatePoints={coordinatePointsQuery.data?.points ?? []}
+        coordinatePoints={coordinatePointsQuery.data?.points ?? NO_MAP_POINTS}
         coordinatesLoading={coordinatePointsQuery.isLoading || !coordinatesEnabled}
+        onPointsNeededChange={setMapNeedsPoints}
         coordinatesError={coordinatePointsQuery.error}
         coordinateViewKey={`${selectedStateCode}-${selectedLgaCode}-${selectedWardCode}`}
         onRetryCoordinates={() => {

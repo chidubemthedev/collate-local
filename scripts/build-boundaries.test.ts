@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+// @ts-expect-error: plain JavaScript build script without type declarations
 import { canonName, matchByName, normName, similarity, simplifyRing } from "./build-boundaries.mjs";
 
 type Unit = { code: string; name: string };

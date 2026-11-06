@@ -23,6 +23,7 @@ interface CoverageMapProps {
   coordinatesError: Error | null;
   coordinateViewKey: string;
   onRetryCoordinates: () => void;
+  onPointsNeededChange?: (needed: boolean) => void;
 }
 
 function toTitleCase(name: string) {
@@ -47,6 +48,7 @@ export function CoverageMap({
   coordinatesError,
   coordinateViewKey,
   onRetryCoordinates,
+  onPointsNeededChange,
 }: CoverageMapProps) {
   const scope =
     wardCode !== "all"
@@ -119,6 +121,7 @@ export function CoverageMap({
       error={coordinatesError}
       viewKey={coordinateViewKey}
       onRetry={onRetryCoordinates}
+      onPointsNeededChange={onPointsNeededChange}
       scope={scope}
       areaShapes={areaShapes}
       areaStats={areaStats}

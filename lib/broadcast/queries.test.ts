@@ -14,6 +14,101 @@ const user: PolicyUser = {
   scopeUnits: { stateIds: [], lgaIds: [], wardIds: [], politicalUnitIds: [] },
 };
 
+describe("listBroadcastDeliveries paging", () => {
+  // Every delivery of a broadcast is inserted at once, so they share one created_at, down to the
+  // microsecond. The cursor must keep all six decimals or the next page matches nothing.
+  const BROADCAST_ID = "44444444-4444-4444-8444-444444444444";
+  const CREATED_AT = "2026-01-01T09:30:00.123456Z";
+
+  function setup(rowCount: number) {
+    const rows = Array.from({ length: rowCount }, (_, i) => ({
+      id: `bbbbbbbb-bbbb-4bbb-8bbb-${String(900000000000 - i).padStart(12, "0")}`,
+      personId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+      fullName: `Person ${i}`,
+      phoneNumber: null,
+      channel: "telegram",
+      status: "pending",
+      sentAt: null,
+      deliveredAt: null,
+      tappedOkAt: null,
+      failedAt: null,
+      createdAt: new Date(CREATED_AT),
+      cursorCreatedAt: CREATED_AT,
+    }));
+    const queryBuilder = {
+      innerJoin: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      addSelect: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      andWhere: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      addOrderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      getOne: vi.fn(async () => ({ id: BROADCAST_ID, broadcastStatus: "completed", createdAt: new Date() })),
+      getRawMany: vi.fn(async () => rows),
+    };
+    const manager = {
+      queryRunner: { isTransactionActive: true },
+      getRepository: (entity: typeof AuditLog | typeof Broadcast) =>
+        entity === AuditLog
+          ? { insert: vi.fn(async () => undefined) }
+          : { createQueryBuilder: () => queryBuilder },
+      query: vi.fn(async () => []),
+    } as unknown as EntityManager;
+    return { manager, queryBuilder };
+  }
+
+  it("selects created_at with microseconds for the cursor", async () => {
+    const { manager, queryBuilder } = setup(1);
+    await listBroadcastDeliveries(user, BROADCAST_ID, { limit: 50 }, manager);
+    const selects = queryBuilder.addSelect.mock.calls.map((call) => String(call[0]));
+    expect(selects.some((sql) => sql.includes("HH24:MI:SS.US"))).toBe(true);
+  });
+
+  it("keeps every decimal of created_at in the next-page cursor", async () => {
+    const { manager } = setup(3);
+    const page = await listBroadcastDeliveries(user, BROADCAST_ID, { limit: 2 }, manager);
+
+    expect(page?.items).toHaveLength(2);
+    expect(page?.nextCursor).not.toBeNull();
+    const cursor = JSON.parse(Buffer.from(page!.nextCursor!, "base64url").toString("utf8"));
+    expect(cursor.createdAt).toBe(CREATED_AT);
+  });
+
+  it("compares the cursor's text directly, not through a JavaScript Date", async () => {
+    const first = setup(3);
+    const page = await listBroadcastDeliveries(user, BROADCAST_ID, { limit: 2 }, first.manager);
+
+    const second = setup(1);
+    await listBroadcastDeliveries(
+      user,
+      BROADCAST_ID,
+      { limit: 2, cursor: page!.nextCursor! },
+      second.manager,
+    );
+
+    const brackets = second.queryBuilder.andWhere.mock.calls[0][0] as {
+      whereFactory: (where: unknown) => void;
+    };
+    const conditions: Array<{ sql: string; params: Record<string, unknown> }> = [];
+    const where = {
+      where: (sql: string, params: Record<string, unknown>) => {
+        conditions.push({ sql, params });
+        return where;
+      },
+      orWhere: (sql: string, params: Record<string, unknown>) => {
+        conditions.push({ sql, params });
+        return where;
+      },
+    };
+    brackets.whereFactory(where);
+
+    expect(conditions[0].sql).toContain("CAST(:cursorCreatedAt AS timestamptz)");
+    expect(conditions[0].params.cursorCreatedAt).toBe(CREATED_AT);
+    expect(conditions[1].params.cursorCreatedAt).toBe(CREATED_AT);
+  });
+});
+
 describe("listBroadcastDeliveries audit", () => {
   it("writes the individual-recipient audit in the same transaction as the read", async () => {
     const events: string[] = [];

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertCircle, LoaderCircle } from "lucide-react";
 import type { CoverageMapPoint } from "@/types/api";
 import type { BoundaryFeature, BoundaryProps } from "@/lib/coverage/boundaries";
@@ -9,6 +9,8 @@ import type { AreaStat, MapLevel, MapMode, MarkerCategory } from "./coverage-dec
 
 // Same as MAP_HEIGHT in coverage-deck-map (not imported, so the map code stays in its own chunk).
 const MAP_HEIGHT = "clamp(280px, 60svh, 520px)";
+// One shared empty list, so "no points yet" is the same array every render.
+const NO_POINTS: CoverageMapPoint[] = [];
 
 
 const CoverageDeckMap = dynamic(() => import("./coverage-deck-map").then((module) => module.CoverageDeckMap), {
@@ -41,6 +43,8 @@ interface CoverageCoordinateMapProps {
   /** The outline files have not been built, so only points can be shown. */
   boundariesMissing: boolean;
   onPickArea?: (code: string) => void;
+  /** Tells the page whether the current view draws points, so it only downloads them then. */
+  onPointsNeededChange?: (needed: boolean) => void;
 }
 
 const modes: Array<{ key: MapMode; label: string; description: string }> = [
@@ -102,6 +106,7 @@ export function CoverageCoordinateMap({
   focusShape,
   boundariesMissing,
   onPickArea,
+  onPointsNeededChange,
 }: CoverageCoordinateMapProps) {
   const totalPUs = points.reduce((sum, point) => sum + point.totalPUs, 0);
   const [chosenMode, setChosenMode] = useState<MapMode | null>(null);
@@ -115,6 +120,10 @@ export function CoverageCoordinateMap({
   const mode: MapMode = boundariesMissing && chosenMode !== "hexagons" ? "points" : chosenMode ?? defaultMode;
   const visibleCount = points.filter((point) => visibleCategories[getMarkerCategory(point)]).length;
   const usesMarkers = mode !== "areas";
+
+  useEffect(() => {
+    onPointsNeededChange?.(usesMarkers);
+  }, [usesMarkers, onPointsNeededChange]);
 
   return (
     <figure className="m-0 flex flex-col gap-2 rounded-[14px] border border-[#E5E5E5] bg-white p-3 sm:px-4 sm:py-3.5">
@@ -219,7 +228,7 @@ export function CoverageCoordinateMap({
             areaStats={areaStats}
             areaCodeKey={areaCodeKey}
             focusShape={focusShape}
-            points={isLoading ? [] : points}
+            points={isLoading ? NO_POINTS : points}
             visibleCategories={visibleCategories}
             viewKey={viewKey}
             onPickArea={onPickArea}

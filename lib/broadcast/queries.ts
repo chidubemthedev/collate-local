@@ -87,6 +87,15 @@ export interface DeliveryPage {
   nextCursor: string | null;
 }
 
+/**
+ * created_at as text with all six decimal places. Postgres keeps microseconds, but a JavaScript
+ * Date keeps only milliseconds; a cursor built from a Date never matched rows sharing one
+ * created_at (every delivery of a broadcast is inserted at once), so paging stopped after the
+ * first batch.
+ */
+const exactCreatedAtSql = (alias: string) =>
+  `to_char(${alias}.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+
 function encodeCursor(cursor: BroadcastCursor): string {
   return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
 }
@@ -381,12 +390,13 @@ function applyBroadcastCursor<T extends ObjectLiteral>(
   query.andWhere(
     new Brackets((where) => {
       where
-        .where(`${alias}.createdAt < :cursorCreatedAt`, {
-          cursorCreatedAt: new Date(cursor.createdAt),
+        // The cursor's text is compared as-is (not via a JavaScript Date) to keep microseconds.
+        .where(`${alias}.createdAt < CAST(:cursorCreatedAt AS timestamptz)`, {
+          cursorCreatedAt: cursor.createdAt,
         })
         .orWhere(
-          `${alias}.createdAt = :cursorCreatedAt AND ${alias}.id < :cursorId`,
-          { cursorCreatedAt: new Date(cursor.createdAt), cursorId: cursor.id },
+          `${alias}.createdAt = CAST(:cursorCreatedAt AS timestamptz) AND ${alias}.id < :cursorId`,
+          { cursorCreatedAt: cursor.createdAt, cursorId: cursor.id },
         );
     }),
   );
@@ -412,6 +422,7 @@ export async function listBroadcasts(
         "broadcast.audienceFilter AS \"audienceFilter\"",
         "broadcast.scheduledSendAt AS \"scheduledSendAt\"",
         "broadcast.createdAt AS \"createdAt\"",
+        `${exactCreatedAtSql("broadcast")} AS "cursorCreatedAt"`,
         "sender.id AS \"senderId\"",
         "sender.fullName AS \"senderDisplayName\"",
       ]);
@@ -435,6 +446,7 @@ export async function listBroadcasts(
         audienceFilter: Record<string, unknown>;
         scheduledSendAt: Date | null;
         createdAt: Date;
+        cursorCreatedAt: string;
         senderId: string;
         senderDisplayName: string;
       }>();
@@ -472,10 +484,7 @@ export async function listBroadcasts(
       })),
       nextCursor:
         hasNextPage && lastRow
-          ? encodeCursor({
-              createdAt: new Date(lastRow.createdAt).toISOString(),
-              id: lastRow.id,
-            })
+          ? encodeCursor({ createdAt: lastRow.cursorCreatedAt, id: lastRow.id })
           : null,
     };
   };
@@ -593,6 +602,7 @@ export async function listBroadcastDeliveries(
       .addSelect("delivery.tappedOkAt", "tappedOkAt")
       .addSelect("delivery.failedAt", "failedAt")
       .addSelect("delivery.createdAt", "createdAt")
+      .addSelect(exactCreatedAtSql("delivery"), "cursorCreatedAt")
       .where("delivery.broadcastId = :broadcastId", { broadcastId });
 
     applyBroadcastCursor(query, parsedCursor, "delivery");
@@ -613,6 +623,7 @@ export async function listBroadcastDeliveries(
         tappedOkAt: Date | null;
         failedAt: Date | null;
         createdAt: Date;
+        cursorCreatedAt: string;
       }>();
 
     const hasNextPage = rows.length > limit;
@@ -648,10 +659,7 @@ export async function listBroadcastDeliveries(
       })),
       nextCursor:
         hasNextPage && lastRow
-          ? encodeCursor({
-              createdAt: new Date(lastRow.createdAt).toISOString(),
-              id: lastRow.id,
-            })
+          ? encodeCursor({ createdAt: lastRow.cursorCreatedAt, id: lastRow.id })
           : null,
     };
   };

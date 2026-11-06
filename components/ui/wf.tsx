@@ -156,7 +156,9 @@ export function StatTile({
   return (
     <div className="flex min-w-0 flex-col rounded-[14px] border border-[#E5E5E5] bg-white p-3.5">
       <span className="block h-[18px] truncate text-[12px] font-medium text-[#525252]">{label}</span>
-      <span className="mt-2.5 flex h-8 items-baseline gap-1.5">
+      {/* Wraps: on narrow cards the suffix (e.g. "45% coverage") drops below the number instead of
+          running out of the card. */}
+      <span className="mt-2.5 flex min-h-8 min-w-0 flex-wrap items-baseline gap-x-1.5">
         <span className="text-[24px] leading-8 font-bold tabular-nums" style={{ color }}>
           {value}
         </span>
