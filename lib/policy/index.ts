@@ -17,6 +17,7 @@ import type { PolicyUser } from "./core/policy-user";
 import type { Scope } from "./core/scope";
 import type { VisibleOwners } from "./core/owners";
 import type { AgentFilters, AgentSummaryFilters } from "./schemas";
+import { effectiveAccess, loadOwnAccess, policyUserForView } from "@/lib/auth/view-as";
 
 export { agentFiltersSchema, agentSummaryFiltersSchema } from "./schemas";
 export { ForbiddenError, InvalidFilterError } from "./errors";
@@ -37,9 +38,16 @@ export async function loadPolicyUser(personId: string): Promise<PolicyUser> {
   return loadPolicyUserCore(personId, await getManager());
 }
 
+/** The user for policy checks: the person themselves, or the access they are previewing with "View as". */
 export async function policyUserFromCurrentUser(
   currentUser: CurrentUser,
 ): Promise<PolicyUser> {
+  if (currentUser.viewAs) {
+    const dataSource = await getDataSource();
+    const { own } = await loadOwnAccess(dataSource, currentUser.personId);
+    const view = await effectiveAccess(dataSource, own, currentUser.viewAs);
+    if (view) return policyUserForView(dataSource, currentUser.personId, view);
+  }
   return loadPolicyUser(currentUser.personId);
 }
 

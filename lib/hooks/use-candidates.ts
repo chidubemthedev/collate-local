@@ -29,6 +29,7 @@ function toCandidate(item: CandidateCoverage): CandidateData {
     id: item.id,
     office: item.office,
     seat: item.seat,
+    seatId: item.seatId,
     stateCode: item.inecStateCode,
     name: item.name,
     deputyName: item.deputyName,

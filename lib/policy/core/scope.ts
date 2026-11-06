@@ -14,7 +14,8 @@ let scopeSequence = 0;
 
 export function getScope(user: PolicyUser, _manager?: EntityManager): Scope {
   void _manager;
-  if (user.isAdmin) {
+  // Admins and party (national) accounts see every polling unit.
+  if (user.isAdmin || user.hasNationalAccess) {
     return { kind: "all", apply: () => undefined };
   }
 

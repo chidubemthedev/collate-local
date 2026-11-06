@@ -34,16 +34,6 @@ const LATEST_CONSENT_DECLINED = (personColumn: string) => `
   )
 `;
 
-export function validateAudienceFilter(
-  user: PolicyUser,
-  filter: AudienceFilter,
-): void {
-  // ASSUMPTION: non-admin candidates cannot use LGA filters; they can filter by political unit or ward.
-  if (user.candidateId !== null && !user.isAdmin && filter.lgaId !== undefined) {
-    throw new InvalidFilterError();
-  }
-}
-
 function applyAudienceFilter(
   query: SelectQueryBuilder<AgentAssignment>,
   filter: AudienceFilter,
@@ -141,7 +131,6 @@ export async function previewAudience(
   if (!parsed.success) {
     throw new InvalidFilterError();
   }
-  validateAudienceFilter(user, parsed.data);
 
   const entityManager = await resolveManager(manager);
   const query = baseRecipientQuery(entityManager, user, parsed.data)
@@ -196,7 +185,6 @@ export async function materializeDeliveries(
       broadcast.senderPersonId,
       transactionManager,
     );
-    validateAudienceFilter(user, parsed.data);
 
     // TODO(decision): candidate recipients.
     const recipients = baseRecipientQuery(

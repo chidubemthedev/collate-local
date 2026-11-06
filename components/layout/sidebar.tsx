@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, usePermissions, useLogout } from "@/lib/hooks/use-auth";
 import { useHasMounted } from "@/lib/hooks/use-has-mounted";
-import { NAV, NavIcon, EyeIcon, ViewAsField, accessLabel, type NavSection } from "@/components/layout/nav";
+import { NAV, NavIcon, EyeIcon, accessLabel, type NavSection } from "@/components/layout/nav";
+import { ViewAsField } from "@/components/layout/view-as-field";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -23,7 +24,8 @@ export function Sidebar() {
     ...(permissions?.canManageCoverage === true ? (["pu"] as const) : []),
     ...(permissions?.canBroadcast === true ? (["msg"] as const) : []),
   ];
-  const access = accessLabel(permissions?.roles, permissions?.isAdmin);
+  // The person's own access (the roles change while "View as" is on).
+  const access = permissions?.ownAccess ?? accessLabel(permissions?.roles, permissions?.isAdmin);
 
   return (
     <nav
@@ -51,7 +53,7 @@ export function Sidebar() {
           <EyeIcon />
           View as
         </span>
-        <ViewAsField value={session?.authenticated ? access : "Not signed in"} />
+        <ViewAsField />
       </div>
 
       <div className="flex flex-col gap-4 px-3 py-3.5">

@@ -1,6 +1,7 @@
 import "server-only";
 import { connection } from "next/server";
 import { requireApiAuth } from "@/lib/auth/api";
+import { loadHomeArea } from "@/lib/auth/view-as";
 import { internalError, success } from "@/lib/api/response";
 
 export async function GET() {
@@ -9,6 +10,8 @@ export async function GET() {
   try {
     const auth = await requireApiAuth();
     if (!auth.ok) return auth.response;
+    // Where the current access (own or previewed) sits, so pages open on that area.
+    const homeArea = await loadHomeArea(auth.context.dataSource, auth.context);
 
     return success({
       authenticated: true,
@@ -17,6 +20,10 @@ export async function GET() {
         canManageCoverage: auth.context.canManageCoverage,
         canBroadcast: auth.context.canManageCoverage,
         roles: [...new Set(auth.context.roles.map((role) => role.name))],
+        ownAccess: auth.context.ownLabel,
+        viewAs: auth.context.viewAs?.label ?? null,
+        readOnly: auth.context.viewAs !== null,
+        homeArea,
       },
     });
   } catch (error) {

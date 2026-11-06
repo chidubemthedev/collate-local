@@ -5,6 +5,11 @@ const mocks = vi.hoisted(() => ({
   requireUser: vi.fn(),
   getClientIp: vi.fn(),
   listWardPollingUnits: vi.fn(),
+  policyUserFromCurrentUser: vi.fn(),
+}));
+
+vi.mock("@/lib/policy", () => ({
+  policyUserFromCurrentUser: mocks.policyUserFromCurrentUser,
 }));
 
 vi.mock("server-only", () => ({}));
@@ -59,6 +64,23 @@ describe("ward polling unit route", () => {
       { ipAddress: "203.0.113.1" },
     );
   }, 15_000);
+
+  it("lists with the previewed access while View as is on", async () => {
+    const previewed = { personId: "11111111-1111-4111-8111-111111111111", seatId: 6 };
+    mocks.requireUser.mockResolvedValue({
+      personId: "11111111-1111-4111-8111-111111111111",
+      viewAs: { kind: "seat", seatId: 6, unitId: 155, unitType: "state", label: "Candidate · Governor, Lagos" },
+    });
+    mocks.policyUserFromCurrentUser.mockResolvedValue(previewed);
+    const { GET } = await import("./route");
+    const response = await GET(
+      new Request("http://localhost/api/geography/wards/7/polling-units"),
+      { params: Promise.resolve({ wardId: "7" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.listWardPollingUnits.mock.calls[0][3]).toEqual({ ipAddress: "203.0.113.1", user: previewed });
+  });
 
   it("returns 404 when the requested ward is outside scope", async () => {
     mocks.listWardPollingUnits.mockResolvedValue(null);

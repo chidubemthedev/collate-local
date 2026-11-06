@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateAssignment, useDeleteAssignment } from "@/lib/hooks/use-coverage";
+import { READ_ONLY_TITLE, useReadOnly } from "@/lib/hooks/use-auth";
 import {
   ShieldCheck,
   AlertCircle,
@@ -50,6 +51,8 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
 
   const createAssignment = useCreateAssignment();
   const deleteAssignment = useDeleteAssignment();
+  const readOnly = useReadOnly();
+  const readOnlyTitle = readOnly ? READ_ONLY_TITLE : undefined;
 
   if (!pu) return null;
 
@@ -199,7 +202,8 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
                       variant="outline"
                       className="text-xs h-7 gap-1 border-rose-300 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40"
                       onClick={handleUnassignOfficial}
-                      disabled={deleteAssignment.isPending}
+                      disabled={deleteAssignment.isPending || readOnly}
+                      title={readOnlyTitle}
                     >
                       {deleteAssignment.isPending ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
@@ -299,6 +303,8 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
                     variant="outline"
                     className="w-full text-xs h-7 gap-1 mt-1 border-amber-500/50 text-amber-800 dark:text-amber-300"
                     onClick={() => setIsAssigning(true)}
+                    disabled={readOnly}
+                    title={readOnlyTitle}
                   >
                     <UserPlus className="w-3 h-3" /> Assign Official Party Agent
                   </Button>
@@ -344,8 +350,8 @@ export function PUDetailDrawer({ pu, open, onOpenChange }: PUDetailDrawerProps) 
                             variant="ghost"
                             className="h-5 px-1.5 text-[10px] text-rose-600 hover:text-rose-700 hover:bg-rose-50"
                             onClick={() => handleUnassignExtra(agent.assignmentId)}
-                            disabled={deleteAssignment.isPending}
-                            title="Unassign this extra agent"
+                            disabled={deleteAssignment.isPending || readOnly}
+                            title={readOnlyTitle ?? "Unassign this extra agent"}
                           >
                             <Trash2 className="w-2.5 h-2.5" />
                           </Button>

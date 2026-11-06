@@ -62,7 +62,30 @@ export interface PermissionsData {
     canManageCoverage: boolean;
     canBroadcast: boolean;
     roles: string[];
+    /** The person's own access, whatever view is on. */
+    ownAccess: string;
+    /** The access being previewed with "View as", or null. */
+    viewAs: string | null;
+    /** True while a view is on: nothing can be changed. */
+    readOnly: boolean;
+    /** INEC codes of the state / LGA / ward the current access lies in; null = national. */
+    homeArea: { stateCode: string | null; lgaCode: string | null; wardCode: string | null } | null;
   };
+}
+
+export interface ViewAsOption {
+  /** "party", "admin", "self" or "seat:<id>". */
+  value: string;
+  label: string;
+}
+
+export interface ViewAsOptionsData {
+  /** The value of the view that is on (or of the person's own access). */
+  current: string;
+  /** The person's own access. */
+  self: ViewAsOption;
+  /** Single entries first (heading null), then one group per seat level. */
+  groups: Array<{ heading: string | null; options: ViewAsOption[] }>;
 }
 
 export interface OtpRequestPayload {
@@ -181,6 +204,7 @@ export interface CandidateCoverage {
   office: string;
   hierarchyLevel: number;
   seat: string;
+  seatId: number;
   stateId: number | null;
   inecStateCode: string | null;
   name: string;

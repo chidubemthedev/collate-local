@@ -88,6 +88,19 @@ describe("POST /api/coverage/assignments", () => {
     expect(calls.some((sql) => sql.includes("INSERT INTO agent_assignment"))).toBe(false);
   });
 
+  it("refuses every change while View as is on", async () => {
+    const calls = useDatabase([{ id: 42, allowed: true }]);
+    const original = { ...AUTH_ROWS[0] };
+    Object.assign(AUTH_ROWS[0], { group_type: "party", scope_state_id: null, view_as: { kind: "party" } });
+    try {
+      const response = await post(validBody);
+      expect(response.status).toBe(403);
+      expect(calls).toHaveLength(0);
+    } finally {
+      Object.assign(AUTH_ROWS[0], original, { view_as: undefined });
+    }
+  });
+
   it("returns not found when the polling unit does not exist", async () => {
     useDatabase([]);
     const response = await post(validBody);

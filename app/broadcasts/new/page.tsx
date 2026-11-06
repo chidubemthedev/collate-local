@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { usePermissions, useSession } from "@/lib/hooks/use-auth";
+import { READ_ONLY_TITLE, usePermissions, useSession } from "@/lib/hooks/use-auth";
 import {
   useGeographyLgas,
   useGeographyPollingUnits,
@@ -219,7 +219,8 @@ export default function NewBroadcastPage() {
   }, [timing, scheduledDate, scheduledTime, now]);
   const timeReady = scheduleCheck.ok;
 
-  const canSend = toReady && messageReady && timeReady && !createBroadcast.isPending;
+  const readOnly = permissions?.readOnly === true;
+  const canSend = toReady && messageReady && timeReady && !createBroadcast.isPending && !readOnly;
 
   const handleSend = () => {
     if (!canSend) return;
@@ -617,6 +618,7 @@ export default function NewBroadcastPage() {
               type="button"
               disabled={!canSend}
               onClick={handleSend}
+              title={readOnly ? READ_ONLY_TITLE : undefined}
               className={`inline-flex min-h-9 items-center gap-1.5 rounded-[10px] px-4 text-[13px] font-semibold ${
                 canSend || createBroadcast.isPending ? "bg-[#171717] text-[#FAFAFA]" : "cursor-not-allowed bg-[#E5E5E5] text-[#8A8A8A]"
               }`}
@@ -633,7 +635,9 @@ export default function NewBroadcastPage() {
               )}
             </button>
             <span className="text-[12px] text-[#737373]">
-              {canSend || createBroadcast.isPending
+              {readOnly
+                ? "Sending is off while viewing as someone else."
+                : canSend || createBroadcast.isPending
                 ? "Messages can't be unsent."
                 : "Finish every part above to send."}
             </span>

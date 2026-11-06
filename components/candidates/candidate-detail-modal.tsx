@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/
 import { WF, Pill, officeTone } from "@/components/ui/wf";
 import { toTitleCase } from "./candidates-filters";
 import { coverageTier, CHANNEL_PILL, deputyTitle, coverageText } from "./candidate-pills";
+import { useCandidateViewAs } from "./candidate-view-as";
 
 interface CandidateDetailModalProps {
   candidate: CandidateData | null;
@@ -57,6 +58,7 @@ function CandidateDetailBody({
 }) {
   const tier = coverageTier(candidate);
   const channel = CHANNEL_PILL[candidate.telegramStatus] ?? CHANNEL_PILL.not_matched;
+  const viewAs = useCandidateViewAs(candidate.seatId);
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto bg-white p-5 text-[#0A0A0A]">
@@ -113,11 +115,20 @@ function CandidateDetailBody({
         <span className="text-[11px] text-[#737373]">Read-only. Only Admin can edit candidate details.</span>
       </div>
 
-      {/* Both actions are not built yet. */}
       <div className="mt-auto flex flex-wrap gap-2 border-t border-[#F0F0F0] pt-3">
-        <button type="button" disabled title="Not available yet" className={WF.btnDark}>
-          View as this candidate
+        <button
+          type="button"
+          disabled={!viewAs.canView}
+          title={viewAs.title}
+          onClick={() => {
+            viewAs.start();
+            onClose();
+          }}
+          className={`${WF.btnDark} disabled:cursor-not-allowed disabled:opacity-50`}
+        >
+          {viewAs.pending ? "Switching…" : "View as this candidate"}
         </button>
+        {/* Not built yet. */}
         <button type="button" disabled title="Not available yet" className={WF.btnOutline}>
           Agents in this seat
         </button>

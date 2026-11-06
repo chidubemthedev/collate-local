@@ -35,6 +35,10 @@ export class AuthSession {
   @Column({ name: "revoked_at", type: "timestamptz", nullable: true })
   revokedAt: Date | null;
 
+  /** The access being previewed with "View as"; null means the person's own access. */
+  @Column({ name: "view_as", type: "jsonb", nullable: true })
+  viewAs: Record<string, unknown> | null;
+
   @Column({ name: "created_from_ip", type: "varchar", nullable: true })
   createdFromIp: string | null;
 

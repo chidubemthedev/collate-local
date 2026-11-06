@@ -8,7 +8,7 @@ import { InvalidFilterError } from "../errors";
 import { resolveManager } from "./database";
 import { getScope } from "./scope";
 import { getVisibleOwners } from "./owners";
-import { loadPolicyUser } from "./policy-user";
+import { loadPolicyUser, type PolicyUser } from "./policy-user";
 import { maskPhoneNumber } from "./list-agents";
 import { gpsFilterSchema, gpsFilterSql, hasGpsSql } from "../../geography/gps";
 
@@ -70,6 +70,8 @@ export interface WardPollingUnitsPage {
 
 export interface WardPollingUnitsContext {
   ipAddress?: string | null;
+  /** Use this access instead of the person's own (set while "View as" is on). */
+  user?: PolicyUser;
 }
 
 interface PollingUnitRow {
@@ -128,7 +130,7 @@ export async function listWardPollingUnits(
 
   const entityManager = await resolveManager(manager);
   const execute = async (transactionManager: EntityManager) => {
-    const user = await loadPolicyUser(personId, transactionManager);
+    const user = context?.user ?? await loadPolicyUser(personId, transactionManager);
     const scope = getScope(user, transactionManager);
     const wardScopeQuery = transactionManager
       .getRepository(PollingUnit)

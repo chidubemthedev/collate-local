@@ -2,10 +2,9 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import type { DataSource, EntityManager, QueryRunner } from "typeorm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { listAgents, validateAgentFilters } from "./list-agents";
+import { listAgents } from "./list-agents";
 import { canAccessPollingUnit, describeScope } from "./scope-queries";
 import { loadPolicyUser } from "./policy-user";
-import { InvalidFilterError } from "../errors";
 import { AgentKind } from "../../db/entities/agent-assignment.entity";
 import { AuditLog } from "../../db/entities/audit-log.entity";
 
@@ -209,13 +208,12 @@ describe.skipIf(!shouldRun)("policy database integration", () => {
     expect(paginationAssignmentIds.some((id) => page.items.some((item) => item.assignmentId === id))).toBe(true);
   });
 
-  it("rejects candidate LGA filters and returns an empty page for an out-of-scope state", async () => {
+  it("lets a candidate filter by LGA inside their seat, and returns an empty page for an out-of-scope state", async () => {
     const { candidatePersonId, kanoStateId } = requireFixtures();
     const candidate = await loadPolicyUser(candidatePersonId, requireManager());
 
-    expect(() => validateAgentFilters(candidate, { lgaId: 1, limit: 50 })).toThrow(
-      InvalidFilterError,
-    );
+    // The seat still limits what they see; an LGA only narrows it.
+    await expect(listAgents(candidate, { lgaId: 1, limit: 50 }, undefined, requireManager())).resolves.toBeDefined();
     const page = await listAgents(
       candidate,
       { stateId: kanoStateId, limit: 50 },
@@ -468,7 +466,8 @@ async function createFixtures(entityManager: EntityManager): Promise<Fixtures> {
     ["group_name", "group_type"],
     [
       [`Policy Admin ${key}`, "admin"],
-      [`Policy Viewer ${key}`, "party"],
+      // Area coordinators. A campaign group, since a party member with no area is national.
+      [`Policy Viewer ${key}`, "campaign"],
       [`Policy Lagos Owner ${key}`, "party"],
       [`Policy Kano Owner ${key}`, "party"],
       [`Policy Ungranted Owner ${key}`, "party"],

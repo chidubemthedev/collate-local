@@ -15,23 +15,6 @@ export type RoleType =
   | "Candidate · State Assembly"
   | "PU Agent";
 
-export interface Persona {
-  id: string;
-  name: string;
-  role: RoleType;
-  office?: OfficeType;
-  seat?: string;
-  stateCode?: string;
-  lgaCode?: string;
-  constituencyCode?: string;
-  label: string;
-  description: string;
-  canFilterByLGA: boolean;
-  allowedStateCodes?: string[];
-  allowedLgaCodes?: string[];
-  allowedWardCodes?: string[];
-}
-
 export interface StateData {
   code: string;
   name: string;
@@ -108,6 +91,7 @@ export interface CandidateData {
   id: number;
   office: string;
   seat: string;
+  seatId: number;
   stateCode: string | null;
   name: string;
   deputyName: string | null;

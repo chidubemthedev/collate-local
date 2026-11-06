@@ -1,14 +1,12 @@
 "use client";
 
 import React, { createContext, useContext, useState } from "react";
-import { Persona, BroadcastData, AccessGroup } from "@/lib/types";
-import { getEffectivePersona } from "@/lib/tree-permissions";
+import { BroadcastData, AccessGroup } from "@/lib/types";
 import { BROADCASTS_DATA } from "@/lib/data/broadcasts-data";
 import { ACCESS_GROUPS_DATA } from "@/lib/data/settings-data";
+import { usePermissions } from "@/lib/hooks/use-auth";
 
 interface AppContextType {
-  activePersona: Persona;
-  setPersonaId: (id: string) => void;
   broadcasts: BroadcastData[];
   accessGroups: AccessGroup[];
   // Selected area filter shortcuts across pages
@@ -24,7 +22,6 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [personaId, setPersonaIdState] = useState<string>("persona-party-national");
   const [broadcasts] = useState<BroadcastData[]>(BROADCASTS_DATA);
   const [accessGroups] = useState<AccessGroup[]>(ACCESS_GROUPS_DATA);
 
@@ -33,44 +30,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [selectedLgaCode, setSelectedLgaCode] = useState<string>("all");
   const [selectedWardCode, setSelectedWardCode] = useState<string>("all");
 
-  const activePersona = getEffectivePersona(personaId);
-
-  // When persona changes, adjust default area filters if persona is locked to a constituency
-  const setPersonaId = (id: string) => {
-    setPersonaIdState(id);
-    const p = getEffectivePersona(id);
-    if (p.stateCode) {
-      setSelectedStateCode(p.stateCode);
-    } else {
-      setSelectedStateCode("all");
-    }
-    if (p.lgaCode) {
-      setSelectedLgaCode(p.lgaCode);
-    } else {
-      setSelectedLgaCode("all");
-    }
-    setSelectedWardCode("all");
-  };
+  // The area the current access (own, or previewed with "View as") lies in. Pages open there,
+  // and move there again whenever the access changes, so a Governor view starts on its state.
+  const { data: permissions } = usePermissions();
+  const home = permissions?.homeArea ?? null;
+  const homeState = home?.stateCode ?? "all";
+  const homeLga = home?.lgaCode ?? "all";
+  const homeWard = home?.wardCode ?? "all";
+  const homeKey = permissions ? `${permissions.viewAs ?? ""}|${homeState}|${homeLga}|${homeWard}` : null;
+  const [appliedHomeKey, setAppliedHomeKey] = useState<string | null>(null);
+  if (homeKey !== null && homeKey !== appliedHomeKey) {
+    // Adjusting state while rendering (not in an effect), so there is no frame showing the old area.
+    setAppliedHomeKey(homeKey);
+    setSelectedStateCode(homeState);
+    setSelectedLgaCode(homeLga);
+    setSelectedWardCode(homeWard);
+  }
 
   const resetAreaFilters = () => {
-    if (activePersona.stateCode) {
-      setSelectedStateCode(activePersona.stateCode);
-    } else {
-      setSelectedStateCode("all");
-    }
-    if (activePersona.lgaCode) {
-      setSelectedLgaCode(activePersona.lgaCode);
-    } else {
-      setSelectedLgaCode("all");
-    }
-    setSelectedWardCode("all");
+    setSelectedStateCode(homeState);
+    setSelectedLgaCode(homeLga);
+    setSelectedWardCode(homeWard);
   };
 
   return (
     <AppContext.Provider
       value={{
-        activePersona,
-        setPersonaId,
         broadcasts,
         accessGroups,
         selectedStateCode,

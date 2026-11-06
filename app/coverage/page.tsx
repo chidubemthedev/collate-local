@@ -51,7 +51,6 @@ function compareRows(sortBy: string) {
 
 export default function CoveragePage() {
   const {
-    activePersona,
     selectedStateCode,
     setSelectedStateCode,
     selectedLgaCode,
@@ -553,7 +552,6 @@ export default function CoveragePage() {
       }}
       searchQuery={searchQuery}
       setSearchQuery={setSearchQuery}
-      activePersona={activePersona}
       onReset={() => {
         resetAreaFilters();
         setSelectedOfficeId(null);
