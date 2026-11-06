@@ -5,6 +5,7 @@ import { apiClient, ApiClientError } from "@/lib/api/client";
 import type {
   SessionData,
   PermissionsData,
+  ViewAsOptionsData,
   OtpRequestPayload,
   OtpVerifyPayload,
   OtpVerifyResponse,
@@ -13,7 +14,11 @@ import type {
 export const AUTH_KEYS = {
   session: ["auth", "session"] as const,
   permissions: ["auth", "permissions"] as const,
+  viewAs: ["auth", "view-as"] as const,
 };
+
+/** Shown on actions that are turned off while "View as" is on. */
+export const READ_ONLY_TITLE = "Read-only while viewing as someone else. Exit the view to make changes.";
 
 /**
  * Hook to retrieve the current auth session from /api/auth/session.
@@ -43,6 +48,45 @@ export function usePermissions() {
     },
     enabled: Boolean(session?.authenticated),
     staleTime: 1000 * 60 * 5,
+  });
+}
+
+/** True while "View as" is on, so actions that change data are turned off. */
+export function useReadOnly(): boolean {
+  const { data: permissions } = usePermissions();
+  return permissions?.readOnly === true;
+}
+
+/** The choices for the "View as" dropdown (only fetched once the dropdown is wanted). */
+export function useViewAsOptions(enabled: boolean) {
+  return useQuery<ViewAsOptionsData, ApiClientError>({
+    queryKey: AUTH_KEYS.viewAs,
+    queryFn: async () => (await apiClient.get<ViewAsOptionsData>("/api/auth/view-as")).data,
+    enabled,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Turns a view on (a value from the dropdown) or off (null). Everything on screen was loaded
+ * with the old access, so all other data is dropped and loaded again.
+ */
+export function useSetViewAs() {
+  const queryClient = useQueryClient();
+
+  return useMutation<{ viewAs: string | null }, ApiClientError, string | null>({
+    mutationFn: async (value) => {
+      const res =
+        value === null
+          ? await apiClient.delete<{ viewAs: string | null }>("/api/auth/view-as")
+          : await apiClient.put<{ viewAs: string | null }>("/api/auth/view-as", { value });
+      return res.data;
+    },
+    onSuccess: async () => {
+      await queryClient.resetQueries({ predicate: (query) => query.queryKey[0] !== "auth" });
+      await queryClient.invalidateQueries({ queryKey: AUTH_KEYS.permissions });
+      await queryClient.invalidateQueries({ queryKey: AUTH_KEYS.viewAs });
+    },
   });
 }
 

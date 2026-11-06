@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { AgentAutocomplete } from "./agent-autocomplete";
 import { useCreateAssignment, useDeleteAssignment } from "@/lib/hooks/use-coverage";
+import { READ_ONLY_TITLE, useReadOnly } from "@/lib/hooks/use-auth";
 import {
   ShieldCheck,
   AlertCircle,
@@ -75,6 +76,7 @@ export function AgentDetailModal({
 }: AgentDetailModalProps) {
   const createAssignment = useCreateAssignment();
   const deleteAssignment = useDeleteAssignment();
+  const readOnly = useReadOnly();
 
   const [personIdInput, setPersonIdInput] = useState("");
   const [ownerType, setOwnerType] = useState<"group" | "candidate">("group");
@@ -305,6 +307,8 @@ export function AgentDetailModal({
                   size="sm"
                   className="w-full text-xs h-8 bg-amber-600 hover:bg-amber-700 text-white"
                   onClick={() => setIsAssigning(true)}
+                  disabled={readOnly}
+                  title={readOnly ? READ_ONLY_TITLE : undefined}
                 >
                   Assign Official Party Agent Now
                 </Button>
@@ -407,7 +411,8 @@ export function AgentDetailModal({
                 variant="outline"
                 size="sm"
                 onClick={handleLiveUnassign}
-                disabled={deleteAssignment.isPending}
+                disabled={deleteAssignment.isPending || readOnly}
+                title={readOnly ? READ_ONLY_TITLE : undefined}
                 className="text-xs h-8 text-destructive border-destructive/30 hover:bg-destructive/10 gap-1"
               >
                 {deleteAssignment.isPending ? (

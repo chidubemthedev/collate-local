@@ -2,7 +2,6 @@
 
 import React from "react";
 import { useGeographyStates, useGeographyLgas, useGeographyWards } from "@/lib/hooks/use-geography";
-import { Persona } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableToolbar } from "@/components/ui/table-toolbar";
@@ -66,7 +65,6 @@ interface CoverageFiltersProps {
   setViewBy: (viewBy: CoverageViewBy) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  activePersona: Persona;
   onReset: () => void;
   offices: CandidateOfficeOption[];
   officeId: number | null;
@@ -89,7 +87,6 @@ export function CoverageFilters({
   setViewBy,
   searchQuery,
   setSearchQuery,
-  activePersona,
   onReset,
   offices,
   officeId,
@@ -117,7 +114,6 @@ export function CoverageFilters({
   const lgaBusy = stateCode !== "all" && lgasLoading;
   const wardBusy = lgaCode !== "all" && wardsLoading;
   const isPolitical = viewBy === "political";
-  const stateLocked = Boolean(activePersona.stateCode);
 
   const stateLabel = selectedState ? titleCase(selectedState.name) : stateCode;
   const lgaLabel = selectedLga ? titleCase(selectedLga.name) : lgaCode;
@@ -128,7 +124,7 @@ export function CoverageFilters({
     {
       label: "Nigeria",
       go: () => {
-        if (!stateLocked) setStateCode("all");
+        setStateCode("all");
         setLgaCode("all");
         setWardCode("all");
       },
@@ -150,7 +146,7 @@ export function CoverageFilters({
   const summary = crumbs.map((c) => c.label).join(" / ");
 
   const activeFilters = [
-    ...(stateCode !== "all" && !stateLocked
+    ...(stateCode !== "all"
       ? [
           {
             id: "state",
@@ -271,9 +267,8 @@ export function CoverageFilters({
                   setWardCode("all");
                 }
               }}
-              disabled={stateLocked}
             >
-              <SelectTrigger className={TRIGGER_CLASS} title={stateLocked ? "Your access is limited to this state" : undefined}>
+              <SelectTrigger className={TRIGGER_CLASS}>
                 <SelectValue>
                   {(val) => {
                     if (!val || val === "all") return "All states";
@@ -326,12 +321,9 @@ export function CoverageFilters({
                   setWardCode("all");
                 }
               }}
-              disabled={stateCode === "all" || !activePersona.canFilterByLGA || lgaBusy}
+              disabled={stateCode === "all" || lgaBusy}
             >
-              <SelectTrigger
-                className={TRIGGER_CLASS}
-                title={!activePersona.canFilterByLGA ? "A constituency can span several LGAs, so this filter is locked" : undefined}
-              >
+              <SelectTrigger className={TRIGGER_CLASS}>
                 <SelectValue>
                   {(val) => {
                     if (lgaBusy) return "Loading LGAs…";

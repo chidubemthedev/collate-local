@@ -74,23 +74,6 @@ export function EyeIcon({ size = 12 }: { size?: number }) {
   );
 }
 
-/** "View as" is not built yet: a disabled dropdown showing the signed-in access. */
-export function ViewAsField({ value }: { value: string }) {
-  return (
-    <button
-      type="button"
-      disabled
-      title="Switching the view is not available yet"
-      className="flex min-h-9 w-full items-center justify-between gap-2 rounded-[8px] border border-[#E5E5E5] bg-[#F0F0F0] px-2.5 text-left text-[13px] text-[#737373]"
-    >
-      <span className="truncate">{value}</span>
-      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-        <path d="M6 9l6 6 6-6" />
-      </svg>
-    </button>
-  );
-}
-
 export function accessLabel(roles: string[] | undefined, isAdmin: boolean | undefined): string {
   return roles && roles.length ? roles.join(", ") : isAdmin ? "Admin" : "Account";
 }

@@ -15,7 +15,8 @@ let ownerSequence = 0;
 
 export function getVisibleOwners(user: PolicyUser, _manager?: EntityManager): VisibleOwners {
   void _manager;
-  if (user.isAdmin || user.groupIds.length === 0) {
+  // Admins and party (national) accounts see agents of every owner.
+  if (user.isAdmin || user.hasNationalAccess || user.groupIds.length === 0) {
     // ASSUMPTION: candidate-only users have no viewer group, so they see all group owners.
     return { kind: "all", apply: () => undefined };
   }

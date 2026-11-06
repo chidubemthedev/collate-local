@@ -1,7 +1,7 @@
 import "server-only";
 import { connection } from "next/server";
 import { getClientIp } from "@/lib/auth/request";
-import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
+import { getCoverageScopeFilter, readOnlyResponse, requireApiAuth } from "@/lib/auth/api";
 import { failure, internalError, success } from "@/lib/api/response";
 
 type AssignmentBody = {
@@ -71,6 +71,7 @@ export async function POST(request: Request) {
   try {
     const auth = await requireApiAuth();
     if (!auth.ok) return auth.response;
+    if (auth.context.viewAs) return readOnlyResponse();
 
     let rawBody: unknown;
     try {

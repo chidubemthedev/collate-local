@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, usePermissions, useLogout } from "@/lib/hooks/use-auth";
 import { useHasMounted } from "@/lib/hooks/use-has-mounted";
-import { NAV, NavIcon, ViewAsField, accessLabel, sectionOf, type NavSection } from "@/components/layout/nav";
+import { NAV, NavIcon, sectionOf, type NavSection } from "@/components/layout/nav";
+import { ViewAsField } from "@/components/layout/view-as-field";
 
 /** Phone header from the wireframes: brand, View as, the two feature tabs, then the views inside the feature. */
 export function MobileNav() {
@@ -72,7 +73,7 @@ export function MobileNav() {
         {session?.authenticated ? (
           <div className="flex min-w-0 flex-[1_1_100%] flex-col gap-1">
             <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#737373]">View as</span>
-            <ViewAsField value={accessLabel(permissions?.roles, permissions?.isAdmin)} />
+            <ViewAsField />
           </div>
         ) : null}
 

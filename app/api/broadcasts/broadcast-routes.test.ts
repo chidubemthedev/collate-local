@@ -87,6 +87,20 @@ describe("broadcast routes", () => {
     expect(mocks.requireUser).not.toHaveBeenCalled();
   });
 
+  it("refuses to send a broadcast while View as is on", async () => {
+    mocks.requireUser.mockResolvedValue({ personId: user.personId, viewAs: { kind: "party" } });
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("http://localhost/api/broadcasts", {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://localhost" },
+        body: JSON.stringify({ messageText: "Hello", audienceFilter: {} }),
+      }),
+    );
+    expect(response.status).toBe(403);
+    expect(mocks.createBroadcast).not.toHaveBeenCalled();
+  });
+
   it("returns official and extra counts only from preview", async () => {
     const { POST } = await import("./preview/route");
     const response = await POST(postRequest({}));

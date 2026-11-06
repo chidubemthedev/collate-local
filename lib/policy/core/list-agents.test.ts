@@ -2,9 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { EntityManager } from "typeorm";
 import { AgentAssignment } from "../../db/entities/agent-assignment.entity";
 import { AuditLog } from "../../db/entities/audit-log.entity";
-import { listAgents, maskPhoneNumber, summarizeAgents, validateAgentFilters } from "./list-agents";
+import { listAgents, maskPhoneNumber, summarizeAgents } from "./list-agents";
 import { CONSENT_TEXT_VERSION } from "../../channels/telegram/consent-text";
-import { InvalidFilterError } from "../errors";
 import { agentFiltersSchema, agentSummaryFiltersSchema } from "../schemas";
 import type { PolicyUser } from "./policy-user";
 
@@ -38,13 +37,6 @@ describe("agent policy filters and phone masking", () => {
   it("keeps the country code and last four digits only", () => {
     expect(maskPhoneNumber("+2348012345678")).toBe("+234******5678");
     expect(maskPhoneNumber(null)).toBeNull();
-  });
-
-  it("rejects LGA filters for non-admin candidates", () => {
-    expect(() => validateAgentFilters(candidateUser, { lgaId: 1, limit: 50 })).toThrow(
-      InvalidFilterError,
-    );
-    expect(() => validateAgentFilters(candidateUser, { wardId: 1, limit: 50 })).not.toThrow();
   });
 
   it("writes its individual-agent read audit in the same transaction", async () => {

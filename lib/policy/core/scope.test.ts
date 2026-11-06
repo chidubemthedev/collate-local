@@ -1,6 +1,7 @@
 import { DataSource } from "typeorm";
 import { describe, expect, it } from "vitest";
 import { getScope } from "./scope";
+import { getVisibleOwners } from "./owners";
 import type { PolicyUser } from "./policy-user";
 
 const restrictedUser: PolicyUser = {
@@ -28,6 +29,18 @@ describe("policy scope", () => {
     expect(scope.kind).toBe("restricted");
     expect(query.getQuery()).toContain("UNION");
     expect(Object.values(query.getParameters())).toEqual([99, 17, 18, 19, 20]);
+  });
+
+  it("gives a party (national) account every polling unit, even with no areas", () => {
+    const scope = getScope({
+      ...restrictedUser,
+      hasNationalAccess: true,
+      seatId: null,
+      scopeUnits: { stateIds: [], lgaIds: [], wardIds: [], politicalUnitIds: [] },
+    });
+    expect(scope.kind).toBe("all");
+    expect(getVisibleOwners({ ...restrictedUser, groupIds: [1], hasNationalAccess: true }).kind).toBe("all");
+    expect(getVisibleOwners({ ...restrictedUser, groupIds: [1] }).kind).toBe("restricted");
   });
 
   it("fails closed when the user has no scope source", () => {

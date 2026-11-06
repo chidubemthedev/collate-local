@@ -6,6 +6,7 @@ import { getSessionCookieName } from "@/lib/auth/config";
 import { hashSessionToken, isSessionValid, shouldRefreshSessionActivity } from "@/lib/auth/session";
 import { failure } from "@/lib/api/response";
 import type { MembershipScope } from "@/lib/auth/coverage-scope";
+import { effectiveAccess, ownAccessFromRows, type OwnAccess } from "@/lib/auth/view-as";
 
 export { getCoverageScopeFilter } from "@/lib/auth/coverage-scope";
 
@@ -17,7 +18,18 @@ export type ApiAuthContext = {
   hasGlobalCoverageAccess: boolean;
   roles: Array<{ name: string; type: string }>;
   scopes: MembershipScope[];
+  sessionId: string;
+  /** The person's own access and its label, whatever view is on. */
+  own: OwnAccess;
+  ownLabel: string;
+  /** Set while "View as" is on: access above is the previewed access, and nothing may be changed. */
+  viewAs: { label: string; seatId: number | null } | null;
 };
+
+/** Every change is refused while a person is previewing someone else's access. */
+export function readOnlyResponse(): Response {
+  return failure("forbidden", "Viewing as someone else is read-only. Exit the view to make changes.");
+}
 
 export type ApiAuthResult =
   | { ok: true; context: ApiAuthContext }
@@ -29,6 +41,7 @@ type SessionMembershipRow = {
   expires_at: Date;
   last_active_at: Date;
   revoked_at: Date | null;
+  view_as: unknown;
   group_name: string | null;
   group_type: string | null;
   scope_state_id: number | null;
@@ -53,6 +66,7 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
         session.expires_at,
         session.last_active_at,
         session.revoked_at,
+        session.view_as,
         g.group_name,
         g.group_type,
         ms.scope_state_id,
@@ -60,7 +74,7 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
         ms.scope_ward_id,
         ms.scope_political_unit_id
       FROM (
-        SELECT id, person_id, expires_at, last_active_at, revoked_at
+        SELECT id, person_id, expires_at, last_active_at, revoked_at, view_as
         FROM auth_session
         WHERE session_token_hash = $1
         ORDER BY created_at DESC
@@ -100,33 +114,46 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
     await dataSource.query(`UPDATE auth_session SET last_active_at = NOW() WHERE id = $1;`, [session.id]);
   }
 
+  const { own, label: ownLabel } = ownAccessFromRows(membershipRows);
+  const base = {
+    dataSource,
+    personId: session.person_id,
+    sessionId: session.id,
+    own,
+    ownLabel,
+    canManageCoverage: membershipRows.some((row) =>
+      ["admin", "party", "campaign"].includes(row.group_type),
+    ),
+  };
+
+  if (session.view_as) {
+    const view = await effectiveAccess(dataSource, own, session.view_as);
+    if (view) {
+      return {
+        ok: true,
+        context: {
+          ...base,
+          isAdmin: false,
+          hasGlobalCoverageAccess: view.hasGlobalCoverageAccess,
+          roles: [{ name: view.label, type: "view_as" }],
+          scopes: view.scopes,
+          viewAs: { label: view.label, seatId: view.seatId },
+        },
+      };
+    }
+    // The person's own access no longer covers the view, so it ends.
+    await dataSource.query(`UPDATE auth_session SET view_as = NULL WHERE id = $1;`, [session.id]);
+  }
+
   return {
     ok: true,
     context: {
-      dataSource,
-      personId: session.person_id,
-      isAdmin: membershipRows.some((row) => row.group_type === "admin"),
-      canManageCoverage: membershipRows.some((row) =>
-        ["admin", "party", "campaign"].includes(row.group_type),
-      ),
-      hasGlobalCoverageAccess: membershipRows.some(
-        (row) => row.group_type === "admin" || row.group_type === "party",
-      ),
+      ...base,
+      isAdmin: own.isAdmin,
+      hasGlobalCoverageAccess: own.hasGlobalCoverageAccess,
       roles: membershipRows.map((row) => ({ name: row.group_name, type: row.group_type })),
-      scopes: membershipRows
-        .filter(
-          (row) =>
-            row.scope_state_id !== null ||
-            row.scope_lga_id !== null ||
-            row.scope_ward_id !== null ||
-            row.scope_political_unit_id !== null,
-        )
-        .map((row) => ({
-          stateId: row.scope_state_id,
-          lgaId: row.scope_lga_id,
-          wardId: row.scope_ward_id,
-          politicalUnitId: row.scope_political_unit_id,
-        })),
+      scopes: own.scopes,
+      viewAs: null,
     },
   };
 }

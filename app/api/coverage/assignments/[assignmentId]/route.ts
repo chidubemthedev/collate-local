@@ -1,6 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
-import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
+import { getCoverageScopeFilter, readOnlyResponse, requireApiAuth } from "@/lib/auth/api";
 import { getClientIp } from "@/lib/auth/request";
 import { failure, internalError, success } from "@/lib/api/response";
 
@@ -23,6 +23,7 @@ export async function DELETE(
   try {
     const auth = await requireApiAuth();
     if (!auth.ok) return auth.response;
+    if (auth.context.viewAs) return readOnlyResponse();
 
     const scope = getCoverageScopeFilter(auth.context, {
       state: "s",

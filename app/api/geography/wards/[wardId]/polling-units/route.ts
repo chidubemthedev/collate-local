@@ -6,6 +6,7 @@ import { getClientIp } from "@/lib/auth/request";
 import { failure, internalError, success } from "@/lib/api/response";
 import { InvalidFilterError } from "@/lib/policy/errors";
 import { policyErrorResponse } from "@/lib/policy/http";
+import { policyUserFromCurrentUser } from "@/lib/policy";
 import {
   listWardPollingUnits,
   wardPollingUnitsQuerySchema,
@@ -36,7 +37,11 @@ export async function GET(
       currentUser.personId,
       parsedWardId.data,
       parsedQuery.data,
-      { ipAddress: getClientIp(request) },
+      {
+        ipAddress: getClientIp(request),
+        // While "View as" is on, list with the previewed access.
+        ...(currentUser.viewAs ? { user: await policyUserFromCurrentUser(currentUser) } : {}),
+      },
     );
     if (!page) {
       return failure("not_found", "Ward not found");

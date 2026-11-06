@@ -52,6 +52,9 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const currentUser = await requireUser();
+    if (currentUser.viewAs) {
+      return failure("forbidden", "Viewing as someone else is read-only. Exit the view to make changes.");
+    }
     let body: unknown;
     try {
       body = await request.json();

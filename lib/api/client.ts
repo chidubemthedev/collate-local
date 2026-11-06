@@ -98,6 +98,13 @@ export const apiClient = {
     });
   },
 
+  put: <T>(endpoint: string, body?: unknown) => {
+    return apiFetch<T>(endpoint, {
+      method: "PUT",
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  },
+
   delete: <T>(endpoint: string) => {
     return apiFetch<T>(endpoint, {
       method: "DELETE",

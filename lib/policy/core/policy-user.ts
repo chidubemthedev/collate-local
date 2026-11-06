@@ -6,6 +6,11 @@ import { resolveManager } from "./database";
 export interface PolicyUser {
   personId: string;
   isAdmin: boolean;
+  /**
+   * A party membership with no area is national: every polling unit, like admins, without admin
+   * rights. A party membership with an area (a state coordinator, say) sees only that area.
+   */
+  hasNationalAccess?: boolean;
   candidateId: number | null;
   seatId: number | null;
   groupIds: number[];
@@ -59,6 +64,15 @@ export async function loadPolicyUser(
   return {
     personId,
     isAdmin: membershipRows.some((row) => row.groupType === "admin"),
+    // One row per area of a membership; a membership with no area comes back as one row of NULLs.
+    hasNationalAccess: membershipRows.some(
+      (row) =>
+        row.groupType === "party" &&
+        row.scopeStateId === null &&
+        row.scopeLgaId === null &&
+        row.scopeWardId === null &&
+        row.scopePoliticalUnitId === null,
+    ),
     candidateId: candidate?.id ?? null,
     seatId: candidate?.seatId ?? candidate?.principalCandidate?.seatId ?? null,
     groupIds: [...new Set(membershipRows.map((row) => Number(row.groupId)))],

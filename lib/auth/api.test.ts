@@ -108,6 +108,43 @@ describe("requireApiAuth", () => {
     expect(statements.filter((s) => s.sql.includes("DELETE FROM auth_session"))).toHaveLength(1);
   });
 
+  it("applies a stored View as: the previewed access, no admin rights, own access kept apart", async () => {
+    useDatabase([
+      sessionRow({
+        group_name: "Collate Admins",
+        group_type: "admin",
+        view_as: { kind: "seat", seatId: 6, unitId: 155, unitType: "state", label: "Candidate · Governor, Anambra" },
+      }),
+    ]);
+    const result = await requireApiAuth();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.context.isAdmin).toBe(false);
+    expect(result.context.hasGlobalCoverageAccess).toBe(false);
+    expect(result.context.scopes).toEqual([{ stateId: null, lgaId: null, wardId: null, politicalUnitId: 155 }]);
+    expect(result.context.roles).toEqual([{ name: "Candidate · Governor, Anambra", type: "view_as" }]);
+    expect(result.context.viewAs).toEqual({ label: "Candidate · Governor, Anambra", seatId: 6 });
+    expect(result.context.own.isAdmin).toBe(true);
+    expect(result.context.ownLabel).toBe("Collate Admins");
+  });
+
+  it("ends a stored view that the person's own access no longer covers", async () => {
+    const statements = useDatabase([
+      sessionRow({
+        group_name: "Campaign HQ",
+        group_type: "campaign",
+        scope_state_id: 5,
+        view_as: { kind: "seat", seatId: 7, unitId: 156, unitType: "state", label: "Candidate · Governor, Lagos" },
+      }),
+    ]);
+    const result = await requireApiAuth();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.context.viewAs).toBeNull();
+    expect(result.context.scopes).toEqual([{ stateId: 5, lgaId: null, wardId: null, politicalUnitId: null }]);
+    expect(statements.some((s) => s.sql.includes("SET view_as = NULL"))).toBe(true);
+  });
+
   it("forbids a signed-in person with no group", async () => {
     const statements = useDatabase([sessionRow({ group_name: null, group_type: null })]);
     const result = await requireApiAuth();

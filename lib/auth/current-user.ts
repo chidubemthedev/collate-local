@@ -7,6 +7,8 @@ import { UnauthorizedError } from "./errors";
 
 export interface CurrentUser {
   personId: string;
+  /** The stored "View as" choice, if one is on (checked against the person's access when used). */
+  viewAs?: unknown;
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -22,9 +24,10 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     expires_at: Date;
     last_active_at: Date;
     revoked_at: Date | null;
+    view_as: unknown;
   }>>(
     `
-      SELECT person_id, expires_at, last_active_at, revoked_at
+      SELECT person_id, expires_at, last_active_at, revoked_at, view_as
       FROM auth_session
       WHERE session_token_hash = $1
       ORDER BY created_at DESC
@@ -45,7 +48,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     return null;
   }
 
-  return { personId: session.person_id };
+  return { personId: session.person_id, viewAs: session.view_as ?? null };
 }
 
 export async function requireUser(): Promise<CurrentUser> {

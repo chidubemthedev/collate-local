@@ -6,6 +6,7 @@ import { CandidateData } from "@/lib/types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { WF, Pill, Bar, officeTone, EmptyBox } from "@/components/ui/wf";
 import { CandidateDetailModal } from "./candidate-detail-modal";
+import { useCandidateViewAs } from "./candidate-view-as";
 import { toTitleCase, type CandidateSortOrder } from "./candidates-filters";
 import { coverageTier, CHANNEL_PILL, deputyTitle, coverageText } from "./candidate-pills";
 
@@ -71,16 +72,23 @@ function SortHeader({
   );
 }
 
-/** "View as" is not built yet, so it is shown disabled with a tooltip. */
-function ViewAsLink({ large = false }: { large?: boolean }) {
+/** Previews the app with this candidate's seat; off (with the reason) for seats outside the user's access. */
+function ViewAsLink({ seatId, large = false }: { seatId: number; large?: boolean }) {
+  const viewAs = useCandidateViewAs(seatId);
+  const text = `${large ? "text-[13px]" : "text-[12px]"} font-semibold whitespace-nowrap text-[#0A0A0A] underline`;
+  if (viewAs.canView) {
+    return (
+      <button type="button" onClick={viewAs.start} className={`${text} min-h-7 border-0 bg-transparent p-0`}>
+        View as
+      </button>
+    );
+  }
   return (
     <Tooltip>
       <TooltipTrigger render={<span tabIndex={0} className="inline-flex cursor-not-allowed" />}>
-        <span className={`${large ? "text-[13px]" : "text-[12px]"} font-semibold whitespace-nowrap text-[#0A0A0A] underline opacity-60`}>
-          View as
-        </span>
+        <span className={`${text} opacity-60`}>{viewAs.pending ? "Switching…" : "View as"}</span>
       </TooltipTrigger>
-      <TooltipContent>Not available yet</TooltipContent>
+      <TooltipContent>{viewAs.title ?? "Not available"}</TooltipContent>
     </Tooltip>
   );
 }
@@ -223,7 +231,7 @@ export function CandidatesTable({
                         <button type="button" className={WF.btnRow} onClick={() => openDetails(cand)}>
                           Details
                         </button>
-                        <ViewAsLink />
+                        <ViewAsLink seatId={cand.seatId} />
                       </span>
                     </td>
                   </tr>
@@ -277,7 +285,7 @@ export function CandidatesTable({
                   >
                     Details
                   </button>
-                  <ViewAsLink large />
+                  <ViewAsLink seatId={cand.seatId} large />
                 </span>
               </div>
             );

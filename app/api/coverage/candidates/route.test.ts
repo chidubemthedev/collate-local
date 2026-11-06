@@ -61,7 +61,12 @@ describe("GET /api/coverage/candidates", () => {
     mocks.connection.mockResolvedValue(undefined);
     mocks.requireApiAuth.mockResolvedValue({
       ok: true,
-      context: { dataSource, personId: "11111111-1111-4111-8111-111111111111" },
+      context: {
+        dataSource,
+        personId: "11111111-1111-4111-8111-111111111111",
+        hasGlobalCoverageAccess: true,
+        scopes: [],
+      },
     });
     mocks.getCoverageScopeFilter.mockReturnValue({ sql: SCOPE_SQL, parameters: SCOPE_PARAMETERS });
     mocks.listCandidateCoverage.mockResolvedValue({
@@ -138,7 +143,28 @@ describe("GET /api/coverage/candidates", () => {
       officeId: 3,
       nationalOnly: false,
       overlap: { stateId: 4, lgaId: null, wardId: null },
+      withinUnitIds: null,
     });
+  });
+
+  it("only lists seats inside an area-limited user's access", async () => {
+    mocks.requireApiAuth.mockResolvedValue({
+      ok: true,
+      context: {
+        dataSource,
+        personId: "11111111-1111-4111-8111-111111111111",
+        hasGlobalCoverageAccess: false,
+        scopes: [{ stateId: null, lgaId: null, wardId: null, politicalUnitId: 155 }],
+      },
+    });
+    // Seats lying entirely inside the Governor's state: the Governor seat and one Senate seat.
+    dataSource.query.mockResolvedValueOnce([
+      { seat_id: 6, office_name: "Governor", unit_id: 155, unit_name: "ANAMBRA", unit_type: "state" },
+      { seat_id: 40, office_name: "Senate", unit_id: 300, unit_name: "ANAMBRA NORTH", unit_type: "senatorial_district" },
+    ]);
+
+    await callGet("?limit=12");
+    expect(mocks.listCandidateCoverage).toHaveBeenCalledWith(expect.objectContaining({ withinUnitIds: [155, 300] }));
   });
 
   it("countOnly=false falls through to the list", async () => {

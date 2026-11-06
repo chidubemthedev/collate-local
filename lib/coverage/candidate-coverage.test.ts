@@ -64,7 +64,7 @@ describe("countCandidates", () => {
     });
 
     const [sql, parameters] = query.mock.calls[0] as unknown as [string, unknown[]];
-    expect(parameters).toEqual([7, 3, true, 4, 17, null]);
+    expect(parameters).toEqual([7, 3, true, 4, 17, null, null]);
     expect(sql).toContain("$2::int");
     expect(sql).toContain("$3::boolean");
     expect(sql).toContain("$4::int");
@@ -84,7 +84,7 @@ describe("countCandidates", () => {
     });
 
     const [, parameters] = query.mock.calls[0] as unknown as [string, unknown[]];
-    expect(parameters).toEqual([7, null, false, null, null, null]);
+    expect(parameters).toEqual([7, null, false, null, null, null, null]);
   });
 
   it("returns 0 when the database returns no row", async () => {
@@ -126,8 +126,8 @@ describe("listCandidateCoverage parameters", () => {
     });
 
     const [sql, parameters] = query.mock.calls[0] as unknown as [string, unknown[]];
-    // geo, level, id, limit+1, office, nationalOnly, overlap state / lga / ward
-    expect(parameters).toEqual([7, null, null, 13, null, true, 4, null, 301]);
+    // geo, level, id, limit+1, office, nationalOnly, overlap state / lga / ward, seats within access
+    expect(parameters).toEqual([7, null, null, 13, null, true, 4, null, 301, null]);
     expect(sql).toContain("political_unit_type = 'country'");
     expect(sql).toContain("ov_ppu.political_unit_id");
     // Coverage totals stay clipped by the geo filter only, never by the overlap area.
@@ -175,6 +175,28 @@ describe("listCandidateCoverage parameters", () => {
     });
 
     const [, parameters] = query.mock.calls[0] as unknown as [string, unknown[]];
-    expect(parameters).toEqual([7, null, null, 13, 5, false, null, null, null]);
+    expect(parameters).toEqual([7, null, null, 13, 5, false, null, null, null, null]);
+  });
+
+  it("limits the list and the office counts to seats inside the user's access", async () => {
+    const { query, dataSource } = setup();
+
+    await listCandidateCoverage({
+      dataSource,
+      actorPersonId: "11111111-1111-4111-8111-111111111111",
+      ipAddress: null,
+      geoSql: GEO_SQL,
+      geoParameters: GEO_PARAMETERS,
+      firstFreeParameter: 2,
+      limit: 12,
+      cursor: null,
+      officeId: null,
+      withinUnitIds: [155, 300],
+    });
+
+    const [sql, parameters] = query.mock.calls[0] as unknown as [string, unknown[]];
+    expect(parameters[9]).toEqual([155, 300]);
+    expect(sql).toContain("pun.id = ANY($10::int[])");
+    expect(sql).toContain("oc_pun.id = ANY($10::int[])");
   });
 });

@@ -2,6 +2,7 @@ import "server-only";
 import { connection, type NextRequest } from "next/server";
 import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
 import { getClientIp } from "@/lib/auth/request";
+import { loadUnitsWithin } from "@/lib/auth/view-as";
 import { parseCoverageFilters } from "@/lib/coverage/filters";
 import {
   CANDIDATE_COVERAGE_MAX_LIMIT,
@@ -72,6 +73,10 @@ export async function GET(request: NextRequest) {
     const filters = parseCoverageFilters(params, scope.parameters.length + 1);
     if ("error" in filters) return filters.error;
 
+    // Access only reaches downward: an area-limited user sees seats lying entirely inside
+    // their area (a Governor not the President, a Senator not the Governor).
+    const withinUnitIds = await loadUnitsWithin(auth.context.dataSource, auth.context);
+
     // countOnly=true returns just meta.total, skipping the coverage figures entirely.
     const rawCountOnly = params.get("countOnly");
     if (rawCountOnly !== null && rawCountOnly !== "true" && rawCountOnly !== "false") {
@@ -86,6 +91,7 @@ export async function GET(request: NextRequest) {
         officeId,
         nationalOnly,
         overlap,
+        withinUnitIds,
       });
       return success([], { total });
     }
@@ -102,6 +108,7 @@ export async function GET(request: NextRequest) {
       officeId,
       nationalOnly,
       overlap,
+      withinUnitIds,
     });
 
     return success(page.items, {

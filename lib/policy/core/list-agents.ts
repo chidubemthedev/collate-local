@@ -90,13 +90,6 @@ interface AgentRawRow {
   ownerDisplayName: string;
 }
 
-export function validateAgentFilters(user: PolicyUser, filters: Partial<AgentFilters>): void {
-  // ASSUMPTION: non-admin candidates cannot use LGA filters; they can filter by political unit or ward.
-  if (user.candidateId !== null && !user.isAdmin && filters.lgaId !== undefined) {
-    throw new InvalidFilterError();
-  }
-}
-
 export function maskPhoneNumber(phoneNumber: string | null): string | null {
   if (!phoneNumber) {
     return null;
@@ -123,7 +116,6 @@ export async function listAgents(
   if (!parsedFilters.success) {
     throw new InvalidFilterError();
   }
-  validateAgentFilters(user, parsedFilters.data);
 
   const entityManager = await resolveManager(manager);
   const execute = (transactionManager: EntityManager) =>
@@ -254,7 +246,6 @@ export async function summarizeAgents(
   if (!parsedFilters.success) {
     throw new InvalidFilterError();
   }
-  validateAgentFilters(user, parsedFilters.data);
 
   const entityManager = await resolveManager(manager);
   // The scoped, filtered assignments: one row each, with the person and kind.
