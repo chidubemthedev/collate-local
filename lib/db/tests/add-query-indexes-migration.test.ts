@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 const migration = readFileSync(
   new URL("../migrations/1790000003000-AddQueryIndexes.ts", import.meta.url),
   "utf8",
-);
+)
+  // Git on Windows may check the file out with CRLF line endings.
+  .replace(/\r\n/g, "\n");
 const up = migration.slice(migration.indexOf("public async up"), migration.indexOf("public async down"));
 const down = migration.slice(migration.indexOf("public async down"));
 

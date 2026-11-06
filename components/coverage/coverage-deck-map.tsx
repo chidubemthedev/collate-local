@@ -341,12 +341,7 @@ export function CoverageDeckMap({
     return [...best.values()].map(({ position, text }) => ({ position, text }));
   }, [areaShapes, areaCodeKey, statByCode]);
 
-  // The page passes a new click handler on every render; read it through a ref so that does not
-  // rebuild the layers.
-  const pickRef = useRef(onPickArea);
-  useEffect(() => {
-    pickRef.current = onPickArea;
-  }, [onPickArea]);
+  // The page keeps onPickArea stable (useCallback), so it does not rebuild the layers.
   const canPick = Boolean(onPickArea);
 
   const layers = useMemo(() => {
@@ -385,7 +380,7 @@ export function CoverageDeckMap({
           lineWidthUnits: "pixels",
           onClick: (info: PickingInfo<BoundaryFeature>) => {
             const code = info.object?.properties[areaCodeKey];
-            if (code) pickRef.current?.(code);
+            if (code) onPickArea?.(code);
           },
           updateTriggers: {
             getFillColor: [mode, statByCode, areaCodeKey],
@@ -483,7 +478,7 @@ export function CoverageDeckMap({
     }
 
     return list;
-  }, [focusShape, maskData, areaData, focusData, areaShapes.length, level, mode, areaCodeKey, fillFor, statByCode, hexes, maxHexTotal, visiblePoints, labelData]);
+  }, [focusShape, maskData, areaData, focusData, areaShapes.length, level, mode, areaCodeKey, fillFor, statByCode, onPickArea, hexes, maxHexTotal, visiblePoints, labelData]);
 
   const getTooltip = useCallback(
     ({ object, layer }: PickingInfo) => {

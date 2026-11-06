@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Builds the map outlines from the GRID3 boundary files.
  *
@@ -38,7 +37,7 @@ export function normName(value) {
   return String(value ?? "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]/g, "");
 }
 

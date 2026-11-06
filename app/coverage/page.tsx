@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/context/app-context";
 import {
@@ -393,6 +393,24 @@ export default function CoveragePage() {
     }));
   }, [currentLevel, statesList, lgasList, wardsList]);
 
+  // Clicking an area on the map opens it. Kept stable so the map does not rebuild its layers on
+  // every render of this page.
+  const handlePickArea = useCallback(
+    (code: string) => {
+      if (currentLevel === "national") {
+        setSelectedStateCode(code);
+        setSelectedLgaCode("all");
+        setSelectedWardCode("all");
+      } else if (currentLevel === "state") {
+        setSelectedLgaCode(code);
+        setSelectedWardCode("all");
+      } else if (currentLevel === "lga") {
+        setSelectedWardCode(code);
+      }
+    },
+    [currentLevel, setSelectedStateCode, setSelectedLgaCode, setSelectedWardCode],
+  );
+
   // Polling units come only from the live ward polling-units API
   const pollingUnitsList: PollingUnitData[] = useMemo(() => {
     return apiPollingUnits.map((p) => {
@@ -621,18 +639,7 @@ export default function CoveragePage() {
         lgaCode={selectedLga?.code ?? selectedLgaCode}
         wardCode={selectedWard?.code ?? selectedWardCode}
         areaStats={mapAreaStats}
-        onPickArea={(code) => {
-          if (currentLevel === "national") {
-            setSelectedStateCode(code);
-            setSelectedLgaCode("all");
-            setSelectedWardCode("all");
-          } else if (currentLevel === "state") {
-            setSelectedLgaCode(code);
-            setSelectedWardCode("all");
-          } else if (currentLevel === "lga") {
-            setSelectedWardCode(code);
-          }
-        }}
+        onPickArea={handlePickArea}
         stateName={selectedState?.name}
         lgaName={selectedLga?.name}
         wardName={selectedWard?.name}

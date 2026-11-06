@@ -295,8 +295,6 @@ describe("listBroadcastDeliveries audit", () => {
         limit: vi.fn().mockReturnThis(),
         clone: vi.fn().mockReturnThis(),
         getCount: vi.fn(async () => 0),
-      clone: vi.fn().mockReturnThis(),
-      getCount: vi.fn(async () => 0),
         getOne: vi.fn(async () => ({ id: BROADCAST_ID, broadcastStatus: "completed", createdAt: new Date() })),
         getRawMany: vi.fn(async () => rows),
       };
@@ -460,8 +458,6 @@ describe("listBroadcastDeliveries audit", () => {
         limit: vi.fn().mockReturnThis(),
         clone: vi.fn().mockReturnThis(),
         getCount: vi.fn(async () => 0),
-      clone: vi.fn().mockReturnThis(),
-      getCount: vi.fn(async () => 0),
         getRawMany: vi.fn(async () => [{
           id: "44444444-4444-4444-8444-444444444444",
           status: "completed",
