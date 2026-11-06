@@ -33,15 +33,25 @@ export async function GET(request: NextRequest) {
     }>>(
       `
         SELECT
-          COUNT(DISTINCT pu.id) AS total_pus,
-          COUNT(DISTINCT pu.id) FILTER (WHERE aa.agent_kind = 'official') AS covered_pus,
-          COUNT(DISTINCT pu.id) FILTER (WHERE ${hasGpsSql("pu")}) AS gps_pus,
-          COUNT(DISTINCT aa.id) FILTER (WHERE aa.agent_kind = 'extra') AS extra_agents
+          COUNT(*) AS total_pus,
+          COUNT(aa.polling_unit_id) AS covered_pus,
+          COUNT(*) FILTER (WHERE ${hasGpsSql("pu")}) AS gps_pus,
+          -- Extra agents on the same polling units, counted on their own so the official-agent
+          -- join (at most one per polling unit) never repeats a row.
+          (
+            SELECT COUNT(*)
+            FROM agent_assignment xa
+            JOIN polling_unit pu ON pu.id = xa.polling_unit_id
+            JOIN ward w ON w.id = pu.ward_id
+            JOIN lga l ON l.id = w.lga_id
+            JOIN state s ON s.id = l.state_id
+            WHERE xa.agent_kind = 'extra' AND ${whereClauses.join(" AND ")}
+          ) AS extra_agents
         FROM polling_unit pu
         JOIN ward w ON w.id = pu.ward_id
         JOIN lga l ON l.id = w.lga_id
         JOIN state s ON s.id = l.state_id
-        LEFT JOIN agent_assignment aa ON aa.polling_unit_id = pu.id
+        LEFT JOIN agent_assignment aa ON aa.polling_unit_id = pu.id AND aa.agent_kind = 'official'
         WHERE ${whereClauses.join(" AND ")};
       `,
       [...scope.parameters, ...filters.parameters],

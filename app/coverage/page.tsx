@@ -375,6 +375,17 @@ export default function CoveragePage() {
     return result;
   }, [wardsList, selectedLgaCode, selectedStateCode, searchQuery, sortBy]);
 
+  // Areas one level down, coloured on the map (all of them, ignoring the table search).
+  const mapAreaStats = useMemo(() => {
+    const list = currentLevel === "national" ? statesList : currentLevel === "state" ? lgasList : wardsList;
+    return list.map((area) => ({
+      code: area.code,
+      name: area.name,
+      totalPUs: area.totalPUs,
+      coveredPUs: area.coveredPUs,
+    }));
+  }, [currentLevel, statesList, lgasList, wardsList]);
+
   // Polling units come only from the live ward polling-units API
   const pollingUnitsList: PollingUnitData[] = useMemo(() => {
     return apiPollingUnits.map((p) => {
@@ -598,9 +609,23 @@ export default function CoveragePage() {
       />
 
       <CoverageMap
-        stateCode={selectedStateCode}
-        lgaCode={selectedLgaCode}
-        wardCode={selectedWardCode}
+        level={currentLevel}
+        stateCode={selectedState?.code ?? selectedStateCode}
+        lgaCode={selectedLga?.code ?? selectedLgaCode}
+        wardCode={selectedWard?.code ?? selectedWardCode}
+        areaStats={mapAreaStats}
+        onPickArea={(code) => {
+          if (currentLevel === "national") {
+            setSelectedStateCode(code);
+            setSelectedLgaCode("all");
+            setSelectedWardCode("all");
+          } else if (currentLevel === "state") {
+            setSelectedLgaCode(code);
+            setSelectedWardCode("all");
+          } else if (currentLevel === "lga") {
+            setSelectedWardCode(code);
+          }
+        }}
         stateName={selectedState?.name}
         lgaName={selectedLga?.name}
         wardName={selectedWard?.name}

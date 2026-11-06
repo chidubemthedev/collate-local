@@ -163,12 +163,19 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
 
   const sql = `
     WITH unit_totals AS MATERIALIZED (
-      SELECT ppu.political_unit_id AS unit_id, COUNT(*) AS total_pus
+      -- Covered units are counted in the same pass: a polling unit has at most one official agent,
+      -- so the join adds no rows. (Counting them per page row instead ran one scan per candidate.)
+      SELECT
+        ppu.political_unit_id AS unit_id,
+        COUNT(*) AS total_pus,
+        COUNT(official.polling_unit_id) AS covered_pus
       FROM pu_political_unit ppu
       JOIN polling_unit pu ON pu.id = ppu.polling_unit_id
       JOIN ward w ON w.id = pu.ward_id
       JOIN lga l ON l.id = w.lga_id
       JOIN state s ON s.id = l.state_id
+      LEFT JOIN agent_assignment official
+        ON official.polling_unit_id = pu.id AND official.agent_kind = 'official'
       WHERE ${geo}
       GROUP BY ppu.political_unit_id
     ),
@@ -182,6 +189,7 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
         pun.id AS unit_id,
         pun.political_unit_name AS seat_name,
         ut.total_pus,
+        ut.covered_pus,
         seat_state.id AS state_id,
         seat_state.inec_state_code
       FROM candidate c
@@ -260,19 +268,10 @@ export async function listCandidateCoverage(query: CandidateCoverageQuery): Prom
         LIMIT 1
       ) AS deputy_name,
       page.total_pus,
+      page.covered_pus,
       (
-        SELECT COUNT(DISTINCT pu.id)
-        FROM agent_assignment aa
-        JOIN pu_political_unit ppu ON ppu.polling_unit_id = aa.polling_unit_id
-          AND ppu.political_unit_id = page.unit_id
-        JOIN polling_unit pu ON pu.id = aa.polling_unit_id
-        JOIN ward w ON w.id = pu.ward_id
-        JOIN lga l ON l.id = w.lga_id
-        JOIN state s ON s.id = l.state_id
-        WHERE aa.agent_kind = 'official' AND ${geo}
-      ) AS covered_pus,
-      (
-        SELECT COUNT(DISTINCT aa.id)
+        -- One row per assignment (each join below matches at most one row), so no DISTINCT.
+        SELECT COUNT(*)
         FROM agent_assignment aa
         JOIN pu_political_unit ppu ON ppu.polling_unit_id = aa.polling_unit_id
           AND ppu.political_unit_id = page.unit_id

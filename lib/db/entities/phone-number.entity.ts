@@ -18,6 +18,7 @@ export class PhoneNumber {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
+  @Index("ix_phone_number_person_id")
   @Column({ name: "person_id", type: "uuid" })
   personId: string;
 

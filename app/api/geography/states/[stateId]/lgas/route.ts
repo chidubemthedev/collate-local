@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { getCoverageScopeFilter, requireApiAuth } from "@/lib/auth/api";
 import { failure, internalError, success } from "@/lib/api/response";
 import { hasGpsSql } from "@/lib/geography/gps";
+import { extraAgentsByAreaSql } from "@/lib/coverage/area-coverage-sql";
 import { parsePollingUnitFilter, pollingUnitFilterClauses } from "@/lib/coverage/pu-filter";
 
 export async function GET(request: Request, { params }: { params: Promise<{ stateId: string }> }) {
@@ -43,23 +44,39 @@ export async function GET(request: Request, { params }: { params: Promise<{ stat
       wards_count: string;
       extra_agents: string;
     }>>(`
+      -- Counted per ward first, then rolled up. A polling unit has at most one official agent,
+      -- so that join never repeats a row; extra agents are counted separately.
+      WITH ward_rows AS (
+        SELECT
+          l.id AS lga_id,
+          w.id AS ward_id,
+          COUNT(pu.id) AS total_pus,
+          COUNT(aa.polling_unit_id) AS covered_pus,
+          COUNT(pu.id) FILTER (WHERE ${hasGpsSql("pu")}) AS gps_pus
+        FROM lga l
+        JOIN state s ON s.id = l.state_id
+        LEFT JOIN ward w ON w.lga_id = l.id
+        LEFT JOIN polling_unit pu ON pu.ward_id = w.id
+        LEFT JOIN agent_assignment aa ON aa.polling_unit_id = pu.id AND aa.agent_kind = 'official'
+        WHERE l.state_id = $6 AND ${scope.sql}${puSql}
+        GROUP BY l.id, w.id
+      ),
+      extras AS (${extraAgentsByAreaSql("l.id", `l.state_id = $6 AND ${scope.sql}${puSql}`)})
       SELECT
         l.id,
         s.id AS state_id,
         s.inec_state_code,
         l.inec_lga_code AS code,
         l.lga_name AS name,
-        COUNT(DISTINCT pu.id) AS total_pus,
-        COUNT(DISTINCT CASE WHEN aa.person_id IS NOT NULL THEN pu.id END) AS covered_pus,
-        COUNT(DISTINCT CASE WHEN ${hasGpsSql("pu")} THEN pu.id END) AS gps_pus,
-        COUNT(DISTINCT w.id) AS wards_count,
-        COUNT(DISTINCT CASE WHEN aa.agent_kind = 'extra' THEN aa.person_id END) AS extra_agents
-      FROM lga l
+        SUM(r.total_pus) AS total_pus,
+        SUM(r.covered_pus) AS covered_pus,
+        SUM(r.gps_pus) AS gps_pus,
+        COUNT(r.ward_id) AS wards_count,
+        COALESCE(MAX(e.extra_agents), 0) AS extra_agents
+      FROM ward_rows r
+      JOIN lga l ON l.id = r.lga_id
       JOIN state s ON s.id = l.state_id
-      LEFT JOIN ward w ON w.lga_id = l.id
-      LEFT JOIN polling_unit pu ON pu.ward_id = w.id
-      LEFT JOIN agent_assignment aa ON aa.polling_unit_id = pu.id AND aa.agent_kind = 'official'
-      WHERE l.state_id = $6 AND ${scope.sql}${puSql}
+      LEFT JOIN extras e ON e.area_id = l.id
       GROUP BY l.id, s.id, s.inec_state_code, l.inec_lga_code, l.lga_name
       ORDER BY l.lga_name ASC;
     `, [...scope.parameters, stateIdNum]);

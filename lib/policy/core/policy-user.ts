@@ -22,7 +22,8 @@ export async function loadPolicyUser(
   manager?: EntityManager,
 ): Promise<PolicyUser> {
   const entityManager = await resolveManager(manager);
-  const membershipRows = await entityManager
+  // The two lookups are independent, so they run together.
+  const membershipQuery = entityManager
     .getRepository(Membership)
     .createQueryBuilder("membership")
     .innerJoin("membership.group", "group")
@@ -43,7 +44,7 @@ export async function loadPolicyUser(
       scopePoliticalUnitId: number | null;
     }>();
 
-  const candidate = await entityManager
+  const candidateQuery = entityManager
     .getRepository(Candidate)
     .createQueryBuilder("candidate")
     .leftJoinAndSelect("candidate.principalCandidate", "principalCandidate")
@@ -52,6 +53,8 @@ export async function loadPolicyUser(
     })
     .orderBy("candidate.id", "ASC")
     .getOne();
+
+  const [membershipRows, candidate] = await Promise.all([membershipQuery, candidateQuery]);
 
   return {
     personId,

@@ -23,6 +23,7 @@
     "db:seed:demo:reset": "tsx ./lib/db/seeds/demo/reset.ts",
     "db:seed:demo:fresh": "tsx ./lib/db/seeds/demo/reset.ts && tsx ./lib/db/seeds/demo/index.ts",
     "db:count:polling-units": "tsx ./scripts/count-polling-units.ts",
+    "boundaries:build": "node ./scripts/build-boundaries.mjs",
     "telegram:check": "tsx ./scripts/telegram-check.ts",
     "telegram:webhook:set": "tsx ./scripts/telegram-webhook-set.ts",
     "telegram:webhook:delete": "tsx ./scripts/telegram-webhook-delete.ts",
@@ -31,6 +32,9 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
+    "@deck.gl/core": "^9.4.1",
+    "@deck.gl/layers": "^9.4.1",
+    "@deck.gl/mapbox": "^9.4.1",
     "@grammyjs/auto-retry": "^2.0.2",
     "@tanstack/react-query": "^5.105.1",
     "class-variance-authority": "^0.7.1",

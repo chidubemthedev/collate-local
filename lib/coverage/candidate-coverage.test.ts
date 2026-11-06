@@ -134,6 +134,31 @@ describe("listCandidateCoverage parameters", () => {
     expect(sql).toMatch(/unit_totals AS MATERIALIZED \([\s\S]*WHERE s\.id = \$1[\s\S]*GROUP BY/);
   });
 
+  it("counts covered polling units in the per-unit totals, not once per candidate", async () => {
+    const { query, dataSource } = setup();
+
+    await listCandidateCoverage({
+      dataSource,
+      actorPersonId: "11111111-1111-4111-8111-111111111111",
+      ipAddress: null,
+      geoSql: GEO_SQL,
+      geoParameters: GEO_PARAMETERS,
+      firstFreeParameter: 2,
+      limit: 12,
+      cursor: null,
+      officeId: null,
+    });
+
+    const [sql] = query.mock.calls[0] as unknown as [string, unknown[]];
+    const unitTotals = sql.slice(sql.indexOf("unit_totals AS MATERIALIZED"), sql.indexOf("page AS MATERIALIZED"));
+    expect(unitTotals).toContain("COUNT(official.polling_unit_id) AS covered_pus");
+    expect(unitTotals).toContain("official.agent_kind = 'official'");
+    expect(sql).toContain("page.covered_pus");
+    // No per-row scan for covered units, and no DISTINCT left in the per-row extra-agent count.
+    expect(sql).not.toContain("COUNT(DISTINCT pu.id)");
+    expect(sql).not.toContain("COUNT(DISTINCT aa.id)");
+  });
+
   it("keeps the old behaviour when the new options are left out", async () => {
     const { query, dataSource } = setup();
 

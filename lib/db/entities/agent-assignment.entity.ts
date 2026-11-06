@@ -21,6 +21,8 @@ export enum AgentKind {
 }
 
 @Entity("agent_assignment")
+// Extra agents by polling unit; the migration also INCLUDEs person_id, which TypeORM cannot declare.
+@Index("ix_agent_assignment_extra_polling_unit", ["pollingUnitId"], { where: "agent_kind = 'extra'" })
 @Check("((owner_group_id IS NOT NULL) <> (owner_candidate_id IS NOT NULL))")
 @Check(
   "(agent_kind = 'official' AND slot_number = 0) OR (agent_kind = 'extra' AND slot_number >= 1)",
@@ -47,6 +49,7 @@ export class AgentAssignment {
   @JoinColumn({ name: "polling_unit_id" })
   pollingUnit: Relation<PollingUnit>;
 
+  @Index("ix_agent_assignment_owner_group_id")
   @Column({ name: "owner_group_id", type: "int", nullable: true })
   ownerGroupId: number | null;
 
@@ -54,6 +57,7 @@ export class AgentAssignment {
   @JoinColumn({ name: "owner_group_id" })
   ownerGroup: Relation<Group | null>;
 
+  @Index("ix_agent_assignment_owner_candidate_id")
   @Column({ name: "owner_candidate_id", type: "int", nullable: true })
   ownerCandidateId: number | null;
 

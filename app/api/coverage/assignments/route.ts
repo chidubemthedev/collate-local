@@ -92,26 +92,20 @@ export async function POST(request: Request) {
     });
 
     const result = await auth.context.dataSource.transaction(async (manager) => {
-      const pollingUnits = (await manager.query<Array<{ id: number }>>(
-        `SELECT id FROM polling_unit WHERE id = $1 FOR UPDATE;`,
-        [body.pollingUnitId],
-      )) as Array<{ id: number }>;
-      if (!pollingUnits[0]) return { error: "not_found", status: 404 as const };
-
-      const scopeRows = (await manager.query<Array<{ allowed: boolean }>>(
+      // Lock the polling unit and check it is in the caller's scope in one round trip.
+      const pollingUnits = (await manager.query<Array<{ id: number; allowed: boolean }>>(
         `
-          SELECT EXISTS (
-            SELECT 1
-            FROM polling_unit pu
-            JOIN ward w ON w.id = pu.ward_id
-            JOIN lga l ON l.id = w.lga_id
-            JOIN state s ON s.id = l.state_id
-            WHERE pu.id = $6 AND ${scope.sql}
-          ) AS allowed;
+          SELECT pu.id, ${scope.sql} AS allowed
+          FROM polling_unit pu
+          JOIN ward w ON w.id = pu.ward_id
+          JOIN lga l ON l.id = w.lga_id
+          JOIN state s ON s.id = l.state_id
+          WHERE pu.id = $6
+          FOR UPDATE OF pu;
         `,
         [...scope.parameters, body.pollingUnitId],
-      )) as Array<{ allowed: boolean }>;
-      if (!scopeRows[0]?.allowed) return { error: "not_found", status: 404 as const };
+      )) as Array<{ id: number; allowed: boolean }>;
+      if (!pollingUnits[0]?.allowed) return { error: "not_found", status: 404 as const };
 
       if (body.ownerGroupId !== null) {
         const ownerRows = (await manager.query<Array<{ id: number }>>(

@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -21,6 +22,7 @@ export class PollingUnit {
   @Column({ name: "polling_unit_name", type: "varchar", nullable: true })
   pollingUnitName: string | null;
 
+  @Index("ix_polling_unit_ward_id")
   @Column({ name: "ward_id", type: "int" })
   wardId: number;
 
