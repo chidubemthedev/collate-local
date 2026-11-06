@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Map, { NavigationControl, useControl, type MapRef } from "react-map-gl/maplibre";
 import { MapboxOverlay, type MapboxOverlayProps } from "@deck.gl/mapbox";
-import { ColumnLayer, GeoJsonLayer, PolygonLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
+import { ColumnLayer, GeoJsonLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
+import type { GeoJSONSource } from "maplibre-gl";
 import type { Layer, PickingInfo } from "@deck.gl/core";
 import mapLibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import type { CoverageMapPoint } from "@/types/api";
@@ -48,6 +49,7 @@ const NIGERIA_BOUNDS: LngLatBounds = [
   [2.6, 4.2],
   [14.7, 13.9],
 ];
+const MASK_SOURCE = "focus-mask";
 const NIGERIA_MAX_BOUNDS: [number, number, number, number] = [0, 1, 18, 16];
 const mapStyle = "https://tiles.openfreemap.org/styles/positron";
 /** Inline so the map never collapses to 0 px if a stylesheet is stale. */
@@ -293,27 +295,53 @@ export function CoverageDeckMap({
     [statByCode],
   );
 
-  // Same objects across renders, so deck.gl does not re-tessellate every polygon each time.
-  const maskData = useMemo(
-    () =>
-      focusShape
+  // The wash over everything outside the focused area: a world-sized polygon with the area cut
+  // out. Nationally that is 37 state-shaped holes whose borders overlap slightly, which took
+  // deck.gl over 10 s to triangulate on the main thread and froze the page. MapLibre draws it
+  // instead: it triangulates in a background worker, tile by tile, so the page stays responsive.
+  const maskGeoJson = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: "FeatureCollection",
+      features: focusShape
         ? [
             {
-              polygon: [
-                [
-                  [-30, -40],
-                  [60, -40],
-                  [60, 50],
-                  [-30, 50],
-                  [-30, -40],
+              type: "Feature",
+              properties: {},
+              geometry: {
+                type: "Polygon",
+                coordinates: [
+                  [
+                    [-30, -40],
+                    [60, -40],
+                    [60, 50],
+                    [-30, 50],
+                    [-30, -40],
+                  ],
+                  ...outerRings(focusShape.geometry),
                 ],
-                ...outerRings(focusShape.geometry).map((ring) => ring.map(([x, y]) => [x, y])),
-              ],
+              },
             },
           ]
         : [],
+    }),
     [focusShape],
   );
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map || !loaded) return;
+    const source = map.getSource(MASK_SOURCE) as GeoJSONSource | undefined;
+    if (source) {
+      source.setData(maskGeoJson);
+      return;
+    }
+    map.addSource(MASK_SOURCE, { type: "geojson", data: maskGeoJson });
+    map.addLayer({
+      id: MASK_SOURCE,
+      type: "fill",
+      source: MASK_SOURCE,
+      paint: { "fill-color": "#FAFAFA", "fill-opacity": 0.6, "fill-antialias": false },
+    });
+  }, [loaded, maskGeoJson]);
   const areaData = useMemo(
     () => ({ type: "FeatureCollection" as const, features: areaShapes }),
     [areaShapes],
@@ -347,19 +375,7 @@ export function CoverageDeckMap({
   const layers = useMemo(() => {
     const list: Layer[] = [];
 
-    // 1. Wash over everything outside the focused area (the CSS blur sits on top of it).
-    if (focusShape) {
-      list.push(
-        new PolygonLayer<{ polygon: number[][][] }>({
-          id: "focus-mask",
-          data: maskData,
-          getPolygon: (d) => d.polygon,
-          getFillColor: [250, 250, 250, 150],
-          stroked: false,
-          pickable: false,
-        }),
-      );
-    }
+    // 1. (The wash outside the focused area is a MapLibre layer; see maskGeoJson.)
 
     // 2. Child areas coloured by official coverage (areas view) or outlined (other views).
     if (areaShapes.length) {
@@ -478,7 +494,7 @@ export function CoverageDeckMap({
     }
 
     return list;
-  }, [focusShape, maskData, areaData, focusData, areaShapes.length, level, mode, areaCodeKey, fillFor, statByCode, onPickArea, hexes, maxHexTotal, visiblePoints, labelData]);
+  }, [focusShape, areaData, focusData, areaShapes.length, level, mode, areaCodeKey, fillFor, statByCode, onPickArea, hexes, maxHexTotal, visiblePoints, labelData]);
 
   const getTooltip = useCallback(
     ({ object, layer }: PickingInfo) => {
@@ -545,7 +561,15 @@ export function CoverageDeckMap({
         minZoom={4.5}
         maxPitch={60}
         onLoad={() => {
-          const canvas = mapRef.current?.getMap().getCanvas();
+          const map = mapRef.current?.getMap();
+          // Our own labels name the states, LGAs and wards, so hide the base map's state and
+          // country names to avoid duplicates and clashes. Cities, towns and roads stay.
+          for (const layer of map?.getStyle().layers ?? []) {
+            if (layer.type === "symbol" && /^label_(state|country)/.test(layer.id)) {
+              map?.setLayoutProperty(layer.id, "visibility", "none");
+            }
+          }
+          const canvas = map?.getCanvas();
           canvas?.setAttribute("aria-label", "Interactive map of polling-unit coverage in Nigeria");
           canvas?.setAttribute("aria-describedby", instructionsId);
           setLoaded(true);
