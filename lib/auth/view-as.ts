@@ -80,32 +80,35 @@ export function seatLabel(officeName: string, unitName: string): string {
 
 export type MembershipAccessRow = {
   group_name: string | null;
+  /** The group type's fixed key ("admin", "party", ...); null for a type an admin created. */
   group_type: string | null;
+  /** The group type's rules (null only on the no-membership row of a LEFT JOIN). */
+  can_message: string | null;
+  sees_coverage: string | null;
   scope_state_id: number | null;
   scope_lga_id: number | null;
   scope_ward_id: number | null;
   scope_political_unit_id: number | null;
 };
 
-/** The person's own access and its label (their group names), from their membership rows. */
-export function ownAccessFromRows(rows: MembershipAccessRow[]): { own: OwnAccess; label: string } {
-  const memberships = rows.filter((row) => row.group_type !== null);
+/**
+ * The person's own access and its label (their group names), from their membership rows.
+ * What each group allows comes from its type's rules (group_type): national or own-area
+ * coverage, and whether its members can message agents.
+ */
+export function ownAccessFromRows(rows: MembershipAccessRow[]): {
+  own: OwnAccess;
+  label: string;
+  canMessage: boolean;
+} {
+  const memberships = rows.filter((row) => row.group_name !== null);
   const isAdmin = memberships.some((row) => row.group_type === "admin");
   const names = [...new Set(memberships.map((row) => row.group_name).filter((name): name is string => !!name))];
   return {
     own: {
       isAdmin,
-      // Admins, and party memberships with no area (one row of NULL areas), see the whole country.
-      // A party membership with an area sees only that area, as in the agents and broadcasts rules.
-      hasGlobalCoverageAccess: memberships.some(
-        (row) =>
-          row.group_type === "admin" ||
-          (row.group_type === "party" &&
-            row.scope_state_id === null &&
-            row.scope_lga_id === null &&
-            row.scope_ward_id === null &&
-            row.scope_political_unit_id === null),
-      ),
+      // A group whose type sees national coverage sees the whole country, whatever its areas.
+      hasGlobalCoverageAccess: memberships.some((row) => row.sees_coverage === "national"),
       scopes: memberships
         .filter(
           (row) =>
@@ -122,6 +125,64 @@ export function ownAccessFromRows(rows: MembershipAccessRow[]): { own: OwnAccess
         })),
     },
     label: names.length ? names.join(", ") : isAdmin ? ADMIN_LABEL : "Account",
+    canMessage: memberships.some((row) => row.can_message !== null && row.can_message !== "none"),
+  };
+}
+
+/** The seat a candidate signs in for: their own, or their principal's for a running mate. */
+export type CandidateSeatRow = {
+  seat_id: number;
+  office_name: string;
+  unit_id: number;
+  unit_name: string;
+  unit_type: string;
+  is_running_mate: boolean;
+};
+
+export async function loadCandidateSeat(db: Queryable, personId: string): Promise<CandidateSeatRow | null> {
+  const [row] = await db.query<CandidateSeatRow[]>(
+    `
+      SELECT st.id AS seat_id, o.office_name, pun.id AS unit_id, pun.political_unit_name AS unit_name,
+        pun.political_unit_type::text AS unit_type, (c.principal_candidate_id IS NOT NULL) AS is_running_mate
+      FROM candidate c
+      LEFT JOIN candidate principal ON principal.id = c.principal_candidate_id
+      JOIN seat st ON st.id = COALESCE(c.seat_id, principal.seat_id)
+      JOIN office o ON o.id = st.office_id
+      JOIN political_unit pun ON pun.id = st.political_unit_id
+      WHERE c.person_id = $1
+      ORDER BY c.id
+      LIMIT 1;
+    `,
+    [personId],
+  );
+  return row ?? null;
+}
+
+/** "Vice President", "Deputy Governor", or "Running mate, <office>" for any other office. */
+export function runningMateTitle(officeName: string): string {
+  if (officeName === "President") return "Vice President";
+  if (officeName === "Governor") return "Deputy Governor";
+  return `Running mate, ${officeName}`;
+}
+
+/**
+ * A candidate's own access: their seat's area (the whole country for the President's ticket).
+ * A running mate gets the same seat as their principal.
+ */
+export function candidateAccess(seat: CandidateSeatRow): { own: OwnAccess; label: string } {
+  const national = seat.unit_type === "country";
+  const label = seat.is_running_mate
+    ? seat.office_name === "President"
+      ? "Candidate · Vice President"
+      : `Candidate · ${runningMateTitle(seat.office_name)}, ${titleCaseName(seat.unit_name)}`
+    : seatLabel(seat.office_name, seat.unit_name);
+  return {
+    own: {
+      isAdmin: false,
+      hasGlobalCoverageAccess: national,
+      scopes: national ? [] : [{ stateId: null, lgaId: null, wardId: null, politicalUnitId: Number(seat.unit_id) }],
+    },
+    label,
   };
 }
 
@@ -129,10 +190,11 @@ export function ownAccessFromRows(rows: MembershipAccessRow[]): { own: OwnAccess
 export async function loadOwnAccess(db: Queryable, personId: string): Promise<{ own: OwnAccess; label: string }> {
   const rows = await db.query<MembershipAccessRow[]>(
     `
-      SELECT g.group_name, g.group_type, ms.scope_state_id, ms.scope_lga_id, ms.scope_ward_id,
-        ms.scope_political_unit_id
+      SELECT g.group_name, gt.type_key AS group_type, gt.can_message, gt.sees_coverage,
+        ms.scope_state_id, ms.scope_lga_id, ms.scope_ward_id, ms.scope_political_unit_id
       FROM membership m
       JOIN groups g ON g.id = m.group_id
+      JOIN group_type gt ON gt.id = g.group_type_id
       LEFT JOIN membership_scope_unit ms ON ms.membership_id = m.id
       WHERE m.person_id = $1;
     `,

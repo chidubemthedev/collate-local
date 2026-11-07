@@ -136,11 +136,12 @@ async function loadDemoGroups(manager: EntityManager): Promise<{
         JOIN demo_memberships ON demo_memberships.group_id = groups.id
         WHERE groups.parent_group_id IS NOT NULL
       )
-      SELECT DISTINCT groups.id, groups.group_type AS "groupType",
+      SELECT DISTINCT groups.id, group_type.type_key AS "groupType",
              groups.parent_group_id AS "parentGroupId"
       FROM groups
+      JOIN group_type ON group_type.id = groups.group_type_id
       JOIN demo_group_ids ON demo_group_ids.group_id = groups.id
-      WHERE groups.group_type IN ('party', 'campaign', 'support_group');
+      WHERE group_type.type_key IN ('party', 'campaign', 'support_group');
     `,
     [DEMO_EMAIL_PATTERN, DEMO_PHONE_PATTERN],
   )) as GroupRow[];
@@ -148,10 +149,12 @@ async function loadDemoGroups(manager: EntityManager): Promise<{
   const masters = groups.filter(
     (group) => group.groupType === GroupType.PARTY && group.parentGroupId === null,
   );
+  // The party's state chapters (children of the party group) are not extra owners.
+  const partyId = masters[0]?.id;
   const extras = groups.filter(
     (group) =>
-      group.groupType === GroupType.CAMPAIGN ||
-      group.groupType === GroupType.SUPPORT_GROUP,
+      (group.groupType === GroupType.CAMPAIGN || group.groupType === GroupType.SUPPORT_GROUP) &&
+      group.parentGroupId !== partyId,
   );
   if (masters.length !== 1 || extras.length === 0) {
     throw new Error("Existing demo groups are missing; run the existing demo seed first.");

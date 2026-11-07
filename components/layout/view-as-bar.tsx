@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { useSession, usePermissions, useSetViewAs } from "@/lib/hooks/use-auth";
 import { useHasMounted } from "@/lib/hooks/use-has-mounted";
-import { EyeIcon, accessLabel } from "@/components/layout/nav";
+import { EyeIcon, accessLabel, isPublicPath } from "@/components/layout/nav";
 
 /**
  * The "Current access" bar above every page (desktop). While "View as" is on it also shows on
@@ -19,7 +19,7 @@ export function ViewAsBar() {
   const permissions = hasMounted ? permissionsData : undefined;
   const setViewAs = useSetViewAs();
 
-  if (pathname === "/login" || !session?.authenticated || !permissions) {
+  if (isPublicPath(pathname) || !session?.authenticated || !permissions) {
     return null;
   }
 

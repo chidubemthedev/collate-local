@@ -113,10 +113,17 @@ export async function POST(request: Request) {
           `
             SELECT owner_group.id
             FROM groups owner_group
+            JOIN group_type owner_type ON owner_type.id = owner_group.group_type_id
             WHERE owner_group.id = $2
-              AND owner_group.group_type IN ('party', 'campaign')
+              AND owner_type.can_own_agents
               AND (
                 $3::boolean
+                OR EXISTS (
+                  SELECT 1
+                  FROM membership own_membership
+                  WHERE own_membership.person_id = $1
+                    AND own_membership.group_id = owner_group.id
+                )
                 OR NOT EXISTS (
                   SELECT 1
                   FROM membership viewer_membership
@@ -132,7 +139,7 @@ export async function POST(request: Request) {
                     AND visibility.is_allowed = TRUE
                 )
               )
-            FOR KEY SHARE;
+            FOR KEY SHARE OF owner_group;
           `,
           [auth.context.personId, body.ownerGroupId, auth.context.isAdmin],
         )) as Array<{ id: number }>;

@@ -18,7 +18,7 @@ function managerReturning(rows: unknown[]) {
 }
 
 describe("listOwnerGroups", () => {
-  it("gives admins every non-admin group, without the visibility grants", async () => {
+  it("gives admins every group whose type can own agents, without the visibility grants", async () => {
     const { query, manager } = managerReturning([
       { id: "3", group_name: "NDC Party", group_type: "party" },
       { id: 4, group_name: "Mobilisers", group_type: "support_group" },
@@ -31,7 +31,7 @@ describe("listOwnerGroups", () => {
       { id: 4, name: "Mobilisers", type: "support_group" },
     ]);
     const [sql, parameters] = query.mock.calls[0] as unknown as [string, unknown[] | undefined];
-    expect(sql).toContain("group_type <> 'admin'");
+    expect(sql).toContain("gt.can_own_agents");
     expect(sql).not.toContain("group_visibility_grant");
     expect(parameters).toBeUndefined();
   });
@@ -45,7 +45,7 @@ describe("listOwnerGroups", () => {
     expect(sql).not.toContain("group_visibility_grant");
   });
 
-  it("limits other users to allowed grants for their own groups", async () => {
+  it("limits other users to their own groups and those they are granted", async () => {
     const { query, manager } = managerReturning([]);
 
     await listOwnerGroups(baseUser, manager);
@@ -53,7 +53,8 @@ describe("listOwnerGroups", () => {
     const [sql, parameters] = query.mock.calls[0] as unknown as [string, unknown[]];
     expect(sql).toContain("group_visibility_grant");
     expect(sql).toContain("is_allowed = TRUE");
-    expect(sql).toContain("group_type <> 'admin'");
+    expect(sql).toContain("g.id = ANY($1::int[])");
+    expect(sql).toContain("gt.can_own_agents");
     expect(parameters).toEqual([[5, 9]]);
   });
 });

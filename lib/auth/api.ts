@@ -6,7 +6,13 @@ import { getSessionCookieName } from "@/lib/auth/config";
 import { hashSessionToken, isSessionValid, shouldRefreshSessionActivity } from "@/lib/auth/session";
 import { failure } from "@/lib/api/response";
 import type { MembershipScope } from "@/lib/auth/coverage-scope";
-import { effectiveAccess, ownAccessFromRows, type OwnAccess } from "@/lib/auth/view-as";
+import {
+  candidateAccess,
+  effectiveAccess,
+  loadCandidateSeat,
+  ownAccessFromRows,
+  type OwnAccess,
+} from "@/lib/auth/view-as";
 
 export { getCoverageScopeFilter } from "@/lib/auth/coverage-scope";
 
@@ -14,7 +20,10 @@ export type ApiAuthContext = {
   dataSource: DataSource;
   personId: string;
   isAdmin: boolean;
+  /** May open Coverage, Candidates and Agents (anyone in a group; what they see is limited by area). */
   canManageCoverage: boolean;
+  /** May send broadcasts (their group type can message agents). */
+  canMessage: boolean;
   hasGlobalCoverageAccess: boolean;
   roles: Array<{ name: string; type: string }>;
   scopes: MembershipScope[];
@@ -44,6 +53,8 @@ type SessionMembershipRow = {
   view_as: unknown;
   group_name: string | null;
   group_type: string | null;
+  can_message: string | null;
+  sees_coverage: string | null;
   scope_state_id: number | null;
   scope_lga_id: number | null;
   scope_ward_id: number | null;
@@ -68,7 +79,9 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
         session.revoked_at,
         session.view_as,
         g.group_name,
-        g.group_type,
+        gt.type_key AS group_type,
+        gt.can_message,
+        gt.sees_coverage,
         ms.scope_state_id,
         ms.scope_lga_id,
         ms.scope_ward_id,
@@ -82,6 +95,7 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
       ) session
       LEFT JOIN membership m ON m.person_id = session.person_id
       LEFT JOIN groups g ON g.id = m.group_id
+      LEFT JOIN group_type gt ON gt.id = g.group_type_id
       LEFT JOIN membership_scope_unit ms ON ms.membership_id = m.id;
     `,
     [hashSessionToken(token)],
@@ -102,11 +116,13 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
     return { ok: false, response: failure("unauthorized", "Authentication is required") };
   }
 
+  // A type an admin created has no key, so membership is detected by the group itself.
   const membershipRows = rows.filter(
-    (row): row is SessionMembershipRow & { group_name: string; group_type: string } =>
-      row.group_type !== null,
+    (row): row is SessionMembershipRow & { group_name: string } => row.group_name !== null,
   );
-  if (membershipRows.length === 0) {
+  // No group: a candidate (or running mate) sees their seat's area. Anyone else is refused.
+  const candidateSeat = membershipRows.length === 0 ? await loadCandidateSeat(dataSource, session.person_id) : null;
+  if (membershipRows.length === 0 && !candidateSeat) {
     return { ok: false, response: failure("forbidden", "Access is not permitted") };
   }
 
@@ -114,16 +130,18 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
     await dataSource.query(`UPDATE auth_session SET last_active_at = NOW() WHERE id = $1;`, [session.id]);
   }
 
-  const { own, label: ownLabel } = ownAccessFromRows(membershipRows);
+  const { own, label: ownLabel, canMessage } = candidateSeat
+    ? // Candidates message the agents in their seat; the agent and broadcast rules check the rest.
+      { ...candidateAccess(candidateSeat), canMessage: true }
+    : ownAccessFromRows(membershipRows);
   const base = {
     dataSource,
     personId: session.person_id,
     sessionId: session.id,
     own,
     ownLabel,
-    canManageCoverage: membershipRows.some((row) =>
-      ["admin", "party", "campaign"].includes(row.group_type),
-    ),
+    // Every group type may look at its area; messaging depends on the type's rules.
+    canManageCoverage: true,
   };
 
   if (session.view_as) {
@@ -134,6 +152,8 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
         context: {
           ...base,
           isAdmin: false,
+          // Party and candidate views can message (the preview itself is read-only).
+          canMessage: true,
           hasGlobalCoverageAccess: view.hasGlobalCoverageAccess,
           roles: [{ name: view.label, type: "view_as" }],
           scopes: view.scopes,
@@ -150,8 +170,11 @@ export async function requireApiAuth(): Promise<ApiAuthResult> {
     context: {
       ...base,
       isAdmin: own.isAdmin,
+      canMessage,
       hasGlobalCoverageAccess: own.hasGlobalCoverageAccess,
-      roles: membershipRows.map((row) => ({ name: row.group_name, type: row.group_type })),
+      roles: candidateSeat
+        ? [{ name: ownLabel, type: "candidate" }]
+        : membershipRows.map((row) => ({ name: row.group_name, type: row.group_type ?? "custom" })),
       scopes: own.scopes,
       viewAs: null,
     },

@@ -20,6 +20,8 @@ const AUTH_ROWS = [
     revoked_at: null,
     group_name: "Collate Admins",
     group_type: "admin",
+    can_message: "all_agents",
+    sees_coverage: "national",
     scope_state_id: null,
     scope_lga_id: null,
     scope_ward_id: null,

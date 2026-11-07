@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, usePermissions, useLogout } from "@/lib/hooks/use-auth";
 import { useHasMounted } from "@/lib/hooks/use-has-mounted";
-import { NAV, NavIcon, sectionOf, type NavSection } from "@/components/layout/nav";
+import { NAV, NavIcon, isPublicPath, sectionOf, type NavSection } from "@/components/layout/nav";
 import { ViewAsField } from "@/components/layout/view-as-field";
 
 /** Phone header from the wireframes: brand, View as, the two feature tabs, then the views inside the feature. */
@@ -21,7 +21,7 @@ export function MobileNav() {
   // the next page has loaded.
   const [tapped, setTapped] = useState<{ from: string; to: NavSection } | null>(null);
 
-  if (pathname === "/login") {
+  if (isPublicPath(pathname)) {
     return null;
   }
 
@@ -29,8 +29,11 @@ export function MobileNav() {
     ...(permissions?.canManageCoverage === true ? (["pu"] as const) : []),
     ...(permissions?.canBroadcast === true ? (["msg"] as const) : []),
   ];
+  // Settings is not a tab on phones: it sits apart, top right next to View as (wireframe).
+  const showSettings = permissions?.isAdmin === true;
   const current = sectionOf(pathname);
-  const subs = sections.includes(current) ? NAV[current].items : [];
+  const onSettings = current === "settings";
+  const subs = onSettings ? (showSettings ? NAV.settings.items : []) : sections.includes(current) ? NAV[current].items : [];
   const shown = tapped && tapped.from === pathname ? tapped.to : current;
   const pillIndex = sections.indexOf(shown);
 
@@ -71,9 +74,22 @@ export function MobileNav() {
         ) : null}
 
         {session?.authenticated ? (
-          <div className="flex min-w-0 flex-[1_1_100%] flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#737373]">View as</span>
-            <ViewAsField />
+          <div className="flex min-w-0 flex-[1_1_100%] items-end gap-2.5">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#737373]">View as</span>
+              <ViewAsField />
+            </div>
+            {showSettings ? (
+              <Link
+                href={NAV.settings.href}
+                aria-current={onSettings ? "page" : undefined}
+                className={`inline-flex min-h-10 flex-none items-center rounded-[8px] px-3 text-[13px] font-semibold text-[#0A0A0A] no-underline hover:text-[#0A0A0A] ${
+                  onSettings ? "bg-[#F4F4F5]" : ""
+                }`}
+              >
+                Settings
+              </Link>
+            ) : null}
           </div>
         ) : null}
 
@@ -111,7 +127,10 @@ export function MobileNav() {
       </div>
 
       {subs.length > 0 ? (
-        <nav aria-label={current === "pu" ? "Polling unit views" : "Messaging views"} className="flex min-w-0 gap-1 overflow-x-auto">
+        <nav
+          aria-label={current === "pu" ? "Polling unit views" : current === "msg" ? "Messaging views" : "Settings"}
+          className="flex min-w-0 gap-1 overflow-x-auto"
+        >
           {subs.map((item) => {
             const on = item.isActive(pathname);
             return (

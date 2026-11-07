@@ -7,10 +7,15 @@ export interface PolicyUser {
   personId: string;
   isAdmin: boolean;
   /**
-   * A party membership with no area is national: every polling unit, like admins, without admin
-   * rights. A party membership with an area (a state coordinator, say) sees only that area.
+   * Their group type sees national coverage: every polling unit, like admins, without admin
+   * rights. Otherwise they see only the areas set on their memberships.
    */
   hasNationalAccess?: boolean;
+  /**
+   * Their group type may message agents. Left out (as for candidates with no group), sending is
+   * decided by their area alone, as before.
+   */
+  canMessage?: boolean;
   candidateId: number | null;
   seatId: number | null;
   groupIds: number[];
@@ -32,9 +37,12 @@ export async function loadPolicyUser(
     .getRepository(Membership)
     .createQueryBuilder("membership")
     .innerJoin("membership.group", "group")
+    .innerJoin("group.groupType", "groupType")
     .leftJoin("membership.membershipScopeUnits", "scopeUnit")
     .select("membership.groupId", "groupId")
-    .addSelect("group.groupType", "groupType")
+    .addSelect("groupType.typeKey", "typeKey")
+    .addSelect("groupType.canMessage", "canMessage")
+    .addSelect("groupType.seesCoverage", "seesCoverage")
     .addSelect("scopeUnit.scopeStateId", "scopeStateId")
     .addSelect("scopeUnit.scopeLgaId", "scopeLgaId")
     .addSelect("scopeUnit.scopeWardId", "scopeWardId")
@@ -42,7 +50,9 @@ export async function loadPolicyUser(
     .where("membership.personId = :policyPersonId", { policyPersonId: personId })
     .getRawMany<{
       groupId: number;
-      groupType: string;
+      typeKey: string | null;
+      canMessage: string;
+      seesCoverage: string;
       scopeStateId: number | null;
       scopeLgaId: number | null;
       scopeWardId: number | null;
@@ -63,16 +73,12 @@ export async function loadPolicyUser(
 
   return {
     personId,
-    isAdmin: membershipRows.some((row) => row.groupType === "admin"),
-    // One row per area of a membership; a membership with no area comes back as one row of NULLs.
-    hasNationalAccess: membershipRows.some(
-      (row) =>
-        row.groupType === "party" &&
-        row.scopeStateId === null &&
-        row.scopeLgaId === null &&
-        row.scopeWardId === null &&
-        row.scopePoliticalUnitId === null,
-    ),
+    isAdmin: membershipRows.some((row) => row.typeKey === "admin"),
+    // The rules come from each group's type (group_type).
+    hasNationalAccess: membershipRows.some((row) => row.seesCoverage === "national"),
+    ...(membershipRows.length
+      ? { canMessage: membershipRows.some((row) => row.canMessage !== "none") }
+      : {}),
     candidateId: candidate?.id ?? null,
     seatId: candidate?.seatId ?? candidate?.principalCandidate?.seatId ?? null,
     groupIds: [...new Set(membershipRows.map((row) => Number(row.groupId)))],

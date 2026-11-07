@@ -22,6 +22,8 @@ const AUTH_ROWS = [
     revoked_at: null,
     group_name: "Campaign HQ",
     group_type: "campaign",
+    can_message: "agents_they_cover",
+    sees_coverage: "own_area",
     scope_state_id: 5,
     scope_lga_id: null,
     scope_ward_id: null,
@@ -91,7 +93,12 @@ describe("POST /api/coverage/assignments", () => {
   it("refuses every change while View as is on", async () => {
     const calls = useDatabase([{ id: 42, allowed: true }]);
     const original = { ...AUTH_ROWS[0] };
-    Object.assign(AUTH_ROWS[0], { group_type: "party", scope_state_id: null, view_as: { kind: "party" } });
+    Object.assign(AUTH_ROWS[0], {
+      group_type: "party",
+      sees_coverage: "national",
+      scope_state_id: null,
+      view_as: { kind: "party" },
+    });
     try {
       const response = await post(validBody);
       expect(response.status).toBe(403);

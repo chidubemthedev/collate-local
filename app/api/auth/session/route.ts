@@ -43,7 +43,8 @@ export async function GET() {
             SELECT 1
             FROM membership m
             JOIN groups g ON g.id = m.group_id
-            WHERE m.person_id = session.person_id AND g.group_type = 'admin'
+            JOIN group_type gt ON gt.id = g.group_type_id
+            WHERE m.person_id = session.person_id AND gt.type_key = 'admin'
           ) AS is_admin
         FROM (
           SELECT id, person_id, expires_at, last_active_at, revoked_at

@@ -11,9 +11,11 @@ export async function seedGroupsAndPeople(
   const groupData = [
     { group_name: "Collate Admins", group_type: GroupType.ADMIN },
     { group_name: "NDC", group_type: GroupType.PARTY },
-    { group_name: "NDC Lagos", group_type: GroupType.PARTY, parent_group_name: "NDC" },
-    { group_name: "NDC Anambra", group_type: GroupType.PARTY, parent_group_name: "NDC" },
-    { group_name: "NDC Kano", group_type: GroupType.PARTY, parent_group_name: "NDC" },
+    // State chapters: their members are limited to their state, so they use an own-area type
+    // (a Party-type group sees the whole country).
+    { group_name: "NDC Lagos", group_type: GroupType.CAMPAIGN, parent_group_name: "NDC" },
+    { group_name: "NDC Anambra", group_type: GroupType.CAMPAIGN, parent_group_name: "NDC" },
+    { group_name: "NDC Kano", group_type: GroupType.CAMPAIGN, parent_group_name: "NDC" },
     { group_name: "Party Presidential Campaign", group_type: GroupType.CAMPAIGN },
     { group_name: "Independent Presidential Campaign", group_type: GroupType.CAMPAIGN },
     { group_name: "Obedient Movement", group_type: GroupType.SUPPORT_GROUP },
@@ -24,10 +26,10 @@ export async function seedGroupsAndPeople(
   ];
 
   const createdGroups = await queryRunner.query(`
-    INSERT INTO groups (group_name, group_type, parent_group_id)
+    INSERT INTO groups (group_name, group_type_id, parent_group_id)
     VALUES ${groupData
       .map((group) => {
-        return `('${group.group_name.replace("'", "''")}', '${group.group_type}', NULL)`;
+        return `('${group.group_name.replace("'", "''")}', (SELECT id FROM group_type WHERE type_key = '${group.group_type}'), NULL)`;
       })
       .join(", ")}
     RETURNING id, group_name;
