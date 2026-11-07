@@ -23,6 +23,8 @@ const AUTH_ROWS = [
     revoked_at: null,
     group_name: "Campaign HQ",
     group_type: "campaign",
+    can_message: "agents_they_cover",
+    sees_coverage: "own_area",
     scope_state_id: 5,
     scope_lga_id: null,
     scope_ward_id: null,

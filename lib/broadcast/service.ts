@@ -18,7 +18,8 @@ export async function createBroadcast(
   input: CreateBroadcastInput,
   manager?: EntityManager,
 ): Promise<CreatedBroadcast> {
-  if (getScope(user).kind === "none") {
+  // Their area must allow it, and so must their group type (e.g. support groups are view-only).
+  if (getScope(user).kind === "none" || user.canMessage === false) {
     throw new ForbiddenError();
   }
 

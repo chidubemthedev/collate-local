@@ -36,7 +36,8 @@ A party has to cover about 177,000 polling units across 37 states, 774 LGAs and 
 - **Agent management.** Assign people to polling units as the official agent (one per unit) or as extra agents (any number). Every change is audited.
 - **Candidate coverage.** See how well each candidate's seat is covered.
 - **Broadcasts.** Preview an audience, write a message, send now or schedule it. Telegram goes first, SMS is the fallback. Delivery is tracked per person, including an "OK" tap from the agent.
-- **Scoped access.** Users sign in with an email code. What they can see is limited by their group membership and geographic scope. Phone numbers are always masked.
+- **Scoped access.** Users sign in with an email code. What they can see is limited by their group membership and geographic scope, or by their seat for a candidate. Phone numbers are always masked.
+- **Settings (admins).** Define group types and what they allow, add and remove admins, invite candidates and running mates by email, and read the audit log.
 
 ### Key features
 
@@ -44,7 +45,12 @@ A party has to cover about 177,000 polling units across 37 states, 774 LGAs and 
 | --- | --- |
 | Passwordless sign-in | Email OTP, server-side sessions, HTTP-only cookie |
 | Scope-based access | Membership scope and group visibility are applied inside SQL, not after fetching |
-| Cursor pagination | Lists are capped at 100 rows (the coverage gaps list is the exception) |
+| Group types as data | What a group can do (message, coverage, own agents) is a row in `group_type`; admins add new types from Settings without a code change |
+| View as | A person can preview the app as any access at or below their own; the preview is read-only |
+| Cursor pagination | Every list that pages uses a keyset cursor (no offsets). Most lists cap `limit` at 100; coverage gaps and candidate coverage allow 500 |
+| Candidate invites | Admins email candidates a single-use, 24-hour link; the candidate completes registration from it and is signed in |
+| Audit log page | Admins read who did what, newest first, filtered by changes or views, person and date |
+| Branded emails | Sign-in codes and invites share one email-client-safe layout, with a plain-text version |
 | Background sending | A separate worker sends broadcasts through a Postgres-backed queue (pg-boss) |
 | Consent aware | Telegram is used only after the person accepts the consent text; a decline excludes them |
 | Append-only audit log | A database trigger rejects `UPDATE` and `DELETE` on `audit_log` |
@@ -57,7 +63,8 @@ A party has to cover about 177,000 polling units across 37 states, 774 LGAs and 
 
 ```mermaid
 flowchart LR
-  User["Browser<br/>(party / campaign / admin user)"]
+  User["Browser<br/>(party / campaign / admin / candidate)"]
+  Invitee["Invited candidate<br/>(email link, not signed in)"]
   Agent["Polling-unit agent<br/>(Telegram app)"]
 
   subgraph Vercel["Next.js app (Vercel)"]
@@ -74,7 +81,7 @@ flowchart LR
 
   PG[("PostgreSQL (Neon)<br/>app tables + pg-boss tables")]
   TG["Telegram Bot API"]
-  Brevo["Brevo<br/>OTP email, SMS fallback"]
+  Brevo["Brevo<br/>sign-in code and invite emails, SMS fallback"]
 
   User -->|"HTTPS, session cookie"| UI
   UI -->|"fetch /api/*"| API
@@ -82,7 +89,9 @@ flowchart LR
   Policy -->|"TypeORM + parameterised SQL"| PG
   API --> Producer
   Producer -->|"enqueue job"| PG
-  API -->|"send OTP email"| Brevo
+  API -->|"sign-in code and invite emails"| Brevo
+  Brevo -->|"invite link"| Invitee
+  Invitee -->|"/invite/token: complete registration"| UI
   Worker <-->|"poll, lock, ack jobs; read and write deliveries"| PG
   Worker -->|"sendMessage"| TG
   Worker -->|"SMS fallback"| Brevo
@@ -100,8 +109,57 @@ flowchart LR
 4. The worker picks the job up, turns the audience into one `delivery` row per person, and enqueues one `delivery-send` job per delivery.
 5. Each `delivery-send` job tries Telegram, falls back to SMS where it makes sense, and updates the delivery status.
 6. When an agent messages the bot, Telegram POSTs to `/api/telegram/webhook`. The bot links the chat to a phone number, records consent, and records "OK" taps on deliveries.
+7. An admin invites a candidate from Settings · Candidates. The API stores a hashed, single-use link and emails it through Brevo. The candidate opens `/invite/<token>`, completes registration, and the API saves their email and signs them in.
+8. Every change (and every list view) writes an `audit_log` row inside the same transaction as the change. Admins read it on Settings · Audit log.
 
 The API and the worker never call each other. The database (including the queue tables) is their only shared channel.
+
+**Access model**
+
+Who may see and do what is data, not code. A person's access comes from their group memberships, each group's type, and any areas set on the membership; a candidate's comes from their seat.
+
+```mermaid
+flowchart LR
+  Person["person<br/>(signs in by email code)"]
+  Membership["membership<br/>(person in a group)"]
+  Scope["membership_scope_unit<br/>(state, LGA, ward or political unit)"]
+  Group["groups"]
+  Type["group_type<br/>can_message, sees_coverage, can_own_agents"]
+  Candidate["candidate<br/>(running mate: principal_candidate_id)"]
+  Seat["seat → political_unit<br/>(the candidate's area)"]
+  Access["Access for this request<br/>isAdmin, national or areas, canMessage"]
+  ViewAs["auth_session.view_as<br/>(read-only preview)"]
+
+  Person --> Membership --> Group --> Type
+  Membership --> Scope
+  Person --> Candidate --> Seat
+  Type --> Access
+  Scope --> Access
+  Seat -->|"no group: candidate access"| Access
+  ViewAs -->|"replaces own access, blocks changes"| Access
+```
+
+**Candidate invite flow**
+
+```mermaid
+sequenceDiagram
+  participant A as Admin (Settings · Candidates)
+  participant API as API
+  participant D as PostgreSQL
+  participant B as Brevo
+  participant C as Candidate
+
+  A->>API: POST /api/settings/candidates/{id}/invite { email }
+  API->>D: lock candidate, check email free and not pending elsewhere
+  API->>D: revoke old link, insert invite_access_link (token hash, expires in 24h), audit row
+  API->>B: invite email with SERVER_BASE_URL/invite/token
+  B-->>C: email
+  C->>API: GET /api/auth/invite/{token}
+  API-->>C: name, seat, masked email (or why the link can't be used)
+  C->>API: POST /api/auth/invite/{token}
+  API->>D: lock link, check email still free, set person.email, mark link used, create session, audit row
+  API-->>C: session cookie, then /coverage
+```
 
 ---
 
@@ -133,7 +191,8 @@ app/
   agents/               Agent list and the assign flow
   recipients/           Reachable agents, Telegram readiness, CSV export
   broadcasts/           List, /new, and /[id] detail
-  settings/             Settings screens
+  settings/             Groups and access (page.tsx), admins/, candidates/, audit-log/ (admins only)
+  invite/[token]/       Candidate invite: complete registration (public)
   admin/queue/          Admin queue inspector
   api/                  REST route handlers (see section 4)
 components/
@@ -144,7 +203,7 @@ components/
 lib/
   api/client.ts         apiClient / apiFetch wrapper (credentials: "include")
   hooks/                React Query hooks: use-auth, use-agents, use-broadcasts,
-                        use-candidates, use-coverage, use-geography
+                        use-candidates, use-coverage, use-geography, use-settings, use-invite
   context/app-context.tsx   AppProvider (see Notes / TODO)
 types/api.ts            API response types shared with the hooks
 ```
@@ -162,16 +221,20 @@ File-based App Router routes:
 | `/agents` | Agent list, assign and remove |
 | `/recipients` | Agents as broadcast recipients, with search, filters and Telegram-ready counts |
 | `/broadcasts`, `/broadcasts/new`, `/broadcasts/[id]` | Broadcast history, composer, detail and deliveries |
-| `/settings` | Settings |
+| `/settings` | Groups and access: the group types and their rules, and a form to add one (admins only) |
+| `/settings/admins` | Admins: who is an admin, and a form to add one (admins only) |
+| `/settings/candidates` | Candidates: invite candidates and running mates, resend or cancel invites (admins only) |
+| `/settings/audit-log` | Audit log: who did what, newest first, with filters (admins only) |
+| `/invite/[token]` | Where an invite email links: complete registration (no sign-in needed) |
 | `/admin/queue` | Queue counts and recent jobs (admin only) |
 
-There is no `middleware`/`proxy` file. Pages that call protected APIs redirect to `/login` on a `401`, and the sidebar and mobile nav hide themselves on `/login`. The real access control is always the API.
+There is no `middleware`/`proxy` file. `apiClient` sends the browser to `/login` whenever an API call returns `401 unauthorized` (session missing or expired), except on `/login` and `/invite/*`; other `401` codes, such as a wrong sign-in code, are left to the page. The sidebar, mobile nav and View-as bar hide themselves on those public pages (`isPublicPath` in `components/layout/nav.tsx`). Settings pages are wrapped in `AdminGate`. The real access control is always the API.
 
 ### State management and API integration
 
 - **Server state** lives in React Query. Hooks in `lib/hooks/` wrap `apiClient` and own the query keys (for example `AUTH_KEYS`).
 - `apiClient` (`lib/api/client.ts`) sends `credentials: "include"` and throws `ApiClientError` carrying the API error code, so pages can handle `401` and `403` cleanly.
-- Lists use `useInfiniteQuery` with `meta.nextCursor` (agents page size 50).
+- Lists use `useInfiniteQuery` with `meta.nextCursor` (agents page size 50). The Settings lists (admins, candidates, audit log) show one page at a time with Previous / Next, using `usePages` and `Pager` from `components/settings/pager.tsx`: page N is the Nth cursor page, fetched when first opened and kept for going back. Their filters use the shared `TableToolbar` (folds behind a Filters bar on phones, with chips and Clear filters).
 - Mutations invalidate the related queries. For example, verifying an OTP invalidates the session and permissions queries.
 - **UI state** (filters, dialogs) stays local to each page. The debounced search on `/recipients` is an example.
 - The Coverage page requests grouped coordinate counts from `/api/coverage/map-points` for the selected geography, then renders them in a client-only MapLibre map. It starts focused on Nigeria, limits panning to Nigeria's approximate coordinate bounds, clusters nearby locations, and lets users toggle covered, gap and mixed markers. Mixed markers are smaller and show coverage counts on hover; clicking a location shows its counts without returning agent details. Map controls have larger touch targets, and the map height adapts to mobile viewports. National overview and geography drill-down cards are omitted. OpenStreetMap raster tiles and MapLibre demo glyphs are loaded externally; the attribution is shown on the map. Coordinates may be approximate and are not suitable for navigation without verification.
@@ -214,6 +277,8 @@ npm run dev        # http://localhost:3000
 | Auth | `lib/auth/*` | OTP, sessions, rate limits, `requireUser`, `requireApiAuth`, origin check |
 | Policy | `lib/policy/*` | Scope, visible owners, masking, pagination, audit. Everything about "who may see what" |
 | Domain services | `lib/broadcast`, `lib/coverage`, `lib/admin` | Broadcast creation and queries, coverage queries, queue stats |
+| Settings | `lib/settings`, `lib/invites`, `lib/audit` | Group-type rules and labels, admin input checks, candidate invites (tokens, status, candidate rows), audit-log labels and cursor |
+| Email | `lib/email` | `template.ts` (the shared layout, sign-in code and invite emails) and `brevo.ts` (sending) |
 | Channels | `lib/channels/telegram`, `lib/channels/sms` | Telegram bot and adapter, SMS channel behind an interface |
 | Queue (producer) | `lib/queue` | `enqueue()` with the default retry policy |
 | Data | `lib/db` | Entities, migrations, seeds, data source |
@@ -228,6 +293,8 @@ lib/auth/                    Sessions, OTP, rate limiting, cookies, request help
 lib/policy/                  Scope and visibility policy, schemas, error mapping
 lib/policy/core/             list-agents, audience, scope queries, ward polling units
 lib/broadcast/               Zod schemas, createBroadcast, list and detail queries
+lib/settings/ lib/invites/ lib/audit/   Settings: group types, admins, candidate invites, audit log
+lib/email/                   Email layout and templates, Brevo sender
 lib/channels/                telegram/ (bot, handlers, adapter, limiter) and sms/
 lib/queue/                   Producer (index.ts) and shared queue names (names.ts)
 lib/db/                      data-source.ts, entities/, migrations/, seeds/
@@ -274,16 +341,46 @@ sequenceDiagram
 
 **Authorization**
 
-`requireApiAuth` loads the person's memberships. A person with no membership gets `403`. Roles come from `groups.group_type`:
+`requireApiAuth` (coverage and geography) and `loadPolicyUser` (agents and broadcasts) load the person's memberships. A person with no membership is checked for a candidate row: a candidate sees their seat's area (the whole country for the President's ticket), and a running mate sees their principal's seat. Anyone with neither gets `403`. What a membership allows comes from its group's type: each group points at a row of `group_type` (`groups.group_type_id`), and the checks read that row's rules rather than a list of types in code.
+
+| Rule (`group_type` column) | Values | Effect |
+| --- | --- | --- |
+| `can_message` | `none`, `agents_they_cover`, `all_agents` | `none` cannot create broadcasts (`canBroadcast: false`, `403` on create). The others can message the agents their access covers |
+| `sees_coverage` | `national`, `own_area` | `national` sees the whole country whatever areas the membership has. `own_area` sees only the areas in its `membership_scope_unit` rows (no area set, nothing seen) |
+| `can_own_agents` | boolean | Only groups whose type has it can own agent assignments |
+
+The four built-in types have a fixed `type_key` that the code relies on. Types an admin creates have `type_key = NULL`.
+
+| Type (`type_key`) | Can message | Sees coverage | Can own agents |
+| --- | --- | --- | --- |
+| Admin (`admin`) | All agents | National | No |
+| Party (`party`) | Agents they cover | National | Yes |
+| Campaign (`campaign`) | Agents they cover | Own area | Yes |
+| Support group (`support_group`) | No one (view only) | Own area | Yes |
 
 | Flag | Rule |
 | --- | --- |
-| `isAdmin` | member of an `admin` group |
-| `canManageCoverage` | member of an `admin`, `party` or `campaign` group |
-| `hasGlobalCoverageAccess` | member of an `admin` or `party` group |
-| Scope | `membership_scope_unit` rows limit a membership to a state, LGA, ward or political unit |
+| `isAdmin` | member of a group whose type key is `admin` |
+| `canManageCoverage` | any membership (what is seen is limited by area) |
+| `hasGlobalCoverageAccess` | any membership whose type `sees_coverage = national` |
+| `canMessage` | any membership whose type `can_message` is not `none` |
+| Scope | `membership_scope_unit` rows limit an `own_area` membership to a state, LGA, ward or political unit |
 
-Out-of-scope resources return `404`, not `403`, so their existence isn't revealed. Agent reads also apply `group_visibility_grant`.
+Code must check `type_key`, never `group_type.id`: ids differ between databases.
+
+Out-of-scope resources return `404`, not `403`, so their existence isn't revealed. Agent reads also apply `group_visibility_grant`, except that a group always sees the agents it owns itself.
+
+Broadcasts are personal: a non-admin sees only the broadcasts they sent (list, detail and deliveries; anyone else's returns `404`). Admins see every broadcast. The filter uses the signed-in person, so View as doesn't change it.
+
+**Candidate invites**
+
+Candidates come from INEC's lists with no email, so they can't sign in until invited. On Settings · Candidates an admin enters a candidate's (or running mate's) email; the app stores an `invite_access_link` (the email, and only the SHA-256 hash of a random token) and emails the link `/invite/<token>`. The link works once and lasts 24 hours; sending a new invite cancels the old link. The email is refused if it already belongs to someone or has another invite waiting.
+
+The candidate opens the link (no sign-in needed), checks their details and completes registration: the email is checked again, saved on their `person`, the link is marked used, and they are signed in. After that they sign in with an email code like everyone else. The email is only saved on completion because anyone with a candidate row and an email can request a sign-in code.
+
+**View as**
+
+A person can preview the app as the party (national) or as any candidate's seat at or below their own access (`GET/PUT/DELETE /api/auth/view-as`). The choice is stored on the session (`auth_session.view_as`), and `requireApiAuth` and the policy user then use the previewed access instead of the person's own. Every mutating route returns `403` while a view is on (`readOnlyResponse`), so a preview can never change data.
 
 **Validation**
 
@@ -323,7 +420,10 @@ Short answers for a technical review.
 | Worker crashes mid-broadcast? | pg-boss retries. `delivery-send` is idempotent on delivery status and `singletonKey` stops duplicates |
 | Can the audit log be tampered with? | Not through the app or normal SQL: a trigger rejects `UPDATE` and `DELETE`. A database superuser could drop the trigger |
 | Stolen session cookie? | At most 12 hours (2 hours idle). `HttpOnly`. Only the hash is stored, and deleting the row revokes it |
-| CSRF? | `SameSite=Lax` plus an `Origin` match on every mutating route (assignments, broadcasts, preview) |
+| CSRF? | `SameSite=Lax` plus an `Origin` match on every mutating route (assignments, broadcasts, preview, view as, group types, admins, candidate invites, completing an invite) |
+| Can an invite link be guessed or reused? | It carries 256 random bits; only its SHA-256 hash is stored. It works once, lasts 24 hours, and a new invite revokes the old one. The invite endpoints are rate-limited per IP |
+| Can an admin lock everyone out? | No: you can't remove yourself as an admin, and the last admin can't be removed. Built-in group types can't be deleted, nor a type any group still uses |
+| How are new kinds of group added? | As a row in `group_type`, created from Settings by an admin. The access checks read its rules, so no code change or deploy is needed |
 | SQL injection? | Parameterised queries and Zod validation for every ID, filter and cursor |
 | Is personal data protected? | Phones are masked in all responses. Email and voter card numbers are never returned. Job payloads carry IDs only |
 
@@ -336,15 +436,18 @@ Database-level constraints that back these answers:
 | `ck_agent_assignment_slot` | Official agents use slot `0`; extra agents use slot `1` or more |
 | `ck_phone_number_e164` | Phone numbers look like E.164 (`^\+[1-9][0-9]{6,14}$`) |
 | unique `LOWER(email_address)` | Case-insensitive unique email on `person` |
+| `uq_group_type_name` on `LOWER(type_name)` | Case-insensitive unique group type name |
+| `fk_groups_group_type` (RESTRICT) | Every group has a type, and a type in use can't be deleted |
 | `ck_candidate_seat_or_principal` | A candidate has either a seat or a principal (running mate), never both or neither |
 | `ck_membership_scope_unit_exactly_one` | A scope row targets exactly one of state, LGA, ward, political unit |
 | `ck_coverage_count_*` | One unit scope per row; covered count never exceeds total |
 | unique `(broadcast_id, person_id)` on `delivery` | A person can't get the same broadcast twice |
-| `audit_log_append_only` trigger | `audit_log` rows can't be updated or deleted |
+| `audit_log_append_only` trigger | `audit_log` rows can't be updated or deleted. This also means a person with audit history can't be deleted (the `SET NULL` on their entries is an update); clear their email instead |
+| `invite_access_link_token_hash_key` | An invite token hash is unique |
 
 ### 4.4 Data models
 
-PostgreSQL, 30 tables, created by the migrations in `lib/db/migrations/`. `synchronize` is off. Every table has a TypeORM entity in `lib/db/entities/`.
+PostgreSQL, 31 tables, created by the migrations in `lib/db/migrations/`. `synchronize` is off. Every table has a TypeORM entity in `lib/db/entities/`.
 
 Conventions: `serial`/`bigserial` ids are auto-increment, `uuid` ids default to `gen_random_uuid()`, `timestamptz` timestamps default to `NOW()`. "FK" means a foreign key. Tables are grouped by domain.
 
@@ -354,7 +457,8 @@ Conventions: `serial`/`bigserial` ids are auto-increment, `uuid` ids default to 
 | --- | --- |
 | `political_unit_type` | `country`, `state`, `senatorial_district`, `federal_constituency`, `state_constituency` |
 | `verification_status` | `unverified`, `verified`, `rejected` |
-| `group_type` | `party`, `campaign`, `support_group`, `admin` |
+| `group_can_message` | `none`, `agents_they_cover`, `all_agents` |
+| `group_sees_coverage` | `national`, `own_area` |
 | `agent_kind` | `official`, `extra` |
 | `broadcast_status` | `draft`, `scheduled`, `sending`, `completed`, `failed`, `cancelled` |
 | `delivery_channel` | `telegram`, `sms` |
@@ -528,20 +632,34 @@ Unique `(office_id, political_unit_id)`.
 
 Checks: exactly one of `seat_id` / `principal_candidate_id` is set, and a candidate can't be their own principal. Running mates (VP, deputy governors) are rows with `principal_candidate_id` set.
 
-**`access_link`**: a token for candidate access.
+**`invite_access_link`**: a candidate's invite link (see Candidate invites in 4.2). Was `access_link`.
 
 | Field | Type | Constraints / default |
 | --- | --- | --- |
 | id | uuid | PK |
-| candidate_id | int | FK `candidate.id` (RESTRICT), not null |
-| token_hash | varchar | unique, not null |
-| expires_at | timestamptz | not null |
-| is_revoked | boolean | `FALSE` |
+| candidate_id | int | FK `candidate.id` (RESTRICT), not null, indexed |
+| email_address | varchar | not null; where the invite went, indexed on `LOWER(email_address)` |
+| token_hash | varchar | unique, not null (SHA-256 of the link's token) |
+| expires_at | timestamptz | not null (24 hours after sending) |
+| is_revoked | boolean | `FALSE`; set when cancelled or replaced by a new invite |
+| accepted_at | timestamptz | nullable; when registration was completed |
+| invited_by_person_id | uuid | FK `person.id` (SET NULL), nullable |
 | created_at | timestamptz | `NOW()` |
 
-Schema only: no API route uses it yet.
-
 #### Groups, access and agents
+
+**`group_type`**: a kind of group and the access rules its members get (see Authorization in 4.2).
+
+| Field | Type | Constraints / default |
+| --- | --- | --- |
+| id | serial | PK |
+| type_key | varchar(40) | unique, nullable; `admin`, `party`, `campaign`, `support_group` on the built-in types, NULL on types an admin made |
+| type_name | varchar(80) | not null; unique on `LOWER(type_name)` |
+| can_message | `group_can_message` | not null |
+| sees_coverage | `group_sees_coverage` | not null |
+| can_own_agents | boolean | `TRUE` |
+| is_system | boolean | `FALSE`; `TRUE` on the four built-in types |
+| created_at | timestamptz | `NOW()` |
 
 **`groups`**: an organisation or access group.
 
@@ -549,7 +667,7 @@ Schema only: no API route uses it yet.
 | --- | --- | --- |
 | id | serial | PK |
 | group_name | varchar | not null |
-| group_type | `group_type` | not null |
+| group_type_id | int | FK `group_type.id` (RESTRICT), not null, indexed |
 | parent_group_id | int | FK `groups.id` (SET NULL), nullable |
 | created_at | timestamptz | `NOW()` |
 
@@ -643,7 +761,7 @@ Unique `(broadcast_id, person_id)`.
 | ip_address | varchar | nullable |
 | created_at | timestamptz | `NOW()` |
 
-Indexes: `(actor_person_id, created_at)`, `(target_entity_type, target_entity_id)`. Trigger `audit_log_append_only` rejects `UPDATE` and `DELETE`.
+Indexes: `(actor_person_id, created_at)`, `(target_entity_type, target_entity_id)`, `(created_at DESC, id DESC)` for the newest-first audit page. Trigger `audit_log_append_only` rejects `UPDATE` and `DELETE`. Entries are written by each route inside the same transaction as the change (no triggers write to it), and admins read them on Settings · Audit log.
 
 **`import_batch`**: tracking for file imports.
 
@@ -703,6 +821,7 @@ Index `(person_id, created_at)`.
 | last_active_at | timestamptz | not null |
 | revoked_at | timestamptz | nullable |
 | created_from_ip | varchar | nullable |
+| view_as | jsonb | nullable; the "View as" preview (`{ kind: "party" }` or a seat), NULL for the person's own access |
 | created_at | timestamptz | `NOW()` |
 
 **`auth_rate_limit`**: fixed-window rate-limit buckets.
@@ -739,6 +858,7 @@ erDiagram
   person |o--o{ audit_log : "acts in"
   person ||--o{ import_batch : "uploads"
 
+  group_type ||--o{ groups : "types"
   groups |o--o{ groups : "parent of"
   groups ||--o{ membership : "has"
   person ||--o{ membership : "joins"
@@ -755,7 +875,8 @@ erDiagram
   person ||--o{ candidate : "is"
   seat |o--o{ candidate : "contested by"
   candidate |o--o{ candidate : "running mate of"
-  candidate ||--o{ access_link : "has"
+  candidate ||--o{ invite_access_link : "invited by"
+  person |o--o{ invite_access_link : "sends"
 
   election_day ||--o{ election_day_office : "contests"
   office ||--o{ election_day_office : "contested on"
@@ -839,8 +960,14 @@ erDiagram
     uuid id PK
     uuid uploader_person_id FK
   }
+  group_type {
+    int id PK
+    string type_key UK
+    string type_name UK
+  }
   groups {
     int id PK
+    int group_type_id FK
     int parent_group_id FK
   }
   membership {
@@ -875,9 +1002,10 @@ erDiagram
     int seat_id FK
     int principal_candidate_id FK
   }
-  access_link {
+  invite_access_link {
     uuid id PK
     int candidate_id FK
+    uuid invited_by_person_id FK
     string token_hash UK
   }
   election_day {
@@ -933,6 +1061,22 @@ The full contract (parameters, bodies, response schemas, examples, error respons
 | `GET /api/auth/session` | Cookie (optional) | Current session and person, or `authenticated: false` |
 | `POST /api/auth/logout` | Cookie (optional) | Delete the session and clear the cookie |
 | `GET /api/auth/permissions` | Session | Roles and permission flags |
+| `GET /api/auth/view-as` | Session | The "View as" choices at or below the person's access, and the current one |
+| `PUT /api/auth/view-as` | Session, same origin | Turn a view on (`{ value: "party" \| "seat:<id>" }`) |
+| `DELETE /api/auth/view-as` | Session, same origin | Back to the person's own access |
+| `GET /api/settings/admins` | Session, admin | Admins (members of Admin-type groups) with masked email and phone; `q`, `limit` (max 100), `cursor` |
+| `POST /api/settings/admins` | Session, admin, same origin, not while viewing as | Add an admin (`{ fullName, email, phone? }`) to the first admin group; `201`, `409` if the email is already used, audited |
+| `GET /api/settings/candidates` | Session, admin | Candidates and running mates with invite status (`not_invited`, `invited`, `expired`, `registered`) and masked email; `q`, `office`, `status`, `limit` (max 100), `cursor` |
+| `POST /api/settings/candidates/{candidateId}/invite` | Session, admin, same origin, not while viewing as | Email an invite (`{ email }`); a new one cancels the old link. `201`; `409` if registered, the email is taken or has a pending invite; audited |
+| `DELETE /api/settings/candidates/{candidateId}/invite` | Session, admin, same origin, not while viewing as | Cancel the pending invite; `404` if none; audited |
+| `GET /api/auth/invite/{token}` | None (rate-limited) | Who the invite is for, or why it can't be used (`404` unknown, `409` expired, used or cancelled) |
+| `POST /api/auth/invite/{token}` | None, same origin (rate-limited) | Complete registration: save the email, use up the link, sign in; `409` if the email was taken since; audited |
+| `DELETE /api/settings/admins/{personId}` | Session, admin, same origin, not while viewing as | Remove an admin: deletes their Admin-group memberships and signs them out (the person stays). Not yourself (`403`), never the last admin (`409`); audited |
+| `GET /api/settings/audit-log` | Session, admin | Audit entries newest first, with the actor's and (where known) the target's name; `kind` (`changes` default, `views`, `all`), `q` (who), `from`/`to` (YYYY-MM-DD, Lagos days), `limit` (max 100), `cursor`; `meta.total` on the first page |
+| `GET /api/settings/groups` | Session, admin | Every group type and its rules |
+| `GET /api/settings/groups/{groupTypeId}` | Session, admin | What deleting the type would affect: the groups using it, with member and agent counts, and `canDelete` |
+| `DELETE /api/settings/groups/{groupTypeId}` | Session, admin, same origin, not while viewing as | Delete a type an admin made. Built-in types `403`; a type any group uses `409`; audited |
+| `POST /api/settings/groups` | Session, admin, same origin, not while viewing as | Create a group type (`{ name, canMessage: "none" \| "agents_they_cover", seesCoverage: "national" \| "own_area" }`); `201`, `409` if the name is taken, audited |
 | `GET /api/agents` | Session | List visible agents (filters, search, cursor) |
 | `GET /api/agents/summary` | Session | Counts by role and Telegram readiness |
 | `POST /api/broadcasts/preview` | Session, same origin | Count the official and extra agents a filter reaches |
@@ -948,7 +1092,7 @@ The full contract (parameters, bodies, response schemas, examples, error respons
 | `GET /api/coverage/summary` | Session | Coverage totals for the filtered area |
 | `GET /api/coverage/map-points` | Session | Grouped polling-unit coordinates and official-agent counts (no person data) |
 | `GET /api/coverage/candidates` | Session | Candidates with coverage for their seat (cursor, `limit` up to 500, audited) |
-| `GET /api/coverage/gaps` | Session | Polling units without an official agent (offset) |
+| `GET /api/coverage/gaps` | Session | Polling units without an official agent; cursor pagination (`limit` up to 500, `cursor`), `totalCount` on the first page only |
 | `POST /api/coverage/assignments` | Session, same origin | Create an agent assignment (audited) |
 | `DELETE /api/coverage/assignments/{assignmentId}` | Session, same origin | Delete an assignment (audited) |
 | `GET /api/admin/queue` | Session, admin | Queue counts and recent jobs |
@@ -1078,10 +1222,10 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `AUTH_SECRET` | Key for OTP hashing; at least 32 characters | Yes (API) | `a-long-random-string-of-32+-chars` |
 | `OTP_DELIVERY` | `brevo` or `console`. Defaults to `brevo` when `BREVO_API_KEY` is set, otherwise `console` (code printed in the server log; refused in production) | Optional | `console` |
 | `BREVO_API_KEY` | Brevo key for OTP email and SMS | Yes in production | `xkeysib-...` |
-| `BREVO_FROM_EMAIL` | OTP sender address | Optional | `no-reply@example.com` |
-| `BREVO_FROM_NAME` | OTP sender name (default `Collate`) | Optional | `Collate` |
-| `TRUST_PROXY` | `true` trusts `X-Forwarded-For` for client IPs. Default `false`. Only enable behind a trusted proxy | Optional | `true` |
-| `SERVER_BASE_URL` | Public base URL, used as the Swagger server URL | Optional (default `/`) | `https://collate.example.com` |
+| `BREVO_FROM_EMAIL` | Sender address for sign-in code and invite emails | Optional | `no-reply@example.com` |
+| `BREVO_FROM_NAME` | Sender name for those emails (default `Collate`) | Optional | `Collate` |
+| `TRUST_PROXY` | `true` trusts `X-Forwarded-For` for client IPs (audit log IP addresses, per-IP rate limits). Default `false`: IPs are recorded as `unknown` and all clients share one rate-limit bucket. Set `true` on Vercel, whose edge sets the header | Optional (set on Vercel) | `true` |
+| `SERVER_BASE_URL` | Public base URL: the Swagger server URL, and where links in emails (candidate invites) point. Without it, invite links use the address the admin was on | Recommended in production (default `/`) | `https://collate.example.com` |
 | `TELEGRAM_BOT_TOKEN` | Bot token from BotFather | Yes (API and worker) | `123456:ABC...` |
 | `TELEGRAM_BOT_USERNAME` | Bot username | Yes (API and worker) | `collate_bot` |
 | `TELEGRAM_WEBHOOK_SECRET` | Secret sent by Telegram in the webhook header | Yes (API and worker) | `random-string` |
@@ -1118,7 +1262,7 @@ cp .env.example .env     # then fill in DATABASE_URL, AUTH_SECRET, Telegram valu
 ### Migrations and seeding
 
 ```sh
-npm run db:migrate                 # apply all migrations
+npm run db:migrate                 # apply all migrations (only the ones not yet in the migrations table)
 npm run db:seed                    # offices and group visibility grants
 npm run db:seed:inec               # real INEC geography (idempotent)
 npm run db:seed:inec:coordinates   # dry-run coordinate match report
@@ -1146,6 +1290,8 @@ npm run db:audit:coordinates -- --apply
 | `npm run db:seed:demo` | Fake demo data (needs `ALLOW_DEMO_SEED=true`; refuses production) |
 | `npm run db:seed:demo:reset` | Delete demo data |
 | `npm run db:seed:demo:fresh` | Reset, then seed demo data |
+
+How migrations run: each file in `lib/db/migrations/` has an `up` (make the change) and a `down` (undo it), and runs in a transaction. TypeORM records each applied migration in the `migrations` table, so `db:migrate` runs only new ones, in timestamp order, and changes existing data in place. For example, `1790000005000-AddGroupTypeTable` creates `group_type`, adds the four built-in types, points every existing group at its type, then drops the old `groups.group_type` enum column. Test a migration on a Neon branch (a copy of production) before running it on production.
 
 Real INEC data: `data/inec/*.json.gz` is committed. `npx tsx scripts/inec-scrape.ts` rebuilds the geography file, and `python scripts/inec-extract-candidates.py` and `python scripts/inec-build-political-units.py` rebuild the candidate and political-unit files (they need `pip install pymupdf`). The seeds load 37 states, 774 LGAs, 8,838 wards, 177,299 polling units, 1,488 political units, 1,487 seats and 1,420 candidates.
 
@@ -1231,6 +1377,7 @@ between the app and the spec; remove the marker when the gap is fixed.
 
 - Unit tests sit next to the code (`*.test.ts`): auth, policy, channels, queue decisions, worker jobs, hooks.
 - `lib/policy/route-imports.test.ts` fails if a route imports `lib/db`, `typeorm` or `pg`.
+- Migration tests in `lib/db/tests/` read each migration file and check its `up` and `down` statements.
 - Database integration tests (`lib/policy/core/policy.db.test.ts`, `lib/broadcast/broadcast.db.test.ts`) are skipped unless `RUN_DB_TESTS=true` and `DATABASE_URL` is set. They write to the database, so point them at a throwaway one, never production.
 
 ### Deployment
@@ -1242,15 +1389,15 @@ between the app and the spec; remove the marker when the gap is fixed.
 | Database | Neon Postgres | Use the pooled URL for `DATABASE_URL` and the direct URL for `QUEUE_DATABASE_URL`; `DATABASE_SSL=true` |
 | Telegram webhook | Telegram | After deploying, run `npm run telegram:webhook:set -- https://<domain>/api/telegram/webhook`. Re-run it after rotating the bot token |
 
-Production checklist: `NODE_ENV=production`, strong `AUTH_SECRET`, `TELEGRAM_DRY_RUN` unset, `OTP_DELIVERY` not `console`, `TRUST_PROXY=true` only behind a trusted proxy, and `SERVER_BASE_URL` set to the public URL.
+Production checklist: `NODE_ENV=production`, strong `AUTH_SECRET`, `TELEGRAM_DRY_RUN` unset, `OTP_DELIVERY` not `console`, `TRUST_PROXY=true` on Vercel (only ever behind a trusted proxy), and `SERVER_BASE_URL` set to the public URL so invite links don't point at a preview or localhost. Run new migrations on a Neon branch first, check them, then run them on production.
 
 ### Contributing
 
 1. Branch from the main branch and keep changes small and focused.
 2. Routes call `lib/` functions. Don't import `lib/db`, `typeorm` or `pg` in a route.
 3. Use `success()`, `failure()` and `internalError()` from `lib/api/response.ts`. Don't use raw `Response.json`.
-4. Mask phone numbers, cap `limit` (100 for most lists, 500 for `/api/coverage/candidates` and `/api/coverage/gaps`) with cursor pagination where the list supports it, and check same origin on mutating routes.
-5. A route that returns individual person data writes an `audit_log` row in the same transaction.
+4. Mask phone numbers, cap `limit` (100 for most lists, 500 for `/api/coverage/candidates` and `/api/coverage/gaps`) with cursor pagination on every list, and check same origin on mutating routes.
+5. A route that returns individual person data, or changes data, writes an `audit_log` row in the same transaction. Add a plain-words label for new action types to `AUDIT_ACTION_LABEL` in `lib/audit/audit-log.ts`.
 6. Never put names, phones or other personal data in queue payloads or logs.
 7. Don't hardcode state, LGA, ward, office or group names, or INEC codes.
 8. For every route change, update `public/openapi.yaml` and `types/api.ts`.
@@ -1300,12 +1447,14 @@ Things that are unclear, missing or worth fixing. Nothing here is guessed in the
 - [ ] No `LICENSE` file and no maintainer contact.
 - [ ] No Dockerfile or docker-compose file, and no CI config (`.github`).
 - [ ] No Node version pin (`engines` or `.nvmrc`). The README says Node 20+ because `@types/node` is `^20`.
-- [ ] No `middleware`/`proxy` file: unauthenticated page access is handled client-side by redirecting to `/login` on a `401`.
+- [ ] No `middleware`/`proxy` file: unauthenticated page access is handled client-side (`apiClient` redirects to `/login` on a `401`).
 
 **Frontend**
 
-- [ ] `AppProvider` (`lib/context/app-context.tsx`) still imports static data from `lib/data/broadcasts-data.ts` and `lib/data/settings-data.ts`. The Settings page and its security, privacy and channel panels read `lib/data/settings-data.ts` (static access groups, audit log, access links, channel config). `lib/data/available-agents-pool.ts` feeds the agent autocomplete. These aren't live API data.
+- [ ] `AppProvider` (`lib/context/app-context.tsx`) still imports static data from `lib/data/broadcasts-data.ts` and `lib/data/settings-data.ts` (`ACCESS_GROUPS_DATA`). The Settings page itself (Groups and access) now reads and writes the API; the older `components/settings/access-groups-manager.tsx` and `access-matrix-table.tsx` still use the static data and aren't on the page. `lib/data/available-agents-pool.ts` feeds the agent autocomplete. These aren't live API data.
 - [ ] `/api/auth/session` returns `candidateId: null` always.
+- [ ] The Agents page loads only the first 100 agents and the first 100 coverage gaps; it never asks for the next page, although both APIs page by cursor.
+- [ ] There is no screen to change a group's type, so a group type in use can't be deleted without editing the database.
 
 **API**
 
@@ -1313,13 +1462,15 @@ Things that are unclear, missing or worth fixing. Nothing here is guessed in the
 - [ ] OTP request returns `404` for unknown or ineligible emails, which allows email enumeration (invite-only system, rate-limited). `OTP_REQUEST_MIN_RESPONSE_MS` and `OTP_REQUEST_COOLDOWN_MS` are declared in `lib/auth/config.ts` but not applied.
 - [ ] OTP routes have no `Origin` check. They rely on `SameSite=Lax`.
 - [ ] Rate limits are fixed-window, so a burst across a window edge can briefly double the allowance. With `TRUST_PROXY=false` behind a proxy, all clients share one IP bucket.
-- [ ] `/api/coverage/gaps` uses offset pagination with `limit` up to 500, unlike most lists (cursor, max 100). `/api/coverage/candidates` is cursor-paginated but also allows up to 500, so the Candidates page loads the whole registry in two requests.
+- [ ] `/api/coverage/gaps` and `/api/coverage/candidates` allow `limit` up to 500 (most lists cap at 100), so the Candidates page loads the whole registry in two requests.
 - [ ] Polling-unit coordinates: about 84,000 of 177,299 units have none (about 57,000 missing in the source plus 9,131 cleared by the boundary check). 40 LGA names (for example Sagamu, Somolu, Maiduguri M.C.) don't match the geoBoundaries names, so those are checked at state level only. Points that pass can still be a few kilometres off, and no source gives surveyed locations.
 - [ ] `coverage_count` is never read; coverage is computed live from `agent_assignment`.
 - [ ] Coverage credit: a candidate's coverage currently counts only official agents owned by that candidate. Decide whether any official agent in the seat should count.
 - [ ] The office-overlap "tree rule" is a TODO in the policy layer.
 - [ ] INEC publishes no constituency-to-polling-unit mapping, so `pu_political_unit` is derived at LGA level from constituency names (`scripts/inec-build-political-units.py`). A constituency whose LGAs can't be determined exactly has a `seat` but no mapped polling units, so its candidate sees none.
-- [ ] `access_link` and `import_batch` have tables but no API routes. There are also no routes for broadcast cancellation, INEC or agent import, or admin group/user management.
+- [ ] `import_batch` has a table but no API routes. There are also no routes for broadcast cancellation, INEC or agent import, or managing group members other than admins.
+- [ ] What candidates fill in when completing registration is still to be decided; today they confirm their details only.
+- [ ] `public/openapi.yaml` doesn't yet describe the Settings, View-as, invite and audit-log endpoints.
 - [ ] `/api/geography/*` and `/api/coverage/*` (except where noted) use `requireApiAuth` with SQL in the route files, whereas agents and broadcasts go through `lib/policy`. The route-imports test only covers the policy-managed routes.
 - [ ] The OpenAPI `CandidateCoverage.channelStatus` still lists `sms_only` and `not_matched`. Check it against the current candidate coverage code if SMS is dropped from the UI.
 - [ ] Validation errors are always `400`; `422` is never returned.

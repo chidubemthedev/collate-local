@@ -190,6 +190,25 @@ describe.skipIf(!shouldRun)("policy database integration", () => {
     expect(restored.items.some((item) => item.assignmentId === lagosOwnerAssignmentId)).toBe(true);
   });
 
+  it("always shows a group its own agents, with no visibility grant needed", async () => {
+    const { statePersonId, viewerGroupId, ungrantedOwnerGroupId, ungrantedOwnerAssignmentId } = requireFixtures();
+    const user = await loadPolicyUser(statePersonId, requireManager());
+    // Hand the ungranted agent to the viewer's own group (no grant covers it) and back.
+    await requireManager().query(`UPDATE agent_assignment SET owner_group_id = $1 WHERE id = $2`, [
+      viewerGroupId,
+      ungrantedOwnerAssignmentId,
+    ]);
+    try {
+      const page = await listAgents(user, { limit: 100 }, undefined, requireManager());
+      expect(page.items.some((item) => item.assignmentId === ungrantedOwnerAssignmentId)).toBe(true);
+    } finally {
+      await requireManager().query(`UPDATE agent_assignment SET owner_group_id = $1 WHERE id = $2`, [
+        ungrantedOwnerGroupId,
+        ungrantedOwnerAssignmentId,
+      ]);
+    }
+  });
+
   it("lets a candidate-only user see group and candidate owners within their scope", async () => {
     const {
       candidatePersonId,
@@ -460,18 +479,19 @@ async function createFixtures(entityManager: EntityManager): Promise<Fixtures> {
     ],
   );
 
+  const typeId = await groupTypeIds(entityManager);
   const groups = await insertRows<{ id: number }>(
     entityManager,
     "groups",
-    ["group_name", "group_type"],
+    ["group_name", "group_type_id"],
     [
-      [`Policy Admin ${key}`, "admin"],
-      // Area coordinators. A campaign group, since a party member with no area is national.
-      [`Policy Viewer ${key}`, "campaign"],
-      [`Policy Lagos Owner ${key}`, "party"],
-      [`Policy Kano Owner ${key}`, "party"],
-      [`Policy Ungranted Owner ${key}`, "party"],
-      [`Policy Pagination Owner ${key}`, "party"],
+      [`Policy Admin ${key}`, typeId.admin],
+      // Area coordinators: a campaign group, since a Party-type group sees the whole country.
+      [`Policy Viewer ${key}`, typeId.campaign],
+      [`Policy Lagos Owner ${key}`, typeId.party],
+      [`Policy Kano Owner ${key}`, typeId.party],
+      [`Policy Ungranted Owner ${key}`, typeId.party],
+      [`Policy Pagination Owner ${key}`, typeId.party],
     ],
   );
   const adminGroupId = Number(groups[0].id);
@@ -715,6 +735,14 @@ async function collectAllPages(
     cursor = page.nextCursor ?? undefined;
   } while (cursor);
   return items;
+}
+
+/** Ids of the built-in group types, by key. */
+async function groupTypeIds(entityManager: EntityManager): Promise<Record<string, number>> {
+  const rows = await entityManager.query<Array<{ id: number; type_key: string }>>(
+    `SELECT id, type_key FROM group_type WHERE type_key IS NOT NULL`,
+  );
+  return Object.fromEntries(rows.map((row) => [row.type_key, Number(row.id)]));
 }
 
 async function insertRows<T>(

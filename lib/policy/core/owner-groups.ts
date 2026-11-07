@@ -16,9 +16,9 @@ interface GroupRow {
 
 /**
  * Groups the user may see as agent owners (the "Sponsor / owner" filter).
- * Same visibility rule as the agents list: admins and users with no viewer group see every
- * group; everyone else sees only groups their own groups are granted to view.
- * Admin groups never own agents, so they are left out.
+ * Same visibility rule as the agents list: admins, national accounts and users with no viewer
+ * group see every group; everyone else sees their own groups and those they are granted to view.
+ * Only groups whose type can own agents are listed (not admin groups).
  */
 export async function listOwnerGroups(
   user: PolicyUser,
@@ -29,20 +29,28 @@ export async function listOwnerGroups(
   const rows =
     visibleOwners.kind === "all"
       ? await manager.query<GroupRow[]>(
-          `SELECT g.id, g.group_name, g.group_type
+          `SELECT g.id, g.group_name, COALESCE(gt.type_key, gt.type_name) AS group_type
            FROM groups g
-           WHERE g.group_type <> 'admin'
-           ORDER BY g.group_type, g.group_name`,
+           JOIN group_type gt ON gt.id = g.group_type_id
+           WHERE gt.can_own_agents
+           ORDER BY gt.id, g.group_name`,
         )
       : await manager.query<GroupRow[]>(
-          `SELECT DISTINCT g.id, g.group_name, g.group_type
+          `SELECT g.id, g.group_name, COALESCE(gt.type_key, gt.type_name) AS group_type
            FROM groups g
-           JOIN group_visibility_grant grant_row
-             ON grant_row.owner_group_id = g.id
-            AND grant_row.is_allowed = TRUE
-           WHERE grant_row.viewer_group_id = ANY($1::int[])
-             AND g.group_type <> 'admin'
-           ORDER BY g.group_type, g.group_name`,
+           JOIN group_type gt ON gt.id = g.group_type_id
+           WHERE gt.can_own_agents
+             AND (
+               g.id = ANY($1::int[])
+               OR EXISTS (
+                 SELECT 1
+                 FROM group_visibility_grant grant_row
+                 WHERE grant_row.owner_group_id = g.id
+                   AND grant_row.is_allowed = TRUE
+                   AND grant_row.viewer_group_id = ANY($1::int[])
+               )
+             )
+           ORDER BY gt.id, g.group_name`,
           [user.groupIds],
         );
 

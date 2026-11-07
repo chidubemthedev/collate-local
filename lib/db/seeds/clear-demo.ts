@@ -5,7 +5,7 @@ const tables = [
   "coverage_count",
   "delivery",
   "import_batch",
-  "access_link",
+  "invite_access_link",
   "broadcast",
   "audit_log",
   "agent_assignment",

@@ -18,7 +18,7 @@ export async function GET() {
       permissions: {
         isAdmin: auth.context.isAdmin,
         canManageCoverage: auth.context.canManageCoverage,
-        canBroadcast: auth.context.canManageCoverage,
+        canBroadcast: auth.context.canMessage,
         roles: [...new Set(auth.context.roles.map((role) => role.name))],
         ownAccess: auth.context.ownLabel,
         viewAs: auth.context.viewAs?.label ?? null,

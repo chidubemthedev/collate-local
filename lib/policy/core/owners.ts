@@ -15,7 +15,7 @@ let ownerSequence = 0;
 
 export function getVisibleOwners(user: PolicyUser, _manager?: EntityManager): VisibleOwners {
   void _manager;
-  // Admins and party (national) accounts see agents of every owner.
+  // Admins and national accounts see agents of every owner.
   if (user.isAdmin || user.hasNationalAccess || user.groupIds.length === 0) {
     // ASSUMPTION: candidate-only users have no viewer group, so they see all group owners.
     return { kind: "all", apply: () => undefined };
@@ -32,10 +32,12 @@ export function getVisibleOwners(user: PolicyUser, _manager?: EntityManager): Vi
 
       // ASSUMPTION: group hierarchy inheritance is not applied in v1.
       // ASSUMPTION: candidate-owned assignments are governed by scope only.
+      // A group always sees its own agents, plus those of groups it has been granted.
       queryBuilder.andWhere(
         new Brackets((where) => {
           where
             .where(`${ownerGroupColumn} IS NULL`)
+            .orWhere(`${ownerGroupColumn} IN (:...${parameter})`)
             .orWhere(`${ownerGroupColumn} IN (${grants})`);
         }),
         { [parameter]: user.groupIds },

@@ -51,9 +51,10 @@ export async function DELETE(
                   SELECT 1
                   FROM membership m
                   JOIN groups g ON g.id = m.group_id
+                  JOIN group_type gt ON gt.id = g.group_type_id
                   WHERE m.person_id = $7
                     AND m.group_id = aa.owner_group_id
-                    AND g.group_type IN ('party', 'campaign')
+                    AND gt.can_own_agents
                 )
               )
               OR (

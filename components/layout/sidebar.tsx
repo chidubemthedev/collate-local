@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, usePermissions, useLogout } from "@/lib/hooks/use-auth";
 import { useHasMounted } from "@/lib/hooks/use-has-mounted";
-import { NAV, NavIcon, EyeIcon, accessLabel, type NavSection } from "@/components/layout/nav";
+import { NAV, NavIcon, EyeIcon, accessLabel, isPublicPath, type NavSection } from "@/components/layout/nav";
 import { ViewAsField } from "@/components/layout/view-as-field";
 
 export function Sidebar() {
@@ -16,13 +16,15 @@ export function Sidebar() {
   const permissions = hasMounted ? permissionsData : undefined;
   const logoutMutation = useLogout();
 
-  if (pathname === "/login") {
+  if (isPublicPath(pathname)) {
     return null;
   }
 
   const sections: NavSection[] = [
     ...(permissions?.canManageCoverage === true ? (["pu"] as const) : []),
     ...(permissions?.canBroadcast === true ? (["msg"] as const) : []),
+    // Settings (groups and access) is for admins, as in the wireframe.
+    ...(permissions?.isAdmin === true ? (["settings"] as const) : []),
   ];
   // The person's own access (the roles change while "View as" is on).
   const access = permissions?.ownAccess ?? accessLabel(permissions?.roles, permissions?.isAdmin);

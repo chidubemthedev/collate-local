@@ -69,7 +69,7 @@ describe("GET /api/auth/session", () => {
     const reads = statements.filter((s) => s.sql.trimStart().startsWith("SELECT"));
     expect(reads).toHaveLength(1);
     expect(reads[0].sql).toContain("LEFT JOIN person p");
-    expect(reads[0].sql).toContain("g.group_type = 'admin'");
+    expect(reads[0].sql).toContain("gt.type_key = 'admin'");
   });
 
   it("writes last activity only when it is more than a minute old", async () => {

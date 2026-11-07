@@ -1,4 +1,4 @@
-import { AccessLink } from "./access-link.entity";
+import { InviteAccessLink } from "./invite-access-link.entity";
 import { AgentAssignment } from "./agent-assignment.entity";
 import { AuditLog } from "./audit-log.entity";
 import { AuthRateLimit } from "./auth-rate-limit.entity";
@@ -12,6 +12,7 @@ import { ElectionDay } from "./election-day.entity";
 import { ElectionDayOffCycleState } from "./election-day-off-cycle-state.entity";
 import { ElectionDayOffice } from "./election-day-office.entity";
 import { Group } from "./group.entity";
+import { GroupTypeRecord } from "./group-type.entity";
 import { GroupVisibilityGrant } from "./group-visibility-grant.entity";
 import { ImportBatch } from "./import-batch.entity";
 import { Lga } from "./lga.entity";
@@ -29,7 +30,7 @@ import { State } from "./state.entity";
 import { Ward } from "./ward.entity";
 
 export const entities = [
-  AccessLink,
+  InviteAccessLink,
   AgentAssignment,
   AuditLog,
   AuthRateLimit,
@@ -43,6 +44,7 @@ export const entities = [
   ElectionDayOffCycleState,
   ElectionDayOffice,
   Group,
+  GroupTypeRecord,
   GroupVisibilityGrant,
   ImportBatch,
   Lga,
@@ -61,7 +63,7 @@ export const entities = [
 ];
 
 export {
-  AccessLink,
+  InviteAccessLink,
   AgentAssignment,
   AuditLog,
   AuthRateLimit,
@@ -75,6 +77,7 @@ export {
   ElectionDayOffCycleState,
   ElectionDayOffice,
   Group,
+  GroupTypeRecord,
   GroupVisibilityGrant,
   ImportBatch,
   Lga,

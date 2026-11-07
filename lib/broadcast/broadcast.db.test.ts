@@ -651,16 +651,18 @@ async function createFixtures(entityManager: EntityManager): Promise<Fixtures> {
     [[Number(offices[0].id), lagosPoliticalUnitId]],
   );
 
+  const typeId = await groupTypeIds(entityManager);
   const groups = await insertRows<{ id: number }>(
     entityManager,
     "groups",
-    ["group_name", "group_type"],
+    ["group_name", "group_type_id"],
     [
-      [`Broadcast Admin ${key}`, "admin"],
-      [`Broadcast Viewer ${key}`, "party"],
-      [`Broadcast Owner Lagos ${key}`, "party"],
-      [`Broadcast Owner Kano ${key}`, "party"],
-      [`Broadcast Hidden Owner ${key}`, "party"],
+      [`Broadcast Admin ${key}`, typeId.admin],
+      // Limited to an area: a campaign group, since a Party-type group sees the whole country.
+      [`Broadcast Viewer ${key}`, typeId.campaign],
+      [`Broadcast Owner Lagos ${key}`, typeId.party],
+      [`Broadcast Owner Kano ${key}`, typeId.party],
+      [`Broadcast Hidden Owner ${key}`, typeId.party],
     ],
   );
   const adminGroupId = Number(groups[0].id);
@@ -917,6 +919,14 @@ async function readBroadcast(
     [broadcastId],
   )) as Array<{ broadcast_status: string }>;
   return rows[0];
+}
+
+/** Ids of the built-in group types, by key. */
+async function groupTypeIds(entityManager: EntityManager): Promise<Record<string, number>> {
+  const rows = await entityManager.query<Array<{ id: number; type_key: string }>>(
+    `SELECT id, type_key FROM group_type WHERE type_key IS NOT NULL`,
+  );
+  return Object.fromEntries(rows.map((row) => [row.type_key, Number(row.id)]));
 }
 
 async function insertRows<T>(

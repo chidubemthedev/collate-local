@@ -24,14 +24,15 @@ export type PollingUnitFilterParams = { gps?: "with" | "without"; coverage?: "ga
 
 export interface CoverageGapsFilters extends CoverageFilters {
   limit?: number;
-  offset?: number;
+  /** From the previous page's nextCursor; leave out for the first page. */
+  cursor?: string | null;
 }
 
 export const COVERAGE_KEYS = {
   all: ["coverage"] as const,
   summary: (filters: CoverageFilters) => ["coverage", "summary", filters] as const,
   mapPoints: (filters: CoverageFilters) => ["coverage", "map-points", filters] as const,
-  gaps: (filters: CoverageGapsFilters) => ["coverage", "gaps", filters] as const,
+  gaps: (filters: Record<string, number | string>) => ["coverage", "gaps", filters] as const,
 };
 
 /**
@@ -143,18 +144,18 @@ export function useCoverageGaps(
   filters: CoverageGapsFilters = {},
   options?: { enabled?: boolean }
 ) {
-  const cleanFilters: Record<string, number> = {};
+  const cleanFilters: Record<string, number | string> = {};
   if (filters.stateId && filters.stateId > 0) cleanFilters.stateId = filters.stateId;
   if (filters.lgaId && filters.lgaId > 0) cleanFilters.lgaId = filters.lgaId;
   if (filters.wardId && filters.wardId > 0) cleanFilters.wardId = filters.wardId;
   if (filters.limit) cleanFilters.limit = filters.limit;
-  if (filters.offset) cleanFilters.offset = filters.offset;
+  if (filters.cursor) cleanFilters.cursor = filters.cursor;
 
   return useQuery<CoverageGapsResponse, ApiClientError>({
     queryKey: COVERAGE_KEYS.gaps(cleanFilters),
     queryFn: async () => {
-      const res = await apiClient.get<CoverageGapsResponse>("/api/coverage/gaps", cleanFilters);
-      return res.data;
+      const res = await apiClient.get<Omit<CoverageGapsResponse, "nextCursor">>("/api/coverage/gaps", cleanFilters);
+      return { ...res.data, nextCursor: res.meta?.nextCursor ?? null };
     },
     staleTime: 1000 * 60 * 2,
     enabled: options?.enabled ?? true,

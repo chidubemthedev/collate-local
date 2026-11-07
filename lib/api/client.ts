@@ -14,6 +14,24 @@ export class ApiClientError extends Error {
   }
 }
 
+/** The sign-in page; any API call that finds no valid session sends the person here. */
+export const LOGIN_PATH = "/login";
+let redirectingToLogin = false;
+
+/**
+ * A 401 "unauthorized" means the session is missing or has expired. Go to the sign-in page
+ * (a full page load, so nothing from the old session stays in memory). Other 401 codes, such as a
+ * wrong sign-in code, are left to the page that made the request.
+ */
+function redirectToLoginIfSignedOut(status: number, code: string | undefined): void {
+  if (status !== 401 || code !== "unauthorized") return;
+  if (typeof window === "undefined" || redirectingToLogin) return;
+  // Not from the sign-in page, nor from an invite link (whose visitor isn't signed in yet).
+  if (window.location.pathname === LOGIN_PATH || window.location.pathname.startsWith("/invite/")) return;
+  redirectingToLogin = true;
+  window.location.replace(LOGIN_PATH);
+}
+
 export interface ApiFetchResult<T> {
   data: T;
   meta?: SuccessEnvelope<T>["meta"];
@@ -51,6 +69,7 @@ export async function apiFetch<T>(
   }
 
   if (json.status === "error") {
+    redirectToLoginIfSignedOut(response.status, json.error.code);
     throw new ApiClientError(
       json.error.message || "An error occurred",
       json.error.code || "unknown_error",

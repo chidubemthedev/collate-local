@@ -19,7 +19,16 @@ const MINUTE = 60 * 1000;
 
 type Row = Record<string, unknown>;
 
+/** The built-in group types' rules, as in the group_type table. */
+const TYPE_RULES: Record<string, { can_message: string; sees_coverage: string }> = {
+  admin: { can_message: "all_agents", sees_coverage: "national" },
+  party: { can_message: "agents_they_cover", sees_coverage: "national" },
+  campaign: { can_message: "agents_they_cover", sees_coverage: "own_area" },
+  support_group: { can_message: "none", sees_coverage: "own_area" },
+};
+
 function sessionRow(overrides: Row = {}): Row {
+  const type = "group_type" in overrides ? (overrides.group_type as string | null) : "party";
   return {
     id: "session-1",
     person_id: "person-1",
@@ -28,6 +37,8 @@ function sessionRow(overrides: Row = {}): Row {
     revoked_at: null,
     group_name: "NDC National",
     group_type: "party",
+    can_message: type ? TYPE_RULES[type]?.can_message ?? null : null,
+    sees_coverage: type ? TYPE_RULES[type]?.sees_coverage ?? null : null,
     scope_state_id: null,
     scope_lga_id: null,
     scope_ward_id: null,
@@ -36,11 +47,12 @@ function sessionRow(overrides: Row = {}): Row {
   };
 }
 
-function useDatabase(rows: Row[]) {
+function useDatabase(rows: Row[], candidateSeats: Row[] = []) {
   const statements: Array<{ sql: string; params: unknown[] }> = [];
   const dataSource = {
     query: vi.fn(async (sql: string, params: unknown[] = []) => {
       statements.push({ sql, params });
+      if (sql.includes("FROM candidate c") && sql.includes("principal")) return candidateSeats;
       return sql.includes("FROM auth_session") && sql.trimStart().startsWith("SELECT") ? rows : [];
     }),
   };
@@ -143,6 +155,69 @@ describe("requireApiAuth", () => {
     expect(result.context.viewAs).toBeNull();
     expect(result.context.scopes).toEqual([{ stateId: 5, lgaId: null, wardId: null, politicalUnitId: null }]);
     expect(statements.some((s) => s.sql.includes("SET view_as = NULL"))).toBe(true);
+  });
+
+  it("takes national coverage and messaging from the group type, including a type an admin made", async () => {
+    useDatabase([
+      sessionRow({ group_name: "Youth Wing", group_type: "support_group", scope_state_id: 5 }),
+      sessionRow({
+        group_name: "National Observers",
+        group_type: null,
+        can_message: "none",
+        sees_coverage: "national",
+      }),
+    ]);
+    const result = await requireApiAuth();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.context.hasGlobalCoverageAccess).toBe(true);
+    expect(result.context.canMessage).toBe(false);
+    expect(result.context.canManageCoverage).toBe(true);
+    expect(result.context.roles).toEqual([
+      { name: "Youth Wing", type: "support_group" },
+      { name: "National Observers", type: "custom" },
+    ]);
+  });
+
+  it("lets a support group look at its own area but not message", async () => {
+    useDatabase([sessionRow({ group_name: "Youth Wing", group_type: "support_group", scope_state_id: 5 })]);
+    const result = await requireApiAuth();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.context.canManageCoverage).toBe(true);
+    expect(result.context.canMessage).toBe(false);
+    expect(result.context.hasGlobalCoverageAccess).toBe(false);
+    expect(result.context.scopes).toEqual([{ stateId: 5, lgaId: null, wardId: null, politicalUnitId: null }]);
+  });
+
+  it("gives a candidate with no group their seat's area", async () => {
+    const statements = useDatabase(
+      [sessionRow({ group_name: null, group_type: null })],
+      [{ seat_id: 40, office_name: "Senate", unit_id: 77, unit_name: "ANAMBRA SOUTH", unit_type: "senatorial_district", is_running_mate: false }],
+    );
+    const result = await requireApiAuth();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(statements.find((s) => s.sql.includes("FROM candidate c"))?.params).toEqual(["person-1"]);
+    expect(result.context.isAdmin).toBe(false);
+    expect(result.context.canMessage).toBe(true);
+    expect(result.context.hasGlobalCoverageAccess).toBe(false);
+    expect(result.context.scopes).toEqual([{ stateId: null, lgaId: null, wardId: null, politicalUnitId: 77 }]);
+    expect(result.context.ownLabel).toBe("Candidate · Senate, Anambra South");
+    expect(result.context.roles).toEqual([{ name: "Candidate · Senate, Anambra South", type: "candidate" }]);
+  });
+
+  it("gives a running mate their principal's seat: national for the Vice President", async () => {
+    useDatabase(
+      [sessionRow({ group_name: null, group_type: null })],
+      [{ seat_id: 1, office_name: "President", unit_id: 1, unit_name: "NIGERIA", unit_type: "country", is_running_mate: true }],
+    );
+    const result = await requireApiAuth();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.context.hasGlobalCoverageAccess).toBe(true);
+    expect(result.context.scopes).toEqual([]);
+    expect(result.context.ownLabel).toBe("Candidate · Vice President");
   });
 
   it("forbids a signed-in person with no group", async () => {

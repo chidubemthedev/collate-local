@@ -73,6 +73,101 @@ export interface PermissionsData {
   };
 }
 
+/** A row of Settings · Groups and access (GET /api/settings/groups). */
+/** A group type and what its members can do (Settings · Groups and access). */
+export interface GroupAccessRule {
+  id: number;
+  /** Set on the built-in types (admin, party, campaign, support_group); null on types an admin made. */
+  key: string | null;
+  name: string;
+  canMessage: "none" | "agents_they_cover" | "all_agents";
+  seesCoverage: "national" | "own_area";
+  canOwnAgents: boolean;
+  isSystem: boolean;
+}
+
+/** An admin on Settings · Admins. Email and phone are masked. */
+export interface AdminListItem {
+  personId: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  /** The admin groups they belong to. */
+  groups: string[];
+  /** The signed-in person. */
+  isYou: boolean;
+}
+
+export interface CreateAdminPayload {
+  fullName: string;
+  email: string;
+  phone?: string;
+}
+
+/** A candidate or running mate on Settings · Candidates. Emails are masked. */
+export interface CandidateInviteItem {
+  candidateId: number;
+  fullName: string;
+  /** The office, or the running mate's title ("Deputy Governor", "Vice President"). */
+  title: string;
+  /** The seat's area, e.g. "Bauchi" or "Awka North/Awka South". */
+  seat: string;
+  /** For a running mate, their principal's candidate id and name. */
+  principalCandidateId: number | null;
+  principalName: string | null;
+  isRunningMate: boolean;
+  status: "not_invited" | "invited" | "expired" | "registered";
+  /** Their sign-in email once registered, or where the invite went. */
+  email: string | null;
+  invitedAt: string | null;
+  expiresAt: string | null;
+}
+
+/** What an invite link shows before the candidate completes registration. */
+export interface InviteDetails {
+  fullName: string;
+  title: string;
+  seat: string;
+  /** Masked. */
+  email: string;
+  expiresAt: string;
+}
+
+/** What deleting a group type would affect (Settings · Groups and access). */
+export interface GroupTypeImpact {
+  id: number;
+  name: string;
+  isSystem: boolean;
+  /** False for built-in types and for any type a group still uses. */
+  canDelete: boolean;
+  /** The groups that use this type. */
+  groups: Array<{ id: number; name: string; members: number; agents: number }>;
+}
+
+/** One entry on Settings · Audit log. */
+export interface AuditLogItem {
+  id: string;
+  /** ISO time, to the microsecond. */
+  at: string;
+  /** As stored, e.g. "settings.admin.created". */
+  action: string;
+  /** In plain words, e.g. "Added an admin". */
+  actionLabel: string;
+  /** A list or page was viewed (logged on every load), not changed. */
+  isView: boolean;
+  /** Null when no one was signed in, e.g. a Telegram event. name is null if the person was deleted. */
+  actor: { personId: string; name: string | null } | null;
+  /** What it was done to. name is filled for people, candidates, groups and wards that still exist. */
+  target: { type: string; id: string | null; name: string | null } | null;
+  ipAddress: string | null;
+}
+
+export interface CreateGroupTypePayload {
+  name: string;
+  canMessage: "none" | "agents_they_cover";
+  seesCoverage: "national" | "own_area";
+}
+
 export interface ViewAsOption {
   /** "party", "admin", "self" or "seat:<id>". */
   value: string;
@@ -236,10 +331,12 @@ export interface CoverageGap {
 }
 
 export interface CoverageGapsResponse {
-  totalCount: number;
+  /** Every gap matching the filters; worked out on the first page only (null with a cursor). */
+  totalCount: number | null;
   limit: number;
-  offset: number;
   items: CoverageGap[];
+  /** Where the next page starts (from the response meta); null on the last page. */
+  nextCursor: string | null;
 }
 
 interface CreateAssignmentBase {

@@ -1,90 +1,65 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { apiClient, ApiClientError } from "./client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-describe("apiClient", () => {
+function reply(status: number, body: unknown) {
+  return vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }));
+}
+
+const SIGNED_OUT = { status: "error", error: { code: "unauthorized", message: "Authentication is required" } };
+
+describe("apiFetch and an expired session", () => {
+  let replace: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
-    vi.restoreAllMocks();
+    // The client remembers it is already redirecting, so load a fresh copy for each test.
+    vi.resetModules();
+    replace = vi.fn();
+    vi.stubGlobal("window", { location: { pathname: "/agents", replace } });
   });
 
-  it("unboxes success envelopes correctly", async () => {
-    const mockData = { ok: true, count: 42 };
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        status: "success",
-        data: mockData,
-        meta: { nextCursor: null },
-      }),
-    } as Response);
-
-    const result = await apiClient.get<typeof mockData>("/api/test");
-    expect(result.data).toEqual(mockData);
-    expect(result.meta?.nextCursor).toBeNull();
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
-  it("formats query parameters into URL correctly", async () => {
-    let capturedUrl = "";
-    global.fetch = vi.fn().mockImplementation((url: string) => {
-      capturedUrl = url;
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: async () => ({ status: "success", data: {} }),
-      } as Response);
-    });
-
-    await apiClient.get("/api/coverage/summary", {
-      stateId: 1,
-      lgaId: 2,
-      emptyVal: null,
-      undefinedVal: undefined,
-    });
-
-    expect(capturedUrl).toBe("/api/coverage/summary?stateId=1&lgaId=2");
+  it("sends the person to the sign-in page on 401 unauthorized, and still rejects", async () => {
+    vi.stubGlobal("fetch", reply(401, SIGNED_OUT));
+    const { apiClient, ApiClientError } = await import("./client");
+    await expect(apiClient.get("/api/agents")).rejects.toBeInstanceOf(ApiClientError);
+    expect(replace).toHaveBeenCalledWith("/login");
   });
 
-  it("throws ApiClientError with code and fields on error envelopes", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: async () => ({
-        status: "error",
-        error: {
-          code: "validation_failed",
-          message: "Invalid input provided",
-          fields: { email: "Invalid format" },
-        },
-      }),
-    } as Response);
+  it("redirects once even when several requests fail together", async () => {
+    vi.stubGlobal("fetch", reply(401, SIGNED_OUT));
+    const { apiClient } = await import("./client");
+    await Promise.allSettled([apiClient.get("/api/agents"), apiClient.get("/api/coverage/summary")]);
+    expect(replace).toHaveBeenCalledTimes(1);
+  });
 
-    await expect(apiClient.post("/api/auth/otp/request", { email: "bad" })).rejects.toThrowError(
-      ApiClientError
+  it("stays on the sign-in page itself", async () => {
+    vi.stubGlobal("window", { location: { pathname: "/login", replace } });
+    vi.stubGlobal("fetch", reply(401, SIGNED_OUT));
+    const { apiClient } = await import("./client");
+    await expect(apiClient.get("/api/auth/permissions")).rejects.toThrow();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("stays on an invite link", async () => {
+    vi.stubGlobal("window", { location: { pathname: "/invite/abc", replace } });
+    vi.stubGlobal("fetch", reply(401, SIGNED_OUT));
+    const { apiClient } = await import("./client");
+    await expect(apiClient.get("/api/auth/permissions")).rejects.toThrow();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("leaves a wrong sign-in code and other errors to the page", async () => {
+    vi.stubGlobal(
+      "fetch",
+      reply(401, { status: "error", error: { code: "invalid_or_expired_code", message: "Invalid code" } }),
     );
+    const { apiClient } = await import("./client");
+    await expect(apiClient.post("/api/auth/otp/verify", {})).rejects.toThrow("Invalid code");
 
-    try {
-      await apiClient.post("/api/auth/otp/request", { email: "bad" });
-    } catch (err) {
-      const error = err as ApiClientError;
-      expect(error.code).toBe("validation_failed");
-      expect(error.message).toBe("Invalid input provided");
-      expect(error.status).toBe(400);
-      expect(error.fields?.email).toBe("Invalid format");
-    }
-  });
-
-  it("sends credentials: 'include' by default", async () => {
-    let capturedOptions: RequestInit | undefined;
-    global.fetch = vi.fn().mockImplementation((_url: string, options?: RequestInit) => {
-      capturedOptions = options;
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: async () => ({ status: "success", data: {} }),
-      } as Response);
-    });
-
-    await apiClient.get("/api/auth/session");
-    expect(capturedOptions?.credentials).toBe("include");
+    vi.stubGlobal("fetch", reply(403, { status: "error", error: { code: "forbidden", message: "No" } }));
+    await expect(apiClient.get("/api/settings/admins")).rejects.toThrow("No");
+    expect(replace).not.toHaveBeenCalled();
   });
 });

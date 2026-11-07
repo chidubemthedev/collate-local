@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  candidateAccess,
   chooseViewAs,
   effectiveAccess,
   listViewAsOptions,
   loadHomeArea,
   ownAccessFromRows,
   policyUserForView,
+  runningMateTitle,
   seatLabel,
   titleCaseName,
   type OwnAccess,
@@ -44,6 +46,41 @@ function database(rows: unknown[] = SEATS) {
   return { query: query as unknown as Queryable["query"] & typeof query };
 }
 
+describe("candidateAccess", () => {
+  const seat = { seat_id: 9, office_name: "Governor", unit_id: 32, unit_name: "BAUCHI", unit_type: "state" };
+
+  it("limits a candidate to their seat's area", () => {
+    expect(candidateAccess({ ...seat, is_running_mate: false })).toEqual({
+      own: {
+        isAdmin: false,
+        hasGlobalCoverageAccess: false,
+        scopes: [{ stateId: null, lgaId: null, wardId: null, politicalUnitId: 32 }],
+      },
+      label: "Candidate · Governor, Bauchi",
+    });
+  });
+
+  it("gives a running mate the same seat under their own title", () => {
+    expect(candidateAccess({ ...seat, is_running_mate: true }).label).toBe("Candidate · Deputy Governor, Bauchi");
+    const vp = candidateAccess({
+      seat_id: 1,
+      office_name: "President",
+      unit_id: 1,
+      unit_name: "NIGERIA",
+      unit_type: "country",
+      is_running_mate: true,
+    });
+    expect(vp.label).toBe("Candidate · Vice President");
+    expect(vp.own).toEqual({ isAdmin: false, hasGlobalCoverageAccess: true, scopes: [] });
+  });
+
+  it("names running mates by office", () => {
+    expect(runningMateTitle("President")).toBe("Vice President");
+    expect(runningMateTitle("Governor")).toBe("Deputy Governor");
+    expect(runningMateTitle("Senate")).toBe("Running mate, Senate");
+  });
+});
+
 describe("labels", () => {
   it("title-cases INEC names and keeps FCT", () => {
     expect(titleCaseName("ONITSHA NORTH/ONITSHA SOUTH")).toBe("Onitsha North/Onitsha South");
@@ -56,21 +93,38 @@ describe("labels", () => {
   });
 
   it("labels the person's own access with their group names", () => {
-    const { own, label } = ownAccessFromRows([
-      { group_name: "Campaign HQ", group_type: "campaign", scope_state_id: 5, scope_lga_id: null, scope_ward_id: null, scope_political_unit_id: null },
-      { group_name: "Campaign HQ", group_type: "campaign", scope_state_id: null, scope_lga_id: 9, scope_ward_id: null, scope_political_unit_id: null },
+    const campaign = { group_name: "Campaign HQ", group_type: "campaign", can_message: "agents_they_cover", sees_coverage: "own_area" };
+    const { own, label, canMessage } = ownAccessFromRows([
+      { ...campaign, scope_state_id: 5, scope_lga_id: null, scope_ward_id: null, scope_political_unit_id: null },
+      { ...campaign, scope_state_id: null, scope_lga_id: 9, scope_ward_id: null, scope_political_unit_id: null },
     ]);
     expect(label).toBe("Campaign HQ");
     expect(own.hasGlobalCoverageAccess).toBe(false);
     expect(own.scopes).toHaveLength(2);
+    expect(canMessage).toBe(true);
   });
 
-  it("makes a party membership national only when it has no area", () => {
-    const party = { group_name: "NDC National", group_type: "party", scope_lga_id: null, scope_ward_id: null, scope_political_unit_id: null };
-    expect(ownAccessFromRows([{ ...party, scope_state_id: null }]).own.hasGlobalCoverageAccess).toBe(true);
-    const coordinator = ownAccessFromRows([{ ...party, scope_state_id: 5 }]).own;
-    expect(coordinator.hasGlobalCoverageAccess).toBe(false);
-    expect(coordinator.scopes).toEqual([{ stateId: 5, lgaId: null, wardId: null, politicalUnitId: null }]);
+  it("takes coverage and messaging from the group type's rules", () => {
+    const area = { scope_state_id: 5, scope_lga_id: null, scope_ward_id: null, scope_political_unit_id: null };
+    // A Party-type group sees the whole country, even with an area set.
+    const party = ownAccessFromRows([
+      { group_name: "NDC", group_type: "party", can_message: "agents_they_cover", sees_coverage: "national", ...area },
+    ]);
+    expect(party.own.hasGlobalCoverageAccess).toBe(true);
+    expect(party.canMessage).toBe(true);
+    // A support group looks at its own area and cannot message.
+    const support = ownAccessFromRows([
+      { group_name: "Youth Wing", group_type: "support_group", can_message: "none", sees_coverage: "own_area", ...area },
+    ]);
+    expect(support.own.hasGlobalCoverageAccess).toBe(false);
+    expect(support.own.scopes).toEqual([{ stateId: 5, lgaId: null, wardId: null, politicalUnitId: null }]);
+    expect(support.canMessage).toBe(false);
+    // A type an admin made (no key) still counts as a membership.
+    const custom = ownAccessFromRows([
+      { group_name: "Observers", group_type: null, can_message: "none", sees_coverage: "national", ...area },
+    ]);
+    expect(custom.own.hasGlobalCoverageAccess).toBe(true);
+    expect(custom.label).toBe("Observers");
   });
 });
 

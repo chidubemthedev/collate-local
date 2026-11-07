@@ -39,7 +39,7 @@ export async function runDemoSeed(): Promise<void> {
       UNION ALL SELECT 'delivery', COUNT(*)::int FROM delivery
       UNION ALL SELECT 'coverage_count', COUNT(*)::int FROM coverage_count
       UNION ALL SELECT 'import_batch', COUNT(*)::int FROM import_batch
-      UNION ALL SELECT 'access_link', COUNT(*)::int FROM access_link
+      UNION ALL SELECT 'invite_access_link', COUNT(*)::int FROM invite_access_link
       UNION ALL SELECT 'audit_log', COUNT(*)::int FROM audit_log;
     `);
 

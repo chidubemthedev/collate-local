@@ -4,11 +4,11 @@ import { demoIp, writeDemoTokenFile } from "./utils";
 
 export async function seedOperations(queryRunner: QueryRunner): Promise<void> {
   const candidateRows = await queryRunner.query(`
-    SELECT c.id, c.person_id FROM candidate c
+    SELECT c.id, c.person_id, p.email_address FROM candidate c
     INNER JOIN person p ON p.id = c.person_id
     WHERE p.email_address LIKE '%@demo.collate.test%'
     ORDER BY c.id;
-  `) as Array<{ id: number; person_id: string }>;
+  `) as Array<{ id: number; person_id: string; email_address: string }>;
 
   const tokenOutputs: Array<{ candidatePersonId: string; token: string }> = [];
   for (let index = 0; index < candidateRows.length; index += 1) {
@@ -20,8 +20,8 @@ export async function seedOperations(queryRunner: QueryRunner): Promise<void> {
     const isExpired = index % 7 === 0;
 
     await queryRunner.query(`
-      INSERT INTO access_link (candidate_id, token_hash, expires_at, is_revoked)
-      VALUES (${candidate.id}, '${tokenHash}', '${(isExpired ? new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) : expiresAt).toISOString()}', ${isRevoked})
+      INSERT INTO invite_access_link (candidate_id, email_address, token_hash, expires_at, is_revoked)
+      VALUES (${candidate.id}, '${candidate.email_address.toLowerCase().replace(/'/g, "''")}', '${tokenHash}', '${(isExpired ? new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) : expiresAt).toISOString()}', ${isRevoked})
     `);
 
     if (!isRevoked && !isExpired) {
