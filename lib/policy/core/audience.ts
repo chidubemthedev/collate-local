@@ -118,6 +118,16 @@ function baseRecipientQuery(
   return query;
 }
 
+// PRD §4.5: a candidate-only user (no group membership, not an admin) filters by political
+// units and wards inside their seat, never by LGA.
+function assertFilterAllowed(user: PolicyUser, filter: AudienceFilter): void {
+  const isCandidateOnly =
+    !user.isAdmin && user.candidateId !== null && user.groupIds.length === 0;
+  if (isCandidateOnly && filter.lgaId !== undefined) {
+    throw new InvalidFilterError();
+  }
+}
+
 function shiftParameters(sql: string, offset: number): string {
   return sql.replace(/\$(\d+)/g, (_match, index: string) => `$${Number(index) + offset}`);
 }
@@ -131,6 +141,8 @@ export async function previewAudience(
   if (!parsed.success) {
     throw new InvalidFilterError();
   }
+
+  assertFilterAllowed(user, parsed.data);
 
   const entityManager = await resolveManager(manager);
   const query = baseRecipientQuery(entityManager, user, parsed.data)
@@ -185,6 +197,7 @@ export async function materializeDeliveries(
       broadcast.senderPersonId,
       transactionManager,
     );
+    assertFilterAllowed(user, parsed.data);
 
     // TODO(decision): candidate recipients.
     const recipients = baseRecipientQuery(
