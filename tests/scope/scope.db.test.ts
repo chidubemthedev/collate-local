@@ -166,7 +166,7 @@ describe.skipIf(!shouldRun)("scope: who can see what (test script fixture)", () 
   describe("headline coverage", () => {
     it.each([
       ["HOME-05", "P01", "5 of 8 (63%)"],
-      ["COV-03", "P03", "5 of 8 (63%)"],
+      ["COV-18", "P03", "5 of 8 (63%)"],
       ["HOME-04", "P04", "3 of 5 (60%)"],
       ["HOME-03", "P05", "2 of 4 (50%)"],
       ["SEC-03", "P08", "3 of 5 (60%)"],
@@ -193,7 +193,7 @@ describe.skipIf(!shouldRun)("scope: who can see what (test script fixture)", () 
       expect(figure(await summary(`?politicalUnitId=${units["SC Ikeja I"]}`))).toBe("1 of 2 (50%)");
     });
 
-    it("COV-15 extra agents never change headline coverage", async () => {
+    it("COV-14 extra agents never change headline coverage", async () => {
       await loginAs("P05");
       const before = await summary();
       expect(before.extraAgentsCount).toBe(2);
@@ -201,8 +201,8 @@ describe.skipIf(!shouldRun)("scope: who can see what (test script fixture)", () 
     });
 
     it.each([
-      ["COV-17", "P12", "3 of 5 (60%)"],
-      ["COV-18", "P17", "1 of 2 (50%)"],
+      ["COV-19", "P12", "3 of 5 (60%)"],
+      ["COV-20", "P17", "1 of 2 (50%)"],
       ["NAV-04", "P16", "2 of 4 (50%)"],
       ["SEC-04", "P14", "0 of 1 (0%)"],
     ] as const)("%s viewing as %s shows %s", async (_id, candidate, expected) => {
@@ -217,7 +217,7 @@ describe.skipIf(!shouldRun)("scope: who can see what (test script fixture)", () 
       expect(await gapCodes()).toEqual([code.B, code.D]);
     });
 
-    it("COV-18 viewing as P17 lists only PU-B (Ikeja II is out of scope)", async () => {
+    it("COV-20 viewing as P17 lists only PU-B (Ikeja II is out of scope)", async () => {
       await viewAsCandidate("P17");
       expect(await gapCodes()).toEqual([code.B]);
     });
@@ -243,7 +243,7 @@ describe.skipIf(!shouldRun)("scope: who can see what (test script fixture)", () 
       expect(byName["Musa DepGov"]).toBeUndefined();
     });
 
-    it("CAND-03 each candidate's seat coverage", async () => {
+    it("COV-05 each candidate's seat coverage", async () => {
       await loginAs("P01");
       const rows = await candidates();
       const coverage = Object.fromEntries(rows.map((row) => [row.name, `${row.coveredPUs} of ${row.totalPUs}`]));
@@ -373,14 +373,14 @@ describe.skipIf(!shouldRun)("scope: who can see what (test script fixture)", () 
       await expect(preview("P16", { lgaId: fx().lgaIds.Ikeja })).rejects.toBeInstanceOf(InvalidFilterError);
     });
 
-    it("MSG-11 P17 reaches everyone at PU-A, whoever owns them", async () => {
+    it("MSG-12 P17 reaches everyone at PU-A, whoever owns them", async () => {
       expect(await preview("P17", { pollingUnitId: fx().pollingUnitIds["PU-A"] })).toEqual({
         officialCount: 1,
         extraCount: 2,
       });
     });
 
-    it("MSG-14 P16 cannot reach agents outside their seat", async () => {
+    it("MSG-15 P16 cannot reach agents outside their seat", async () => {
       expect(await preview("P16", { stateId: fx().stateIds.Kano })).toEqual({ officialCount: 0, extraCount: 0 });
       expect(await preview("P16", { pollingUnitId: fx().pollingUnitIds["PU-E"] })).toEqual({
         officialCount: 0,

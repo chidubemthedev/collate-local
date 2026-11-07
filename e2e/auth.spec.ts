@@ -19,7 +19,7 @@ test("ONB-01 there is no public sign-up", async ({ page }) => {
   }
 });
 
-formLogin("ONB-03 P04 signs in with an email code and lands on their coverage", async ({ page }) => {
+formLogin("ONB-14 P04 signs in with an email code and lands on their coverage", async ({ page }) => {
   await page.goto("/login");
   await page.getByPlaceholder("name@example.com").fill(personaEmail("p04"));
   await page.getByRole("button", { name: /send verification code/i }).click();
