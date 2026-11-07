@@ -1190,7 +1190,7 @@ npm run typecheck     # tsc --noEmit
 npm run test:db       # unit tests + database integration tests (needs a throwaway DATABASE_URL)
 npm run db:seed:test  # empties the test database and loads the test-script fixture
 npm run test:scope    # who-can-see-what tests against real routes (empties the database)
-npm run test:e2e      # Playwright browser tests (seeds the fixture, starts `next dev`)
+npm run test:e2e      # Playwright browser tests (seeds the fixture; see below for the CI-style run)
 ```
 
 All of these run in CI (`.github/workflows/ci.yml`) on every pull request, against a fresh Postgres.
@@ -1198,6 +1198,30 @@ All of these run in CI (`.github/workflows/ci.yml`) on every pull request, again
 **Use a separate database for tests.** `db:seed:test`, `test:scope` and `test:e2e` empty every
 table first. They refuse to run when `NODE_ENV=production` or when the database name does not
 contain `test`. Locally: `createdb collate_test`, point `DATABASE_URL` at it, `npm run db:migrate`.
+Without a local Postgres, run the same one CI uses in a container:
+
+```sh
+docker run -d --name collate-test-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=collate_test \
+  -p 5432:5432 postgres:16      # or podman
+export DATABASE_URL=postgres://postgres:postgres@localhost:5432/collate_test DATABASE_SSL=false
+```
+
+Variables exported in the shell take precedence over `.env`, so `.env` can keep pointing at your
+real database. Copy the other values (`AUTH_SECRET`, `OTP_DELIVERY=console`, the dummy Telegram
+settings, `SMS_PROVIDER=none`) from the `env` block in `.github/workflows/ci.yml`.
+
+**Run the browser tests against a production build, as CI does.** Against `next dev`, pages
+compile on first visit and Fast Refresh reloads them mid-test, so some tests time out on a
+loading state:
+
+```sh
+npm run build
+E2E_PRODUCTION=true E2E_SERVER_COMMAND="npm run start" npm run test:e2e
+```
+
+Plain `npm run test:e2e` (against `next dev`) is still the only way to run the three sign-in-form
+tests in `e2e/auth.spec.ts`, which are skipped against a production build. Expect occasional
+timeouts there that pass on a rerun.
 
 **The test fixture** (`lib/db/seeds/test/fixture.ts`) is the "Personas" and "Fixture data" tabs of
 the manual test script: 26 personas and 8 polling units with known coverage figures. Scope and

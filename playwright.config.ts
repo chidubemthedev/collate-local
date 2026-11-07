@@ -4,7 +4,8 @@ import { defineConfig, devices } from "@playwright/test";
  * Browser tests (e2e/). They run against a real Next.js server and a test database loaded with
  * the fixture from the manual test script (`npm run db:seed:test`, run by global-setup).
  *
- * Locally:  npm run test:e2e            (starts `next dev` unless one is already on :3000)
+ * Locally:  npm run build && E2E_PRODUCTION=true E2E_SERVER_COMMAND="npm run start" npm run test:e2e
+ *           (plain `npm run test:e2e` starts `next dev`, where first-visit compiles can time tests out)
  * In CI:    the workflow builds first, and E2E_SERVER_COMMAND="npm run start".
  */
 const port = Number(process.env.E2E_PORT ?? 3000);
