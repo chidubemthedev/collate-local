@@ -1185,6 +1185,26 @@ npm run lint          # eslint
 npm run build         # next build
 ```
 
+```sh
+npm run typecheck     # tsc --noEmit
+npm run test:db       # unit tests + database integration tests (needs a throwaway DATABASE_URL)
+npm run db:seed:test  # empties the test database and loads the test-script fixture
+npm run test:scope    # who-can-see-what tests against real routes (empties the database)
+npm run test:e2e      # Playwright browser tests (seeds the fixture, starts `next dev`)
+```
+
+All of these run in CI (`.github/workflows/ci.yml`) on every pull request, against a fresh Postgres.
+
+**Use a separate database for tests.** `db:seed:test`, `test:scope` and `test:e2e` empty every
+table first. They refuse to run when `NODE_ENV=production` or when the database name does not
+contain `test`. Locally: `createdb collate_test`, point `DATABASE_URL` at it, `npm run db:migrate`.
+
+**The test fixture** (`lib/db/seeds/test/fixture.ts`) is the "Personas" and "Fixture data" tabs of
+the manual test script: 26 personas and 8 polling units with known coverage figures. Scope and
+browser test names start with the test ID from that sheet (e.g. `COV-07`), so a failure points at
+the same row a tester would run by hand. Tests marked `it.fails` / `test.fail()` are known gaps
+between the app and the spec; remove the marker when the gap is fixed.
+
 - Unit tests sit next to the code (`*.test.ts`): auth, policy, channels, queue decisions, worker jobs, hooks.
 - `lib/policy/route-imports.test.ts` fails if a route imports `lib/db`, `typeorm` or `pg`.
 - Database integration tests (`lib/policy/core/policy.db.test.ts`, `lib/broadcast/broadcast.db.test.ts`) are skipped unless `RUN_DB_TESTS=true` and `DATABASE_URL` is set. They write to the database, so point them at a throwaway one, never production.
