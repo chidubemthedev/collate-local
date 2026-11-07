@@ -120,9 +120,9 @@ export async function POST(request: Request, { params }: Params) {
         `,
         [hashInviteToken(token)],
       )) as LinkRow[];
-      if (!link) return { error: failure("not_found", INVALID) };
+      if (!link) return { ok: false as const, error: failure("not_found", INVALID) };
       const state = linkState({ isRevoked: link.is_revoked, acceptedAt: link.accepted_at, expiresAt: link.expires_at });
-      if (state !== "valid") return { error: failure("conflict", LINK_STATE_MESSAGE[state]) };
+      if (state !== "valid") return { ok: false as const, error: failure("conflict", LINK_STATE_MESSAGE[state]) };
 
       const [person] = (await manager.query(
         `
@@ -132,13 +132,13 @@ export async function POST(request: Request, { params }: Params) {
         `,
         [link.candidate_id],
       )) as Array<{ id: string; email_address: string | null }>;
-      if (!person) return { error: failure("not_found", INVALID) };
-      if (person.email_address) return { error: failure("conflict", LINK_STATE_MESSAGE.used) };
+      if (!person) return { ok: false as const, error: failure("not_found", INVALID) };
+      if (person.email_address) return { ok: false as const, error: failure("conflict", LINK_STATE_MESSAGE.used) };
 
       const [taken] = (await manager.query(`SELECT 1 FROM person WHERE LOWER(email_address) = $1 LIMIT 1;`, [
         link.email_address.toLowerCase(),
       ])) as unknown[];
-      if (taken) return { error: failure("conflict", EMAIL_TAKEN) };
+      if (taken) return { ok: false as const, error: failure("conflict", EMAIL_TAKEN) };
 
       await manager.query(`UPDATE person SET email_address = $1 WHERE id = $2;`, [link.email_address, person.id]);
       await manager.query(`UPDATE invite_access_link SET accepted_at = NOW() WHERE id = $1;`, [link.id]);
@@ -168,7 +168,7 @@ export async function POST(request: Request, { params }: Params) {
       return { ok: true as const };
     });
 
-    if ("error" in outcome) return outcome.error;
+    if (!outcome.ok) return outcome.error;
     await setSessionCookie(sessionToken, expiresAt);
     return success({ ok: true });
   } catch (error) {

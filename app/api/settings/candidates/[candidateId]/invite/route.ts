@@ -28,15 +28,17 @@ async function begin(request: Request, params: Params["params"]) {
   try {
     assertSameOrigin(request);
   } catch {
-    return { response: failure("invalid_origin", "Request origin is not allowed") } as const;
+    return { ok: false, response: failure("invalid_origin", "Request origin is not allowed") } as const;
   }
   const candidateId = parseCandidateId((await params).candidateId);
-  if (candidateId === null) return { response: failure("validation_failed", "Invalid candidate ID") } as const;
+  if (candidateId === null) return { ok: false, response: failure("validation_failed", "Invalid candidate ID") } as const;
   const auth = await requireApiAuth();
-  if (!auth.ok) return { response: auth.response } as const;
-  if (auth.context.viewAs) return { response: readOnlyResponse() } as const;
-  if (!auth.context.isAdmin) return { response: failure("forbidden", "Only admins can invite candidates") } as const;
-  return { candidateId, context: auth.context } as const;
+  if (!auth.ok) return { ok: false, response: auth.response } as const;
+  if (auth.context.viewAs) return { ok: false, response: readOnlyResponse() } as const;
+  if (!auth.context.isAdmin) {
+    return { ok: false, response: failure("forbidden", "Only admins can invite candidates") } as const;
+  }
+  return { ok: true, candidateId, context: auth.context } as const;
 }
 
 async function loadCandidate(query: (sql: string, parameters: unknown[]) => Promise<unknown>, candidateId: number) {
@@ -52,7 +54,7 @@ export async function POST(request: Request, { params }: Params) {
   await connection();
   try {
     const start = await begin(request, params);
-    if ("response" in start) return start.response;
+    if (!start.ok) return start.response;
     const { candidateId, context } = start;
 
     let body: unknown;
@@ -148,7 +150,7 @@ export async function DELETE(request: Request, { params }: Params) {
   await connection();
   try {
     const start = await begin(request, params);
-    if ("response" in start) return start.response;
+    if (!start.ok) return start.response;
     const { candidateId, context } = start;
 
     const cancelled = await context.dataSource.transaction(async (manager) => {
