@@ -19,7 +19,8 @@ type QueueReport =
     }
   | { queue: string; error: string };
 
-export function notFoundInProduction(): Response | null {
+// Not exported: a route file may only export HTTP handlers and route config (Next type check).
+function notFoundInProduction(): Response | null {
   // Dev-only utility: pretend this endpoint does not exist in production.
   return process.env.NODE_ENV === "production"
     ? failure("not_found", "Resource not found")
