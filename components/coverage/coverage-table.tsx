@@ -227,7 +227,7 @@ export function CoverageTable({
       ) : (
         <>
           <div className="hidden overflow-x-auto md:block">
-            <table className={`${WF.table} min-w-[820px]`}>
+            <table className={`${WF.table} min-w-[780px]`}>
               <thead>
                 <tr>
                   <th scope="col" className={`${WF.th} pl-4`}>
@@ -236,8 +236,8 @@ export function CoverageTable({
                   <th scope="col" className={WF.th}>
                     Polling unit &amp; location
                   </th>
-                  <th scope="col" className={WF.th}>
-                    GPS position
+                  <th scope="col" className={WF.th} title="Whether INEC's register has this polling unit's GPS position">
+                    Has coordinates
                   </th>
                   <th scope="col" className={WF.th}>
                     Official agent status *
@@ -255,15 +255,10 @@ export function CoverageTable({
                   <tr key={pu.code} className={`${WF.tr} align-top`}>
                     <td className={`${WF.td} pl-4 font-semibold whitespace-nowrap tabular-nums`}>{pu.code}</td>
                     <td className={WF.td}>
-                      <span className="flex flex-col gap-0.5">
-                        <span className="font-semibold">{toTitleCase(pu.name)}</span>
-                        {pu.location && pu.location !== pu.name ? (
-                          <span className="text-[11px] text-[#737373]">{pu.location}</span>
-                        ) : null}
-                      </span>
+                      <PuNameAndLocation pu={pu} />
                     </td>
                     <td className={WF.td}>
-                      <GpsCell pu={pu} />
+                      <CoordinatesPill has={pu.hasGPS} />
                     </td>
                     <td className={WF.td}>
                       <span className="flex flex-col gap-[3px]">
@@ -302,17 +297,9 @@ export function CoverageTable({
                   </button>
                   <StatusPill covered={pu.hasOfficialAgent} />
                 </div>
-                <span className="text-[14px]">{toTitleCase(pu.name)}</span>
-                {pu.hasGPS ? (
-                  <span className="text-[12px] text-[#525252]">
-                    {pu.latitude.toFixed(4)}, {pu.longitude.toFixed(4)} ·{" "}
-                    <a href={mapUrl(pu)} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0A0A0A]">
-                      Open in map
-                    </a>
-                  </span>
-                ) : (
-                  <span className="text-[12px] text-[#737373]">No GPS in INEC register</span>
-                )}
+                <span className="text-[14px]">
+                  <PuNameAndLocation pu={pu} showNoGpsNote />
+                </span>
                 <ExtraChips pu={pu} hideNone />
               </div>
             ))}
@@ -372,17 +359,59 @@ function StatusPill({ covered }: { covered: boolean }) {
   );
 }
 
-function GpsCell({ pu }: { pu: PollingUnitData }) {
-  if (!pu.hasGPS) return <span className="text-[12px] text-[#737373]">No GPS in INEC register</span>;
+/** Yes or No: whether INEC's register has the polling unit's GPS position. */
+function CoordinatesPill({ has }: { has: boolean }) {
   return (
-    <span className="flex flex-col gap-0.5 whitespace-nowrap">
-      <span className="tabular-nums">
-        {pu.latitude.toFixed(4)}, {pu.longitude.toFixed(4)}
-      </span>
-      <a href={mapUrl(pu)} target="_blank" rel="noopener noreferrer" className="text-[12px] font-semibold text-[#0A0A0A]">
-        Open in map ↗
-      </a>
+    <span
+      className={`inline-block rounded-full px-[9px] py-[3px] text-[12px] font-semibold whitespace-nowrap ${
+        has ? "bg-[#E8F5EE] text-[#1E8A55]" : "bg-[#F4F4F5] text-[#737373]"
+      }`}
+    >
+      {has ? "Yes" : "No"}
     </span>
+  );
+}
+
+/**
+ * The polling unit's name and location. With GPS in the INEC register, both open its position in
+ * Google Maps (in a new tab); without, they're plain text (phone cards add a short note).
+ */
+function PuNameAndLocation({ pu, showNoGpsNote = false }: { pu: PollingUnitData; showNoGpsNote?: boolean }) {
+  const name = toTitleCase(pu.name);
+  const location = pu.location && pu.location !== pu.name ? pu.location : null;
+
+  if (!pu.hasGPS) {
+    return (
+      <span className="flex flex-col gap-0.5">
+        <span className="font-semibold">{name}</span>
+        {location ? <span className="text-[11px] text-[#737373]">{location}</span> : null}
+        {/* Tables show this in the Has coordinates column; phone cards have no columns. */}
+        {showNoGpsNote ? <span className="text-[11px] text-[#A3A3A3]">No GPS in INEC register</span> : null}
+      </span>
+    );
+  }
+
+  return (
+    <a
+      href={mapUrl(pu)}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={`Open in Google Maps (${pu.latitude.toFixed(4)}, ${pu.longitude.toFixed(4)})`}
+      aria-label={`${name}${location ? `, ${location}` : ""}: open in Google Maps (new tab)`}
+      className="group flex flex-col gap-0.5 text-[#0A0A0A] no-underline"
+    >
+      <span className="font-semibold underline decoration-[#D4D4D4] underline-offset-2 group-hover:decoration-[#0A0A0A]">
+        {name}
+        <span aria-hidden="true" className="ml-1 text-[11px] font-normal text-[#737373]">
+          ↗
+        </span>
+      </span>
+      {location ? (
+        <span className="text-[11px] text-[#737373] underline decoration-[#E5E5E5] underline-offset-2 group-hover:decoration-[#737373]">
+          {location}
+        </span>
+      ) : null}
+    </a>
   );
 }
 

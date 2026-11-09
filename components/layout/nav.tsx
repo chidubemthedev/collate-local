@@ -56,9 +56,9 @@ export const NAV: Record<NavSection, { label: string; href: string; items: NavIt
   },
 };
 
-/** Pages for people who aren't signed in (sign-in and invite links): no navigation shown. */
+/** Pages for people who aren't signed in (sign-in, sign-in links, invite links): no navigation shown. */
 export function isPublicPath(pathname: string): boolean {
-  return pathname === "/login" || pathname.startsWith("/invite/");
+  return pathname === "/login" || pathname.startsWith("/login/") || pathname.startsWith("/invite/");
 }
 
 export function sectionOf(pathname: string): NavSection {

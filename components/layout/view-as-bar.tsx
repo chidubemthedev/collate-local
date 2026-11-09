@@ -29,8 +29,9 @@ export function ViewAsBar() {
     return (
       <div
         role="status"
-        // Stays at the top of the screen on phones while scrolling, so the view and Exit are always in reach.
-        className="sticky top-0 z-30 flex min-h-11 flex-wrap md:static items-center justify-between gap-2 border-b border-[#F5D9A8] bg-[#FFF8EB] px-4 py-2 text-[12px] text-[#7A4B00] md:px-8"
+        // Stays at the top of the screen while scrolling (phones and larger screens), so the view and
+        // Exit are always in reach.
+        className="sticky top-0 z-30 flex min-h-11 flex-wrap items-center justify-between gap-2 border-b border-[#F5D9A8] bg-[#FFF8EB] px-4 py-2 text-[12px] text-[#7A4B00] md:px-8"
       >
         <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
           <EyeIcon size={14} />

@@ -23,16 +23,24 @@ const STATE_LEAD: OwnAccess = {
 };
 
 const SEATS = [
-  { seat_id: 1, office_name: "President", unit_id: 1, unit_name: "NIGERIA", unit_type: "country" },
-  { seat_id: 6, office_name: "Governor", unit_id: 155, unit_name: "ANAMBRA", unit_type: "state" },
-  { seat_id: 7, office_name: "Governor", unit_id: 156, unit_name: "LAGOS", unit_type: "state" },
-  { seat_id: 40, office_name: "Senate", unit_id: 300, unit_name: "ANAMBRA NORTH", unit_type: "senatorial_district" },
+  { seat_id: 1, office_name: "President", unit_id: 1, unit_name: "NIGERIA", unit_type: "country", state_name: null },
+  { seat_id: 6, office_name: "Governor", unit_id: 155, unit_name: "ANAMBRA", unit_type: "state", state_name: "ANAMBRA" },
+  { seat_id: 7, office_name: "Governor", unit_id: 156, unit_name: "LAGOS", unit_type: "state", state_name: "LAGOS" },
+  {
+    seat_id: 40,
+    office_name: "Senate",
+    unit_id: 300,
+    unit_name: "ANAMBRA NORTH",
+    unit_type: "senatorial_district",
+    state_name: "ANAMBRA",
+  },
   {
     seat_id: 90,
     office_name: "House of Reps",
     unit_id: 500,
     unit_name: "ONITSHA NORTH/ONITSHA SOUTH",
     unit_type: "federal_constituency",
+    state_name: "ANAMBRA",
   },
 ];
 
@@ -129,14 +137,14 @@ describe("labels", () => {
 });
 
 describe("listViewAsOptions", () => {
-  it("gives an admin Party, Admin and President, then every seat under its office heading", async () => {
+  it("gives an admin Admin, Party and President, then every seat under its office heading", async () => {
     const { self, groups } = await listViewAsOptions(database(), ADMIN, "Collate Admins");
     expect(self).toEqual({ value: "admin", label: "Admin" });
     expect(groups[0]).toEqual({
       heading: null,
       options: [
-        { value: "party", label: "Party · National" },
         { value: "admin", label: "Admin" },
+        { value: "party", label: "Party · National" },
         { value: "seat:1", label: "Candidate · President" },
       ],
     });
@@ -146,6 +154,37 @@ describe("listViewAsOptions", () => {
       ["Candidate · House of Reps", 1],
     ]);
     expect(groups[3].options[0]).toEqual({ value: "seat:90", label: "Onitsha North/Onitsha South" });
+  });
+
+  it("groups Senate, Reps and Assembly seats by state, and leaves Governor as a list of states", async () => {
+    const rows = [
+      ...SEATS,
+      { seat_id: 41, office_name: "Senate", unit_id: 301, unit_name: "LAGOS EAST", unit_type: "senatorial_district", state_name: "LAGOS" },
+      { seat_id: 42, office_name: "Senate", unit_id: 302, unit_name: "ANAMBRA CENTRAL", unit_type: "senatorial_district", state_name: "ANAMBRA" },
+    ];
+    const { groups } = await listViewAsOptions(database(rows), ADMIN, "Collate Admins");
+    const governor = groups.find((group) => group.heading === "Candidate · Governor")!;
+    expect(governor.states).toBeUndefined();
+    const senate = groups.find((group) => group.heading === "Candidate · Senate")!;
+    expect(senate.options).toHaveLength(3);
+    expect(senate.states).toEqual([
+      {
+        name: "Anambra",
+        options: [
+          { value: "seat:42", label: "Anambra Central" },
+          { value: "seat:40", label: "Anambra North" },
+        ],
+      },
+      { name: "Lagos", options: [{ value: "seat:41", label: "Lagos East" }] },
+    ]);
+  });
+
+  it("reads each seat's state from its own unit (Governor) or its parent", async () => {
+    const db = database();
+    await listViewAsOptions(db, ADMIN, "Collate Admins");
+    const [sql] = db.query.mock.calls[0];
+    expect(sql).toContain("LEFT JOIN political_unit parent ON parent.id = pun.parent_political_unit_id");
+    expect(sql).toContain("END AS state_name");
   });
 
   it("gives a party account no Admin option", async () => {

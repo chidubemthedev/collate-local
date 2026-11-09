@@ -180,7 +180,12 @@ export interface ViewAsOptionsData {
   /** The person's own access. */
   self: ViewAsOption;
   /** Single entries first (heading null), then one group per seat level. */
-  groups: Array<{ heading: string | null; options: ViewAsOption[] }>;
+  groups: Array<{
+    heading: string | null;
+    options: ViewAsOption[];
+    /** Senate, House of Reps and State Assembly: the same seats grouped by state (Governor has none). */
+    states?: Array<{ name: string; options: ViewAsOption[] }>;
+  }>;
 }
 
 export interface OtpRequestPayload {

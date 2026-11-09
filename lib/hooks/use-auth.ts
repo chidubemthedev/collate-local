@@ -138,3 +138,27 @@ export function useLogout() {
     },
   });
 }
+
+/** Who a sign-in link is for (masked email). Not retried: an expired or used link stays that way. */
+export function useSignInLinkDetails(token: string) {
+  return useQuery<{ email: string | null }, ApiClientError>({
+    queryKey: ["auth", "sign-in-link", token],
+    queryFn: async () =>
+      (await apiClient.get<{ email: string | null }>("/api/auth/otp/verify-link", { token })).data,
+    enabled: token.length > 0,
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+/** Signs in with the link from a sign-in email. */
+export function useSignInWithLink(token: string) {
+  const queryClient = useQueryClient();
+  return useMutation<{ ok: boolean }, ApiClientError, void>({
+    mutationFn: async () => (await apiClient.post<{ ok: boolean }>("/api/auth/otp/verify-link", { token })).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: AUTH_KEYS.session });
+      queryClient.invalidateQueries({ queryKey: AUTH_KEYS.permissions });
+    },
+  });
+}

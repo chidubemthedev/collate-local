@@ -13,6 +13,8 @@ import { getClientIp } from "@/lib/auth/request";
 import { consumeFixedWindowRateLimit, emailBucketKey, ipBucketKey } from "@/lib/auth/rate-limit";
 import { generateOtp, hashOtp } from "@/lib/auth/otp";
 import { getOtpSender } from "@/lib/auth/sender";
+import { createSignInLinkToken, hashSignInLinkToken, signInLinkUrl } from "@/lib/auth/sign-in-link";
+import { publicBaseUrl } from "@/lib/invites/invites";
 import { failure, success } from "@/lib/api/response";
 
 export async function POST(request: Request) {
@@ -60,18 +62,25 @@ export async function POST(request: Request) {
     const code = generateOtp();
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);
     const codeHash = hashOtp(person.id, code);
+    // The same email carries a sign-in link; it shares this row, so the two expire and are used up together.
+    const linkToken = createSignInLinkToken();
     const clientIp = getClientIp(request);
 
     const dataSource = await getDataSource();
     await dataSource.query(
       `
-        INSERT INTO login_otp (person_id, code_hash, expires_at, failed_attempt_count, requested_from_ip)
-        VALUES ($1, $2, $3, 0, $4)
+        INSERT INTO login_otp (person_id, code_hash, link_token_hash, expires_at, failed_attempt_count, requested_from_ip)
+        VALUES ($1, $2, $3, $4, 0, $5)
       `,
-      [person.id, codeHash, expiresAt, clientIp === "unknown" ? null : clientIp],
+      [person.id, codeHash, hashSignInLinkToken(linkToken), expiresAt, clientIp === "unknown" ? null : clientIp],
     );
 
-    await getOtpSender().send({ channel: "email", to: email, code });
+    await getOtpSender().send({
+      channel: "email",
+      to: email,
+      code,
+      link: signInLinkUrl(publicBaseUrl(request.url), linkToken),
+    });
 
     return success({ ok: true });
   } catch (error) {

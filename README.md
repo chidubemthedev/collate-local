@@ -43,7 +43,7 @@ A party has to cover about 177,000 polling units across 37 states, 774 LGAs and 
 
 | Feature | Notes |
 | --- | --- |
-| Passwordless sign-in | Email OTP, server-side sessions, HTTP-only cookie |
+| Passwordless sign-in | Email OTP or a one-tap sign-in link in the same email, server-side sessions, HTTP-only cookie |
 | Scope-based access | Membership scope and group visibility are applied inside SQL, not after fetching |
 | Group types as data | What a group can do (message, coverage, own agents) is a row in `group_type`; admins add new types from Settings without a code change |
 | View as | A person can preview the app as any access at or below their own; the preview is read-only |
@@ -216,6 +216,7 @@ File-based App Router routes:
 | --- | --- |
 | `/` | Dashboard |
 | `/login` | Request and verify an email code |
+| `/login/link` | Where the button in a sign-in email links: Continue to sign in (no session needed) |
 | `/candidates` | Candidate coverage by office, with filters |
 | `/coverage` | Geography drill-down and coverage gaps |
 | `/agents` | Agent list, assign and remove |
@@ -329,6 +330,7 @@ sequenceDiagram
 
 1. `POST /api/auth/otp/request`: the email must belong to an existing, eligible person (a `membership` or `candidate` row). A 6-digit code is generated, only its HMAC-SHA256 hash (keyed with `AUTH_SECRET` and bound to the person) is stored, and the code is emailed.
 2. `POST /api/auth/otp/verify`: checks the hash with `timingSafeEqual`, burns the code, creates an `auth_session` row (only the SHA-256 hash of the token is stored), and sets the cookie.
+   - **Or the link.** The same email has a **Sign in to Collate** button linking to `/login/link?token=…` (on `SERVER_BASE_URL`). Its token is random; only its SHA-256 hash is stored, on the code's own `login_otp` row (`link_token_hash`), so the link and the code share the 10-minute expiry and using either uses up both. Requesting a new code retires older links. Opening the link only shows who it signs in (`GET /api/auth/otp/verify-link`); signing in waits for **Continue** (`POST`, same origin), because email scanners open links automatically. The link signs in the device that opens it.
 3. The cookie is `collate_session` in development and `__Host-collate_session` in production (`HttpOnly`, `SameSite=Lax`, `Secure` in production).
 4. Sessions last 12 hours and expire after 2 hours idle. Logout deletes the row.
 
@@ -802,6 +804,7 @@ Check: exactly one unit scope is set. Unique over scope, owner and kind (`NULLS 
 | id | uuid | PK |
 | person_id | uuid | FK `person.id` (CASCADE), not null |
 | code_hash | varchar | not null |
+| link_token_hash | varchar | unique, nullable; SHA-256 of the sign-in link's token sent in the same email (null on codes sent before links) |
 | expires_at | timestamptz | not null |
 | consumed_at | timestamptz | nullable |
 | failed_attempt_count | integer | `0` |
@@ -1061,7 +1064,9 @@ The full contract (parameters, bodies, response schemas, examples, error respons
 | `GET /api/auth/session` | Cookie (optional) | Current session and person, or `authenticated: false` |
 | `POST /api/auth/logout` | Cookie (optional) | Delete the session and clear the cookie |
 | `GET /api/auth/permissions` | Session | Roles and permission flags |
-| `GET /api/auth/view-as` | Session | The "View as" choices at or below the person's access, and the current one |
+| `GET /api/auth/otp/verify-link` | None (rate-limited) | Who a sign-in link is for (masked email), or `401 invalid_or_expired_code` if it's used, expired or replaced |
+| `POST /api/auth/otp/verify-link` | None, same origin (rate-limited) | Sign in with the link (`{ token }`): uses up its code, creates the session, sets the cookie |
+| `GET /api/auth/view-as` | Session | The "View as" choices at or below the person's access, and the current one. Grouped by office; Senate, House of Reps and State Assembly groups also list their seats by state (`states`), which the dropdown shows as office → state → seat |
 | `PUT /api/auth/view-as` | Session, same origin | Turn a view on (`{ value: "party" \| "seat:<id>" }`) |
 | `DELETE /api/auth/view-as` | Session, same origin | Back to the person's own access |
 | `GET /api/settings/admins` | Session, admin | Admins (members of Admin-type groups) with masked email and phone; `q`, `limit` (max 100), `cursor` |
@@ -1330,50 +1335,6 @@ npm test              # vitest run (unit tests)
 npm run lint          # eslint
 npm run build         # next build
 ```
-
-```sh
-npm run typecheck     # tsc --noEmit
-npm run test:db       # unit tests + database integration tests (needs a throwaway DATABASE_URL)
-npm run db:seed:test  # empties the test database and loads the test-script fixture
-npm run test:scope    # who-can-see-what tests against real routes (empties the database)
-npm run test:e2e      # Playwright browser tests (seeds the fixture; see below for the CI-style run)
-```
-
-All of these run in CI (`.github/workflows/ci.yml`) on every pull request, against a fresh Postgres.
-
-**Use a separate database for tests.** `db:seed:test`, `test:scope` and `test:e2e` empty every
-table first. They refuse to run when `NODE_ENV=production` or when the database name does not
-contain `test`. Locally: `createdb collate_test`, point `DATABASE_URL` at it, `npm run db:migrate`.
-Without a local Postgres, run the same one CI uses in a container:
-
-```sh
-docker run -d --name collate-test-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=collate_test \
-  -p 5432:5432 postgres:16      # or podman
-export DATABASE_URL=postgres://postgres:postgres@localhost:5432/collate_test DATABASE_SSL=false
-```
-
-Variables exported in the shell take precedence over `.env`, so `.env` can keep pointing at your
-real database. Copy the other values (`AUTH_SECRET`, `OTP_DELIVERY=console`, the dummy Telegram
-settings, `SMS_PROVIDER=none`) from the `env` block in `.github/workflows/ci.yml`.
-
-**Run the browser tests against a production build, as CI does.** Against `next dev`, pages
-compile on first visit and Fast Refresh reloads them mid-test, so some tests time out on a
-loading state:
-
-```sh
-npm run build
-E2E_PRODUCTION=true E2E_SERVER_COMMAND="npm run start" npm run test:e2e
-```
-
-Plain `npm run test:e2e` (against `next dev`) is still the only way to run the three sign-in-form
-tests in `e2e/auth.spec.ts`, which are skipped against a production build. Expect occasional
-timeouts there that pass on a rerun.
-
-**The test fixture** (`lib/db/seeds/test/fixture.ts`) is the "Personas" and "Fixture data" tabs of
-the manual test script: 26 personas and 8 polling units with known coverage figures. Scope and
-browser test names start with the test ID from that sheet (e.g. `COV-07`), so a failure points at
-the same row a tester would run by hand. Tests marked `it.fails` / `test.fail()` are known gaps
-between the app and the spec; remove the marker when the gap is fixed.
 
 - Unit tests sit next to the code (`*.test.ts`): auth, policy, channels, queue decisions, worker jobs, hooks.
 - `lib/policy/route-imports.test.ts` fails if a route imports `lib/db`, `typeorm` or `pg`.

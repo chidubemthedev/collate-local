@@ -26,8 +26,10 @@ let redirectingToLogin = false;
 function redirectToLoginIfSignedOut(status: number, code: string | undefined): void {
   if (status !== 401 || code !== "unauthorized") return;
   if (typeof window === "undefined" || redirectingToLogin) return;
-  // Not from the sign-in page, nor from an invite link (whose visitor isn't signed in yet).
-  if (window.location.pathname === LOGIN_PATH || window.location.pathname.startsWith("/invite/")) return;
+  // Not from the sign-in pages (including sign-in links), nor from an invite link: their visitors
+  // aren't signed in yet.
+  const path = window.location.pathname;
+  if (path === LOGIN_PATH || path.startsWith(`${LOGIN_PATH}/`) || path.startsWith("/invite/")) return;
   redirectingToLogin = true;
   window.location.replace(LOGIN_PATH);
 }

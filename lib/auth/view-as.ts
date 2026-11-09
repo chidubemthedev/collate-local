@@ -48,7 +48,13 @@ export interface ViewAsOption {
 export interface ViewAsGroup {
   /** Null for single entries (Party · National, Admin, Candidate · President). */
   heading: string | null;
+  /** Every option in the group, in order. */
   options: ViewAsOption[];
+  /**
+   * The same options by state, for offices with several seats per state (Senate, House of Reps,
+   * State Assembly). Left out for Governor, whose seats are the states themselves.
+   */
+  states?: Array<{ name: string; options: ViewAsOption[] }>;
 }
 
 export const PARTY_LABEL = "Party · National";
@@ -62,6 +68,8 @@ type SeatRow = {
   unit_id: number;
   unit_name: string;
   unit_type: string;
+  /** The state the seat is in: the unit itself for a Governor, its parent otherwise; null for the President. */
+  state_name?: string | null;
 };
 
 /** INEC names arrive in capitals; show them in title case ("FCT" stays as is). */
@@ -382,10 +390,15 @@ async function loadAllowedSeats(db: Queryable, own: OwnAccess, seatId?: number):
         o.office_name,
         pun.id AS unit_id,
         pun.political_unit_name AS unit_name,
-        pun.political_unit_type::text AS unit_type
+        pun.political_unit_type::text AS unit_type,
+        CASE
+          WHEN pun.political_unit_type::text = 'state' THEN pun.political_unit_name
+          WHEN parent.political_unit_type::text = 'state' THEN parent.political_unit_name
+        END AS state_name
       FROM seat st
       JOIN office o ON o.id = st.office_id
       JOIN political_unit pun ON pun.id = st.political_unit_id
+      LEFT JOIN political_unit parent ON parent.id = pun.parent_political_unit_id
       WHERE ${seatId !== undefined ? `st.id = ${seatParameter} AND ` : ""}${inside}
       ORDER BY o.hierarchy_level, pun.political_unit_name;
     `,
@@ -407,7 +420,7 @@ export async function loadUnitsWithin(
   return [...new Set(seats.map((seat) => Number(seat.unit_id)))];
 }
 
-/** The list for the "View as" dropdown, grouped as Party/Admin/President, then each seat level. */
+/** The list for the "View as" dropdown, grouped as Admin/Party/President, then each seat level. */
 export async function listViewAsOptions(
   db: Queryable,
   own: OwnAccess,
@@ -416,19 +429,37 @@ export async function listViewAsOptions(
   const seats = await loadAllowedSeats(db, own);
   const global = own.isAdmin || own.hasGlobalCoverageAccess;
   const singles: ViewAsOption[] = [];
-  if (global) singles.push({ value: "party", label: PARTY_LABEL });
+  // Admin first (the widest access), then Party · National.
   if (own.isAdmin) singles.push({ value: "admin", label: ADMIN_LABEL });
+  if (global) singles.push({ value: "party", label: PARTY_LABEL });
 
   const byOffice = new Map<string, ViewAsOption[]>();
+  // Office -> state -> seats, for offices with several seats in a state.
+  const byOfficeState = new Map<string, Map<string, ViewAsOption[]>>();
   for (const seat of seats) {
     const option = { value: `seat:${seat.seat_id}`, label: seatLabel(seat.office_name, seat.unit_name) };
     if (seat.office_name === "President") {
       singles.push(option);
       continue;
     }
+    const short = { value: option.value, label: titleCaseName(seat.unit_name) };
     if (!byOffice.has(seat.office_name)) byOffice.set(seat.office_name, []);
-    byOffice.get(seat.office_name)!.push({ value: option.value, label: titleCaseName(seat.unit_name) });
+    byOffice.get(seat.office_name)!.push(short);
+    if (seat.unit_type !== "state") {
+      const state = seat.state_name ? titleCaseName(seat.state_name) : "Other";
+      if (!byOfficeState.has(seat.office_name)) byOfficeState.set(seat.office_name, new Map());
+      const states = byOfficeState.get(seat.office_name)!;
+      if (!states.has(state)) states.set(state, []);
+      states.get(state)!.push(short);
+    }
   }
+  const statesOf = (office: string) => {
+    const states = byOfficeState.get(office);
+    if (!states) return undefined;
+    return [...states.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, options]) => ({ name, options: [...options].sort((a, b) => a.label.localeCompare(b.label)) }));
+  };
 
   const offices = [...byOffice.keys()].sort(
     (a, b) => (OFFICE_ORDER.indexOf(a) + 1 || 99) - (OFFICE_ORDER.indexOf(b) + 1 || 99),
@@ -443,10 +474,14 @@ export async function listViewAsOptions(
       // People limited to an area start with their own access, so they can always go back to it.
       ...(global ? [] : [{ heading: null, options: [self] }]),
       ...(singles.length ? [{ heading: null, options: singles }] : []),
-      ...offices.map((office) => ({
-        heading: `Candidate · ${office}`,
-        options: byOffice.get(office)!,
-      })),
+      ...offices.map((office) => {
+        const states = statesOf(office);
+        return {
+          heading: `Candidate · ${office}`,
+          options: byOffice.get(office)!,
+          ...(states ? { states } : {}),
+        };
+      }),
     ],
   };
 }

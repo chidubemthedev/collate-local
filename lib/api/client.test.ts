@@ -42,6 +42,14 @@ describe("apiFetch and an expired session", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it("stays on a sign-in link", async () => {
+    vi.stubGlobal("window", { location: { pathname: "/login/link", replace } });
+    vi.stubGlobal("fetch", reply(401, SIGNED_OUT));
+    const { apiClient } = await import("./client");
+    await expect(apiClient.get("/api/auth/permissions")).rejects.toThrow();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it("stays on an invite link", async () => {
     vi.stubGlobal("window", { location: { pathname: "/invite/abc", replace } });
     vi.stubGlobal("fetch", reply(401, SIGNED_OUT));

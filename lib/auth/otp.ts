@@ -75,6 +75,34 @@ export async function consumeLoginOtp(
   return rows.length > 0;
 }
 
+/**
+ * The code a sign-in link belongs to, if the link can still be used: not used, not expired, not
+ * locked by wrong guesses, and the person's latest code (asking for a new code retires older links).
+ */
+export async function findUsableOtpByLinkToken(
+  dataSource: Pick<DataSource, "query">,
+  linkTokenHash: string,
+): Promise<{ id: string; person_id: string; email_address: string | null } | null> {
+  const rows = await dataSource.query<Array<{ id: string; person_id: string; email_address: string | null }>>(
+    `
+      SELECT o.id, o.person_id, p.email_address
+      FROM login_otp o
+      JOIN person p ON p.id = o.person_id
+      WHERE o.link_token_hash = $1
+        AND o.consumed_at IS NULL
+        AND o.expires_at > NOW()
+        AND o.failed_attempt_count < $2
+        AND NOT EXISTS (
+          SELECT 1 FROM login_otp newer
+          WHERE newer.person_id = o.person_id
+            AND (newer.created_at, newer.id) > (o.created_at, o.id)
+        );
+    `,
+    [linkTokenHash, OTP_MAX_ATTEMPTS],
+  );
+  return rows[0] ?? null;
+}
+
 export function generateOtp(): string {
   const digits = Array.from({ length: OTP_LENGTH }, () => String(randomInt(0, 10)));
   return digits.join("");

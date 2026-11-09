@@ -11,6 +11,17 @@ describe("email templates", () => {
     expect(email.text).not.toContain("**");
   });
 
+  it("puts a sign-in button before the code when a link is given, without the raw link", () => {
+    const link = "https://collate.ng/login/link?token=abc";
+    const email = otpEmail("482913", link);
+    expect(email.html.indexOf("Sign in to Collate</a>")).toBeLessThan(email.html.indexOf(">482913</span>"));
+    expect(email.html.match(/href="https:\/\/collate\.ng\/login\/link\?token=abc"/g)).toHaveLength(1);
+    expect(email.html).not.toContain("Or copy this link");
+    expect(email.html).toContain("Or enter this code on the sign-in page:");
+    expect(email.text).toContain(`Sign in to Collate: ${link}`);
+    expect(email.text).toContain("482913");
+  });
+
   it("gives the invite a button and the link as text", () => {
     const link = "https://collate.example/invite/abc";
     const email = inviteEmail({ name: "Tata Alhaji", seat: "Deputy Governor, Bauchi", link });

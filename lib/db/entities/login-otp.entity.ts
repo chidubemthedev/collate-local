@@ -26,6 +26,10 @@ export class LoginOtp {
   @Column({ name: "code_hash", type: "varchar" })
   codeHash: string;
 
+  /** SHA-256 of the sign-in link's token, sent in the same email as the code. Null on older codes. */
+  @Column({ name: "link_token_hash", type: "varchar", nullable: true, unique: true })
+  linkTokenHash: string | null;
+
   @Column({ name: "expires_at", type: "timestamptz" })
   expiresAt: Date;
 

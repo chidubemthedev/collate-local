@@ -26,9 +26,50 @@ function fullLabels(options: ViewAsOptionsData | undefined): Map<string, string>
   return labels;
 }
 
+const stateKey = (heading: string | null, state: string) => `${heading ?? ""}|${state}`;
+
+/**
+ * A row that opens or closes part of the list: an office (level 0) or a state inside it (level 1).
+ * It keeps focus in the list (mouse down is ignored), so the dropdown stays open.
+ */
+function TreeToggle({
+  label,
+  count,
+  open,
+  onToggle,
+  level = 0,
+}: {
+  label: string;
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+  level?: 0 | 1;
+}) {
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onToggle}
+      className={`flex min-h-[34px] w-full cursor-pointer items-center justify-between gap-2 rounded-[6px] border-0 bg-transparent pr-2.5 text-left text-[13px] text-[#0A0A0A] hover:bg-[#F4F4F5] ${
+        level === 0 ? "pl-2.5 font-semibold" : "pl-5 font-medium"
+      }`}
+    >
+      <span className="truncate">
+        {label} <span className="font-normal text-[#737373]">({count.toLocaleString()})</span>
+      </span>
+      <ChevronRight
+        aria-hidden="true"
+        className={`size-4 flex-none text-[#737373] transition-transform duration-150 ${open ? "rotate-90" : ""}`}
+      />
+    </button>
+  );
+}
+
 /**
  * The "View as" dropdown: the person's own access, then levels and seats below it, grouped by
- * office. Picking one previews the app with that access (read-only) until they exit.
+ * office and, for Senate, House of Reps and State Assembly, by state. Picking one previews the
+ * app with that access (read-only) until they exit.
  */
 export function ViewAsField() {
   const hasMounted = useHasMounted();
@@ -41,11 +82,19 @@ export function ViewAsField() {
   const { data: options, isLoading, isError } = useViewAsOptions(signedIn);
   const setViewAs = useSetViewAs();
   const labels = useMemo(() => fullLabels(options), [options]);
-  // One office open at a time, so the list stays short (Assembly alone has hundreds of seats).
+  // One office and one state open at a time, so the list stays short (Assembly has 774 seats).
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [openState, setOpenState] = useState<string | null>(null);
   const groupOf = (value: string | undefined) =>
     options?.groups.find((group) => group.heading && group.options.some((option) => option.value === value))
       ?.heading ?? null;
+  const stateOf = (value: string | undefined) => {
+    for (const group of options?.groups ?? []) {
+      const state = group.states?.find((item) => item.options.some((option) => option.value === value));
+      if (state) return stateKey(group.heading, state.name);
+    }
+    return null;
+  };
 
   const optionCount = options?.groups.reduce((sum, group) => sum + group.options.length, 0) ?? 0;
   const nothingBelow = options !== undefined && optionCount <= 1;
@@ -77,8 +126,11 @@ export function ViewAsField() {
         }}
         disabled={disabled}
         onOpenChange={(open) => {
-          // Open on the office of the view that is on, if any.
-          if (open) setOpenGroup(groupOf(options?.current));
+          // Open on the office (and state) of the view that is on, if any.
+          if (open) {
+            setOpenGroup(groupOf(options?.current));
+            setOpenState(stateOf(options?.current));
+          }
         }}
       >
         <SelectTrigger aria-label="View as" title={title} className="w-full min-w-0">
@@ -93,32 +145,46 @@ export function ViewAsField() {
               {index > 0 ? <SelectSeparator /> : null}
               <SelectGroup>
                 {group.heading ? (
-                  <button
-                    type="button"
-                    aria-expanded={openGroup === group.heading}
-                    // Keep focus in the list, so the dropdown stays open while a group opens.
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => setOpenGroup((current) => (current === group.heading ? null : group.heading))}
-                    className="flex min-h-[34px] w-full cursor-pointer items-center justify-between gap-2 rounded-[6px] border-0 bg-transparent px-2.5 text-left text-[13px] font-semibold text-[#0A0A0A] hover:bg-[#F4F4F5]"
-                  >
-                    <span className="truncate">
-                      {group.heading}{" "}
-                      <span className="font-normal text-[#737373]">({group.options.length.toLocaleString()})</span>
-                    </span>
-                    <ChevronRight
-                      aria-hidden="true"
-                      className={`size-4 flex-none text-[#737373] transition-transform duration-150 ${
-                        openGroup === group.heading ? "rotate-90" : ""
-                      }`}
-                    />
-                  </button>
+                  <TreeToggle
+                    label={group.heading}
+                    count={group.options.length}
+                    open={openGroup === group.heading}
+                    onToggle={() => {
+                      setOpenGroup((current) => (current === group.heading ? null : group.heading));
+                      setOpenState(null);
+                    }}
+                  />
                 ) : null}
                 {!group.heading || openGroup === group.heading
-                  ? group.options.map((option) => (
-                      <SelectItem key={option.value} value={option.value} className={group.heading ? "pl-5" : undefined}>
-                        {option.label}
-                      </SelectItem>
-                    ))
+                  ? group.states
+                    ? // Senate, House of Reps, State Assembly: office -> state -> seats.
+                      group.states.map((state) => {
+                        const key = stateKey(group.heading, state.name);
+                        return (
+                          <Fragment key={key}>
+                            <TreeToggle
+                              label={state.name}
+                              count={state.options.length}
+                              open={openState === key}
+                              onToggle={() => setOpenState((current) => (current === key ? null : key))}
+                              level={1}
+                            />
+                            {openState === key
+                              ? state.options.map((option) => (
+                                  <SelectItem key={option.value} value={option.value} className="pl-9">
+                                    {option.label}
+                                  </SelectItem>
+                                ))
+                              : null}
+                          </Fragment>
+                        );
+                      })
+                    : // Single entries, and Governor (whose seats are the states).
+                      group.options.map((option) => (
+                        <SelectItem key={option.value} value={option.value} className={group.heading ? "pl-5" : undefined}>
+                          {option.label}
+                        </SelectItem>
+                      ))
                   : null}
               </SelectGroup>
             </Fragment>

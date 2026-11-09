@@ -23,8 +23,13 @@ export interface EmailContent {
   paragraphs: string[];
   /** A large one-time code, e.g. "482913". */
   code?: string;
-  /** A button, with the link repeated as text under it for clients that block buttons. */
-  button?: { label: string; href: string };
+  /** A line above the code, e.g. "Or enter this code". */
+  codeLabel?: string;
+  /**
+   * A button, shown before any code. The link is repeated as text under it for clients that
+   * block buttons, unless `linkText` is false (when a code is the fallback).
+   */
+  button?: { label: string; href: string; linkText?: boolean };
   /** Small print under the card body, e.g. when the link or code expires. */
   note?: string;
 }
@@ -41,8 +46,11 @@ export function renderEmail(content: EmailContent): { html: string; text: string
     )
     .join("");
 
+  const codeLabel = content.code && content.codeLabel
+    ? `<p style="margin:0 0 8px;font-size:14px;line-height:22px;color:#404040;">${inline(content.codeLabel)}</p>`
+    : "";
   const code = content.code
-    ? `
+    ? `${codeLabel}
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;">
         <tr>
           <td align="center" style="background:#F0F7F3;border:1px solid #CFE5D9;border-radius:12px;padding:18px 12px;">
@@ -61,9 +69,13 @@ export function renderEmail(content: EmailContent): { html: string; text: string
               style="display:inline-block;padding:13px 26px;font-family:${FONT};font-size:15px;font-weight:600;line-height:20px;color:#FFFFFF;text-decoration:none;border-radius:10px;">${escapeHtml(content.button.label)}</a>
           </td>
         </tr>
-      </table>
+      </table>${
+        content.button.linkText === false
+          ? ""
+          : `
       <p style="margin:0 0 6px;font-size:13px;line-height:20px;color:${MUTED};">Or copy this link into your browser:</p>
       <p style="margin:0 0 18px;font-size:13px;line-height:20px;word-break:break-all;"><a href="${escapeHtml(content.button.href)}" target="_blank" style="color:${GREEN};text-decoration:underline;">${escapeHtml(content.button.href)}</a></p>`
+      }`
     : "";
 
   const note = content.note
@@ -98,7 +110,7 @@ export function renderEmail(content: EmailContent): { html: string; text: string
         <tr>
           <td style="background:#FFFFFF;border:1px solid ${LINE};border-radius:14px;padding:28px 28px 24px;font-family:${FONT};">
             <h1 style="margin:0 0 14px;font-size:20px;line-height:28px;font-weight:700;color:${INK};">${escapeHtml(content.heading)}</h1>
-            ${paragraphs}${code}${button}${note}
+            ${paragraphs}${button}${code}${note}
           </td>
         </tr>
         <tr>
@@ -118,25 +130,33 @@ export function renderEmail(content: EmailContent): { html: string; text: string
     content.heading,
     "",
     ...content.paragraphs.map((paragraph) => paragraph.replace(/\*\*(.+?)\*\*/g, "$1")),
-    ...(content.code ? ["", content.code, ""] : []),
-    ...(content.button ? [`${content.button.label}: ${content.button.href}`, ""] : []),
-    ...(content.note ? [content.note.replace(/\*\*(.+?)\*\*/g, "$1"), ""] : []),
+    ...(content.button ? ["", `${content.button.label}: ${content.button.href}`] : []),
+    ...(content.code ? ["", ...(content.codeLabel ? [content.codeLabel.replace(/\*\*(.+?)\*\*/g, "$1")] : []), content.code] : []),
+    ...(content.note ? ["", content.note.replace(/\*\*(.+?)\*\*/g, "$1")] : []),
+    "",
     "Collate · Polling unit coverage and campaign messaging",
   ].join("\n");
 
   return { html, text };
 }
 
-/** The sign-in code email. */
-export function otpEmail(code: string): { subject: string; html: string; text: string } {
+/** The sign-in email: a button that signs in, and the code for typing in instead. */
+export function otpEmail(code: string, link?: string): { subject: string; html: string; text: string } {
   return {
     subject: `${code} is your Collate sign-in code`,
     ...renderEmail({
       preheader: `Your sign-in code is ${code}. It expires in 10 minutes.`,
-      heading: "Your sign-in code",
-      paragraphs: ["Enter this code on the Collate sign-in page to continue."],
+      heading: link ? "Sign in to Collate" : "Your sign-in code",
+      paragraphs: link
+        ? ["Tap the button to sign in on this device."]
+        : ["Enter this code on the Collate sign-in page to continue."],
       code,
-      note: "The code expires in **10 minutes** and works once. Never share it: Collate staff will never ask for it.",
+      ...(link
+        ? { codeLabel: "Or enter this code on the sign-in page:", button: { label: "Sign in to Collate", href: link, linkText: false } }
+        : {}),
+      note: link
+        ? "The code and the link expire in **10 minutes** and work once: using one uses up the other. Never share them: Collate staff will never ask for them."
+        : "The code expires in **10 minutes** and works once. Never share it: Collate staff will never ask for it.",
     }),
   };
 }
