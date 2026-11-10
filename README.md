@@ -44,10 +44,12 @@ A party has to cover about 177,000 polling units across 37 states, 774 LGAs and 
 | Feature | Notes |
 | --- | --- |
 | Passwordless sign-in | Email OTP or a one-tap sign-in link in the same email, server-side sessions, HTTP-only cookie |
-| Scope-based access | Membership scope and group visibility are applied inside SQL, not after fetching |
+| Scope-based access | Membership scope and group visibility are applied inside SQL, not after fetching. A group sees (and can assign agents for) every group below it (`groups.parent_group_id`) |
 | Group types as data | What a group can do (message, coverage, own agents) is a row in `group_type`; admins add new types from Settings without a code change |
 | View as | A person can preview the app as any access at or below their own; the preview is read-only |
 | Cursor pagination | Every list that pages uses a keyset cursor (no offsets). Most lists cap `limit` at 100; coverage gaps and candidate coverage allow 500 |
+| Agent assignment | Assign the official agent to a gap, or add extra agents where there is one. Pick a real person (searched by name; people already agents and admins are left out) and who they are an agent for from a dropdown; the server picks the next free extra slot |
+| Message one agent | "Message this agent" opens a broadcast to that one person (`personId`), still limited to the sender's area and visible agents |
 | Candidate invites | Admins email candidates a single-use, 24-hour link; the candidate completes registration from it and is signed in |
 | Audit log page | Admins read who did what, newest first, filtered by changes or views, person and date |
 | Branded emails | Sign-in codes and invites share one email-client-safe layout, with a plain-text version |
@@ -219,15 +221,15 @@ File-based App Router routes:
 | `/login/link` | Where the button in a sign-in email links: Continue to sign in (no session needed) |
 | `/candidates` | Candidate coverage by office, with filters |
 | `/coverage` | Geography drill-down and coverage gaps |
-| `/agents` | Agent list, assign and remove |
+| `/agents` | Agents and gaps, searched on the server (agent name, PU code). **Assign** on a gap adds the official agent; **Add extra** on a row with an official agent adds an extra one; Inspect, remove, and message the agent. The polling unit links to Google Maps when it has coordinates |
 | `/recipients` | Agents as broadcast recipients, with search, filters and Telegram-ready counts |
-| `/broadcasts`, `/broadcasts/new`, `/broadcasts/[id]` | Broadcast history, composer, detail and deliveries |
+| `/broadcasts`, `/broadcasts/new`, `/broadcasts/[id]` | Broadcast history, composer, detail and deliveries. `/broadcasts/new?personId=<uuid>` composes to one agent |
 | `/settings` | Groups and access: the group types and their rules, and a form to add one (admins only) |
 | `/settings/admins` | Admins: who is an admin, and a form to add one (admins only) |
 | `/settings/candidates` | Candidates: invite candidates and running mates, resend or cancel invites (admins only) |
 | `/settings/audit-log` | Audit log: who did what, newest first, with filters (admins only) |
 | `/invite/[token]` | Where an invite email links: complete registration (no sign-in needed) |
-| `/admin/queue` | Queue counts and recent jobs (admin only) |
+| `/admin/queue` | Queue: counts per queue and the last 50 jobs; click a job's output to read the full error or result (admin only, under Settings in the menu) |
 
 There is no `middleware`/`proxy` file. `apiClient` sends the browser to `/login` whenever an API call returns `401 unauthorized` (session missing or expired), except on `/login` and `/invite/*`; other `401` codes, such as a wrong sign-in code, are left to the page. The sidebar, mobile nav and View-as bar hide themselves on those public pages (`isPublicPath` in `components/layout/nav.tsx`). Settings pages are wrapped in `AdminGate`. The real access control is always the API.
 
@@ -1348,6 +1350,8 @@ npm run build         # next build
 | Database | Neon Postgres | Use the pooled URL for `DATABASE_URL` and the direct URL for `QUEUE_DATABASE_URL`; `DATABASE_SSL=true` |
 | Telegram webhook | Telegram | After deploying, run `npm run telegram:webhook:set -- https://<domain>/api/telegram/webhook`. Re-run it after rotating the bot token |
 
+**When to redeploy the worker.** The worker runs its own copy of part of `lib/`, so it must be redeployed with the web app whenever a change touches what it loads: `worker/**`, `lib/queue/**`, who gets a broadcast (`lib/policy/core/audience.ts`, `scope.ts`, `owners.ts`, `policy-user.ts`), what a broadcast may contain (`lib/broadcast/schemas.ts`), sending (`lib/channels/**`), or any entity (`lib/db/entities/**`). If the two disagree, the worker rejects broadcasts it doesn't understand (for example a new audience field fails with `InvalidFilterError`) and they stay `sending`. Turning on auto-deploy for the worker on the same branch avoids this. Run migrations before either deploy. Page, component and hook changes, and API routes outside these files, need only the web app.
+
 Production checklist: `NODE_ENV=production`, strong `AUTH_SECRET`, `TELEGRAM_DRY_RUN` unset, `OTP_DELIVERY` not `console`, `TRUST_PROXY=true` on Vercel (only ever behind a trusted proxy), and `SERVER_BASE_URL` set to the public URL so invite links don't point at a preview or localhost. Run new migrations on a Neon branch first, check them, then run them on production.
 
 ### Contributing
@@ -1410,9 +1414,12 @@ Things that are unclear, missing or worth fixing. Nothing here is guessed in the
 
 **Frontend**
 
-- [ ] `AppProvider` (`lib/context/app-context.tsx`) still imports static data from `lib/data/broadcasts-data.ts` and `lib/data/settings-data.ts` (`ACCESS_GROUPS_DATA`). The Settings page itself (Groups and access) now reads and writes the API; the older `components/settings/access-groups-manager.tsx` and `access-matrix-table.tsx` still use the static data and aren't on the page. `lib/data/available-agents-pool.ts` feeds the agent autocomplete. These aren't live API data.
+- [ ] `AppProvider` (`lib/context/app-context.tsx`) still imports static data from `lib/data/broadcasts-data.ts` and `lib/data/settings-data.ts` (`ACCESS_GROUPS_DATA`). The Settings page itself (Groups and access) now reads and writes the API; the older `components/settings/access-groups-manager.tsx` and `access-matrix-table.tsx` still use the static data and aren't on the page. `lib/data/available-agents-pool.ts` feeds the agent autocomplete. These aren't live API data. (The agent picker in the Assign popup now searches `GET /api/agents/available`; the old `available-agents-pool.ts` is gone.)
 - [ ] `/api/auth/session` returns `candidateId: null` always.
-- [ ] The Agents page loads only the first 100 agents and the first 100 coverage gaps; it never asks for the next page, although both APIs page by cursor.
+- [ ] The Agents page loads only the first 100 agents and the first 100 coverage gaps; it never asks for the next page, although both APIs page by cursor. (Search is applied on the server, so a search still finds records beyond those.)
+- [ ] The Coverage page's "message this area" and the polling-unit drawer's "message this PU" link to `/broadcasts/new?target=<name>`, which the page ignores. They should prefill the area or polling unit.
+- [ ] The polling-unit drawer on the Coverage page still assigns with raw Person ID and Group ID boxes; the Agents page has the person search and owner dropdown.
+- [ ] The Queue page predates the design system (it uses the older badge and colour styles).
 - [ ] There is no screen to change a group's type, so a group type in use can't be deleted without editing the database.
 
 **API**
@@ -1429,13 +1436,14 @@ Things that are unclear, missing or worth fixing. Nothing here is guessed in the
 - [ ] INEC publishes no constituency-to-polling-unit mapping, so `pu_political_unit` is derived at LGA level from constituency names (`scripts/inec-build-political-units.py`). A constituency whose LGAs can't be determined exactly has a `seat` but no mapped polling units, so its candidate sees none.
 - [ ] `import_batch` has a table but no API routes. There are also no routes for broadcast cancellation, INEC or agent import, or managing group members other than admins.
 - [ ] What candidates fill in when completing registration is still to be decided; today they confirm their details only.
-- [ ] `public/openapi.yaml` doesn't yet describe the Settings, View-as, invite and audit-log endpoints.
+- [ ] `public/openapi.yaml` doesn't yet describe the Settings, View-as, invite and audit-log endpoints, `GET /api/agents/available`, `GET /api/coverage/assignments/owners`, the `q` search on coverage gaps, or the `personId` filters on agents and broadcast audiences.
 - [ ] `/api/geography/*` and `/api/coverage/*` (except where noted) use `requireApiAuth` with SQL in the route files, whereas agents and broadcasts go through `lib/policy`. The route-imports test only covers the policy-managed routes.
 - [ ] The OpenAPI `CandidateCoverage.channelStatus` still lists `sms_only` and `not_matched`. Check it against the current candidate coverage code if SMS is dropped from the UI.
 - [ ] Validation errors are always `400`; `422` is never returned.
 
 **Worker**
 
+- [ ] A broadcast whose `broadcast-resolve` job fails for good (for example a worker on older code rejecting its audience) stays `sending` and the Broadcasts page never shows it failed; only the Queue page does. The worker should mark it `failed` when retries run out.
 - [ ] Enqueue happens after the broadcast transaction commits. If the process dies in between, a `sending` broadcast has no job. Enqueue inside the transaction or add a sweeper.
 - [ ] The Telegram rate limiter is per process, so only one worker instance is safe.
 - [ ] SMS fallback re-checks a decline but not a missing consent row. `TODO(decision)` in `worker/jobs/delivery-send.ts`: this needs a product and legal decision (NDPA).

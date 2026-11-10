@@ -53,8 +53,9 @@ export async function getAdminQueueData(): Promise<{
       completed_on AS "completedOn",
       retry_limit  AS "retryLimit",
       retry_count  AS "retryCount",
+      -- Long enough for a full error and stack trace (shown in the Queue page's output popup).
       CASE
-        WHEN output IS NOT NULL THEN LEFT(output::text, 500)
+        WHEN output IS NOT NULL THEN LEFT(output::text, 8000)
         ELSE NULL
       END AS output
     FROM pgboss.job

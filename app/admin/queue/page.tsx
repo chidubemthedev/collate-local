@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Database,
@@ -16,6 +16,7 @@ import {
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { apiClient, ApiClientError } from "@/lib/api/client";
 import type { QueueSummaryRow, RecentJob } from "@/lib/admin/queue";
 
@@ -46,6 +47,99 @@ function StateBadge({ state }: { state: string }) {
   );
 }
 
+/** The job output as readable text: an error's name, message and stack, or indented JSON. */
+function readableOutput(output: string): { heading: string | null; body: string } {
+  try {
+    const parsed: unknown = JSON.parse(output);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const record = parsed as Record<string, unknown>;
+      if (typeof record.stack === "string" || typeof record.message === "string") {
+        const name = typeof record.name === "string" ? record.name : "Error";
+        const message = typeof record.message === "string" ? record.message : "";
+        return {
+          heading: message ? `${name}: ${message}` : name,
+          body: typeof record.stack === "string" ? record.stack : JSON.stringify(parsed, null, 2),
+        };
+      }
+    }
+    return { heading: null, body: JSON.stringify(parsed, null, 2) };
+  } catch {
+    // Cut off at the API's length limit, or not JSON: show it as it is.
+    return { heading: null, body: output };
+  }
+}
+
+function JobOutputDialog({ job, onClose }: { job: RecentJob | null; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const output = job?.output ? readableOutput(job.output) : null;
+
+  const copy = async () => {
+    if (!job?.output) return;
+    try {
+      await navigator.clipboard.writeText(job.output);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard blocked: the text can still be selected by hand.
+    }
+  };
+
+  return (
+    <Dialog open={job !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        {job && (
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <DialogTitle className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                {job.name}
+                <StateBadge state={job.state} />
+              </DialogTitle>
+              <DialogDescription className="text-[11px] text-slate-500">
+                Job {job.id} · Retries {job.retryCount}/{job.retryLimit}
+              </DialogDescription>
+            </div>
+
+            <dl className="grid grid-cols-1 gap-1 text-[11px] sm:grid-cols-3">
+              <div>
+                <dt className="text-slate-400">Created</dt>
+                <dd className="text-slate-700">{formatDate(job.createdOn)}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">Started</dt>
+                <dd className="text-slate-700">{formatDate(job.startedOn)}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">Completed</dt>
+                <dd className="text-slate-700">{formatDate(job.completedOn)}</dd>
+              </div>
+            </dl>
+
+            {output?.heading && (
+              <p
+                className={`text-xs font-semibold ${job.state === "failed" ? "text-red-700" : "text-slate-800"} break-words`}
+              >
+                {output.heading}
+              </p>
+            )}
+            <pre className="max-h-[50vh] overflow-auto whitespace-pre-wrap break-words rounded-md border border-slate-200 bg-slate-50 p-3 font-mono text-[11px] leading-relaxed text-slate-700">
+              {output?.body ?? "No output."}
+            </pre>
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" size="sm" className="text-xs" onClick={() => void copy()}>
+                {copied ? "Copied" : "Copy output"}
+              </Button>
+              <Button type="button" size="sm" className="text-xs" onClick={onClose}>
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString(undefined, {
@@ -56,6 +150,8 @@ function formatDate(iso: string | null): string {
 }
 
 export default function QueueDashboardPage() {
+  // The job whose output is open in the popup.
+  const [openJob, setOpenJob] = useState<RecentJob | null>(null);
   const healthQuery = useQuery<HealthData, ApiClientError>({
     queryKey: ["system", "health"],
     queryFn: async () => (await apiClient.get<HealthData>("/api/health")).data,
@@ -240,8 +336,21 @@ export default function QueueDashboardPage() {
                       <td className="px-3 py-2 text-slate-500 whitespace-nowrap">
                         {job.retryCount}/{job.retryLimit}
                       </td>
-                      <td className="px-3 py-2 text-slate-400 max-w-xs truncate font-mono text-[10px]">
-                        {job.output ?? "—"}
+                      <td className="px-3 py-2 max-w-xs font-mono text-[10px]">
+                        {job.output ? (
+                          <button
+                            type="button"
+                            onClick={() => setOpenJob(job)}
+                            title="Show the full output"
+                            className={`block w-full truncate text-left underline decoration-dotted underline-offset-2 hover:decoration-solid ${
+                              job.state === "failed" ? "text-red-700" : "text-slate-500"
+                            }`}
+                          >
+                            {job.output}
+                          </button>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -258,6 +367,8 @@ export default function QueueDashboardPage() {
           </div>
         </>
       )}
+
+      <JobOutputDialog job={openJob} onClose={() => setOpenJob(null)} />
 
       {isLoading && !data && (
         <div className="flex items-center justify-center py-16 text-slate-400 gap-2 text-sm">
