@@ -5,7 +5,7 @@ import { expect, test, viewAsCandidate } from "./support";
 test("NAV-03 Settings is for admins only", async ({ page, as }) => {
   await as("p04");
   await page.goto("/settings");
-  await expect(page.getByText("Admin access is required to view settings.")).toBeVisible();
+  await expect(page.getByText("Only admins can manage groups and access.")).toBeVisible();
 });
 
 test("AGT-05 agent phone numbers are masked", async ({ page, as }) => {
