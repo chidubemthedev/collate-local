@@ -486,18 +486,19 @@ async function createFixtures(entityManager: EntityManager): Promise<Fixtures> {
     ],
   );
 
+  const typeIds = await groupTypeIds(entityManager);
   const groups = await insertRows<{ id: number }>(
     entityManager,
     "groups",
-    ["group_name", "group_type"],
+    ["group_name", "group_type_id"],
     [
-      [`Policy Admin ${key}`, "admin"],
+      [`Policy Admin ${key}`, typeIds.admin],
       // Area coordinators. A campaign group, since a party member with no area is national.
-      [`Policy Viewer ${key}`, "campaign"],
-      [`Policy Lagos Owner ${key}`, "party"],
-      [`Policy Kano Owner ${key}`, "party"],
-      [`Policy Ungranted Owner ${key}`, "party"],
-      [`Policy Pagination Owner ${key}`, "party"],
+      [`Policy Viewer ${key}`, typeIds.campaign],
+      [`Policy Lagos Owner ${key}`, typeIds.party],
+      [`Policy Kano Owner ${key}`, typeIds.party],
+      [`Policy Ungranted Owner ${key}`, typeIds.party],
+      [`Policy Pagination Owner ${key}`, typeIds.party],
     ],
   );
   const adminGroupId = Number(groups[0].id);
@@ -741,6 +742,14 @@ async function collectAllPages(
     cursor = page.nextCursor ?? undefined;
   } while (cursor);
   return items;
+}
+
+/** The built-in group types' ids by key ("admin", "party", ...), as the migration inserted them. */
+async function groupTypeIds(entityManager: EntityManager): Promise<Record<string, number>> {
+  const rows = (await entityManager.query(
+    `SELECT id, type_key FROM group_type WHERE type_key IS NOT NULL;`,
+  )) as Array<{ id: number | string; type_key: string }>;
+  return Object.fromEntries(rows.map((row) => [row.type_key, Number(row.id)]));
 }
 
 async function insertRows<T>(

@@ -36,8 +36,12 @@ export interface TestFixture {
   officeIds: Record<"President" | "Governor" | "Senate" | "House of Reps" | "State Assembly", number>;
 }
 
-/** Tables the fixture owns. `migrations` is never touched. */
-const RESET_EXCLUDED_TABLES = new Set(["migrations"]);
+/**
+ * Tables the reset leaves alone. `migrations` is never touched. `group_type` holds the four
+ * built-in types (admin, party, campaign, support group) that a migration inserts and the fixture
+ * looks up by key; only types added after that are removed (see `resetTestDatabase`).
+ */
+const RESET_EXCLUDED_TABLES = new Set(["migrations", "group_type"]);
 
 /**
  * Refuses to run anywhere that could be real: production, or a database whose name does not
@@ -67,6 +71,8 @@ export async function resetTestDatabase(db: Queryable): Promise<void> {
   const tables = rows.map((row) => row.tablename).filter((name) => !RESET_EXCLUDED_TABLES.has(name));
   if (tables.length === 0) return;
   await db.query(`TRUNCATE ${tables.map((name) => `"${name}"`).join(", ")} RESTART IDENTITY CASCADE;`);
+  // Groups are gone, so types created by earlier runs can go too; the built-in ones stay.
+  await db.query(`DELETE FROM group_type WHERE NOT is_system;`);
 }
 
 async function insertOne<T extends Record<string, unknown>>(
@@ -348,7 +354,10 @@ export async function seedTestFixture(db: Queryable): Promise<TestFixture> {
   for (const [name, type, parent] of GROUPS) {
     groupIds[name] = await id(
       db,
-      `INSERT INTO groups (group_name, group_type, parent_group_id) VALUES ($1, $2::group_type, $3) RETURNING id;`,
+      // The type by its built-in key ("party", "campaign", ...); no row back = an unknown key.
+      `INSERT INTO groups (group_name, group_type_id, parent_group_id)
+       SELECT $1, group_type.id, $3 FROM group_type WHERE group_type.type_key = $2
+       RETURNING id;`,
       [name, type, parent === null ? null : groupIds[parent]],
     );
   }

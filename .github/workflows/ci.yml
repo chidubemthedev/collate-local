@@ -1,17 +1,25 @@
 name: CI
 
 on:
-  pull_request:
+  # Every push, on any branch, and every pull request into main.
   push:
+    branches: ["**"]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
+# The workflow only reads the code.
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the older run, except on main, where every commit
+# gets a result.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
-# Throwaway values only. Telegram never sends (dry run), SMS is off, and the database is a
-# fresh Postgres service per job. No real secrets are needed.
+# Throwaway values only: the Telegram token is fake, SMS is off, and the database is a fresh
+# Postgres service per job. No real secrets are needed.
 env:
   DATABASE_URL: postgres://postgres:postgres@localhost:5432/collate_test
   DATABASE_SSL: "false"
@@ -43,11 +51,14 @@ jobs:
           --health-retries 10
     env:
       NODE_ENV: test
+      # Belt and braces: nothing here sends, and dry run is refused in production mode, so it is
+      # set for this job only (the browser-test job runs `next start`, which is production).
+      TELEGRAM_DRY_RUN: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - name: Lint
@@ -65,6 +76,8 @@ jobs:
 
   e2e:
     name: Build and browser tests
+    # Only once lint, types and tests pass: no build or browser run for a change that is already red.
+    needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -87,7 +100,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - name: Build
