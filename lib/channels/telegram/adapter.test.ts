@@ -1,5 +1,5 @@
 import { GrammyError, HttpError } from "grammy";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TelegramChannel, type TelegramSendApi } from "./adapter";
 import {
   mapTelegramError,
@@ -36,6 +36,15 @@ function createSendApi(messageId: number) {
 }
 
 describe("TelegramChannel", () => {
+  // These tests send through a mocked API, so dry run must be off whatever the environment says
+  // (CI and some local .env files turn it on).
+  beforeEach(() => {
+    vi.stubEnv("TELEGRAM_DRY_RUN", "false");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("returns the provider message ID and adds the delivery OK callback button", async () => {
     const { sendMessage, calls } = createSendApi(321);
     const channel = new TelegramChannel({ sendMessage });

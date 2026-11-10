@@ -658,7 +658,9 @@ async function createFixtures(entityManager: EntityManager): Promise<Fixtures> {
     ["group_name", "group_type_id"],
     [
       [`Broadcast Admin ${key}`, typeIds.admin],
-      [`Broadcast Viewer ${key}`, typeIds.party],
+      // The area-limited sender. A campaign group: a party group's type sees national coverage,
+      // which would ignore the Lagos scope below.
+      [`Broadcast Viewer ${key}`, typeIds.campaign],
       [`Broadcast Owner Lagos ${key}`, typeIds.party],
       [`Broadcast Owner Kano ${key}`, typeIds.party],
       [`Broadcast Hidden Owner ${key}`, typeIds.party],
