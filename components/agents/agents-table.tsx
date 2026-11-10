@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import { UnifiedAgentRecord, AgentDetailModal } from "./agent-detail-modal";
 import { WF, Pill, EmptyBox, type Tone } from "@/components/ui/wf";
 import { toTitleCase } from "@/components/candidates/candidates-filters";
+import { useReadOnly, READ_ONLY_TITLE } from "@/lib/hooks/use-auth";
 
 interface AgentsTableProps {
   agents: UnifiedAgentRecord[];
@@ -31,6 +32,60 @@ function sponsorTone(record: UnifiedAgentRecord): Tone {
   return "sky";
 }
 
+/**
+ * The polling unit name and location. With coordinates, both are one link to Google Maps (new tab),
+ * as on the Coverage table; without, plain text.
+ */
+function PuNameAndLocation({ record, inline = false }: { record: UnifiedAgentRecord; inline?: boolean }) {
+  const name = toTitleCase(record.puName);
+  const location = toTitleCase(record.puLocation);
+  const { latitude, longitude } = record;
+  const linked = record.hasGPS === true && typeof latitude === "number" && typeof longitude === "number";
+
+  if (!linked) {
+    return inline ? (
+      <>
+        {name} · <span className="text-[#737373]">{location}</span>
+      </>
+    ) : (
+      <span className="flex flex-col gap-0.5">
+        <span className="font-semibold">{name}</span>
+        <span className="text-[11px] text-[#737373]">{location}</span>
+      </span>
+    );
+  }
+
+  return (
+    <a
+      href={`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={`Open in Google Maps (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`}
+      aria-label={`${name}, ${location}: open in Google Maps (new tab)`}
+      className={`group text-[#0A0A0A] no-underline ${inline ? "" : "flex flex-col gap-0.5"}`}
+    >
+      <span
+        className={`underline decoration-[#D4D4D4] underline-offset-2 group-hover:decoration-[#0A0A0A] ${
+          inline ? "" : "font-semibold"
+        }`}
+      >
+        {name}
+        <span aria-hidden="true" className="ml-1 text-[11px] font-normal text-[#737373]">
+          ↗
+        </span>
+      </span>
+      {inline ? " · " : null}
+      <span
+        className={`text-[#737373] underline decoration-[#E5E5E5] underline-offset-2 group-hover:decoration-[#737373] ${
+          inline ? "" : "text-[11px]"
+        }`}
+      >
+        {location}
+      </span>
+    </a>
+  );
+}
+
 function Contact({ record }: { record: UnifiedAgentRecord }) {
   if (record.type === "gap") return <span className="text-[12px] text-[#A3A3A3]">—</span>;
   return record.telegramStatus === "connected" ? (
@@ -43,6 +98,9 @@ function Contact({ record }: { record: UnifiedAgentRecord }) {
 export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
   const [selectedAgent, setSelectedAgent] = useState<UnifiedAgentRecord | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // True when opened from "Add extra", so the popup starts on the extra-agent form.
+  const [addingExtra, setAddingExtra] = useState(false);
+  const readOnly = useReadOnly();
 
   // Back to the first page when the agent dataset changes (e.g. filters applied).
   // The page is stored with the dataset size it belongs to, so no reset effect is needed.
@@ -55,8 +113,9 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
   const end = Math.min(start + PAGE_SIZE, agents.length);
   const rows = useMemo(() => agents.slice(start, end), [agents, start, end]);
 
-  const open = (agent: UnifiedAgentRecord) => {
+  const open = (agent: UnifiedAgentRecord, extra = false) => {
     setSelectedAgent(agent);
+    setAddingExtra(extra);
     setIsModalOpen(true);
   };
 
@@ -64,18 +123,31 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
     return <EmptyBox>No agent records match these filters.</EmptyBox>;
   }
 
+  // No official agent yet: Assign (the official one). Has an official agent: Inspect, plus Add extra.
   const actionButton = (agent: UnifiedAgentRecord, phone = false) => {
     const gap = agent.type === "gap";
+    const size = phone ? "min-h-9" : "";
     return (
-      <button
-        type="button"
-        onClick={() => open(agent)}
-        className={`${WF.btnRow} ${gap ? "border-[#171717] bg-[#171717] text-[#FAFAFA] hover:bg-[#262626]" : ""} ${
-          phone ? "min-h-9 self-end" : ""
-        }`}
-      >
-        {gap ? "Assign" : "Inspect"}
-      </button>
+      <span className={`inline-flex items-center gap-1.5 ${phone ? "self-end" : ""}`}>
+        {agent.type === "official" && agent.puId !== undefined ? (
+          <button
+            type="button"
+            onClick={() => open(agent, true)}
+            disabled={readOnly}
+            title={readOnly ? READ_ONLY_TITLE : "Add an extra agent at this polling unit"}
+            className={`${WF.btnRow} ${size}`}
+          >
+            Add extra
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => open(agent)}
+          className={`${gap ? WF.btnRowDark : WF.btnRow} ${size}`}
+        >
+          {gap ? "Assign" : "Inspect"}
+        </button>
+      </span>
     );
   };
 
@@ -116,10 +188,7 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
                 <tr key={agent.id} className={`${WF.tr} ${selected ? "bg-[#FAFAFA]" : ""}`}>
                   <td className={`${WF.td} pl-4 font-semibold whitespace-nowrap tabular-nums`}>{agent.puCode}</td>
                   <td className={`${WF.td} min-w-[180px]`}>
-                    <span className="flex flex-col gap-0.5">
-                      <span className="font-semibold">{toTitleCase(agent.puName)}</span>
-                      <span className="text-[11px] text-[#737373]">{toTitleCase(agent.puLocation)}</span>
-                    </span>
+                    <PuNameAndLocation record={agent} />
                   </td>
                   <td className={WF.td}>
                     <span className="flex flex-col gap-[3px]">
@@ -161,7 +230,7 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
                 <Pill tone={TYPE_PILL[agent.type].tone}>{TYPE_PILL[agent.type].label}</Pill>
               </span>
               <span className="text-[13px]">
-                {toTitleCase(agent.puName)} · <span className="text-[#737373]">{toTitleCase(agent.puLocation)}</span>
+                <PuNameAndLocation record={agent} inline />
               </span>
               <span className="flex flex-wrap items-center gap-1.5">
                 {gap ? (
@@ -211,6 +280,9 @@ export function AgentsTable({ agents, onAssignOfficial }: AgentsTableProps) {
       </div>
 
       <AgentDetailModal
+        // A fresh popup per row and button, so it opens on the right form.
+        key={`${selectedAgent?.id ?? "none"}:${addingExtra ? "extra" : "view"}`}
+        startAddingExtra={addingExtra}
         agent={selectedAgent}
         open={isModalOpen}
         onOpenChange={setIsModalOpen}

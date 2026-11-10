@@ -524,5 +524,53 @@ describe("listBroadcastDeliveries audit", () => {
         actionType: "view_broadcasts",
       }));
     });
+
+    it("names the one person a broadcast was sent to", async () => {
+      const queryBuilder = {
+        leftJoin: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        addOrderBy: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        clone: vi.fn().mockReturnThis(),
+        getCount: vi.fn(async () => 0),
+        getRawMany: vi.fn(async () => [{
+          id: "44444444-4444-4444-8444-444444444444",
+          status: "completed",
+          messageText: "Hello",
+          audienceFilter: { personId: "11111111-1111-4111-8111-111111111111", agentKind: "all" },
+          scheduledSendAt: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          senderId: user.personId,
+          senderDisplayName: "Sender",
+        }]),
+      };
+      const query = vi.fn(async (sql: string, parameters?: unknown[]) => {
+        if (sql.includes("FROM person WHERE id = ANY")) {
+          expect(parameters).toEqual([["11111111-1111-4111-8111-111111111111"]]);
+          return [{ id: "11111111-1111-4111-8111-111111111111", full_name: "Samixx Yasuke" }];
+        }
+        return [];
+      });
+      const managerRef: { current: EntityManager | null } = { current: null };
+      const managerMock = {
+        queryRunner: { isTransactionActive: false },
+        getRepository: (entity: typeof AuditLog | typeof Broadcast) =>
+          entity === AuditLog
+            ? { insert: vi.fn(async () => undefined) }
+            : { createQueryBuilder: () => queryBuilder },
+        query,
+        transaction: vi.fn(async (run: (manager: EntityManager) => Promise<unknown>) => {
+          if (!managerRef.current) throw new Error("transaction manager is unavailable");
+          return run(managerRef.current);
+        }),
+      };
+      managerRef.current = managerMock as unknown as EntityManager;
+
+      const page = await listBroadcasts(user, { limit: 50 }, managerRef.current);
+
+      expect(page.items[0]?.audienceSummary).toEqual(["Samixx Yasuke"]);
+    });
   });
 });

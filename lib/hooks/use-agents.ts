@@ -5,6 +5,7 @@ import type {
   AgentsQueryFilters,
   AgentsSummaryFilters,
   AgentSummary,
+  AvailableAgentItem,
 } from "@/types/api";
 
 export const AGENTS_KEYS = {
@@ -13,7 +14,25 @@ export const AGENTS_KEYS = {
   list: (filters: AgentsQueryFilters) => [...AGENTS_KEYS.lists(), filters] as const,
   infinite: (filters: AgentsQueryFilters) => [...AGENTS_KEYS.all, "infinite", filters] as const,
   summary: (filters: AgentsSummaryFilters) => [...AGENTS_KEYS.all, "summary", filters] as const,
+  available: (q: string) => [...AGENTS_KEYS.all, "available", { q }] as const,
 };
+
+/**
+ * People who can be assigned as an agent (not yet agents, not admins), matching part of a name.
+ * Shows the first page only, with the total, so the user narrows by typing rather than paging.
+ */
+export function useAvailableAgents(q: string, enabled = true) {
+  return useQuery<{ items: AvailableAgentItem[]; total: number }, ApiClientError>({
+    queryKey: AGENTS_KEYS.available(q),
+    queryFn: async () => {
+      const res = await apiClient.get<AvailableAgentItem[]>("/api/agents/available", { q });
+      return { items: res.data, total: res.meta?.total ?? res.data.length };
+    },
+    enabled,
+    placeholderData: keepPreviousData,
+    staleTime: 1000 * 30,
+  });
+}
 
 export interface AgentsResponse {
   items: AgentListItem[];
@@ -70,6 +89,7 @@ export function useAgents(filters: AgentsQueryFilters = {}, options?: { enabled?
       if (filters.politicalUnitId !== undefined) params.set("politicalUnitId", String(filters.politicalUnitId));
       if (filters.ownerGroupId !== undefined) params.set("ownerGroupId", String(filters.ownerGroupId));
       if (filters.ownerCandidateId !== undefined) params.set("ownerCandidateId", String(filters.ownerCandidateId));
+      if (filters.personId !== undefined) params.set("personId", filters.personId);
       if (filters.agentKind !== undefined) params.set("agentKind", filters.agentKind);
       if (filters.channel !== undefined) params.set("channel", filters.channel);
       if (filters.q !== undefined) params.set("q", filters.q);

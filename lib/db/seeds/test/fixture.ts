@@ -359,15 +359,14 @@ export async function seedTestFixture(db: Queryable): Promise<TestFixture> {
 
   const personIds = {} as TestFixture["personIds"];
   const emails: TestFixture["emails"] = {};
-  const homePu = pollingUnitIds["PU-B"];
 
   async function person(key: PersonaKey, name: string, withEmail: boolean): Promise<string> {
     const email = withEmail ? personaEmail(key) : null;
     const personId = await uuid(
       db,
-      `INSERT INTO person (full_name, home_polling_unit_id, email_address, verification_status)
-       VALUES ($1, $2, $3, 'verified') RETURNING id;`,
-      [name, homePu, email],
+      `INSERT INTO person (full_name, email_address, verification_status)
+       VALUES ($1, $2, 'verified') RETURNING id;`,
+      [name, email],
     );
     personIds[key] = personId;
     if (email) emails[key] = email;

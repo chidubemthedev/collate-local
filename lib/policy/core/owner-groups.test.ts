@@ -45,7 +45,7 @@ describe("listOwnerGroups", () => {
     expect(sql).not.toContain("group_visibility_grant");
   });
 
-  it("limits other users to their own groups and those they are granted", async () => {
+  it("limits other users to their own groups, the groups below them and those they are granted", async () => {
     const { query, manager } = managerReturning([]);
 
     await listOwnerGroups(baseUser, manager);
@@ -53,7 +53,9 @@ describe("listOwnerGroups", () => {
     const [sql, parameters] = query.mock.calls[0] as unknown as [string, unknown[]];
     expect(sql).toContain("group_visibility_grant");
     expect(sql).toContain("is_allowed = TRUE");
-    expect(sql).toContain("g.id = ANY($1::int[])");
+    expect(sql).toContain("WITH RECURSIVE group_tree");
+    expect(sql).toContain("seed_group.id = ANY($1::int[])");
+    expect(sql).toContain("child_group.parent_group_id = parent_group.id");
     expect(sql).toContain("gt.can_own_agents");
     expect(parameters).toEqual([[5, 9]]);
   });

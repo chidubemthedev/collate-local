@@ -28,6 +28,15 @@ describe("audienceFilterSchema", () => {
     expect(audienceFilterSchema.safeParse({ verificationStatus: "pending" }).success).toBe(false);
   });
 
+  it("accepts one person by uuid and rejects anything else", () => {
+    expect(audienceFilterSchema.parse({ personId: "11111111-1111-4111-8111-111111111111" })).toEqual({
+      personId: "11111111-1111-4111-8111-111111111111",
+      agentKind: "all",
+    });
+    expect(audienceFilterSchema.safeParse({ personId: "Samixx Yasuke" }).success).toBe(false);
+    expect(audienceFilterSchema.safeParse({ personId: 12 }).success).toBe(false);
+  });
+
   it("accepts polling unit and person verification filters", () => {
     for (const verificationStatus of ["unverified", "verified", "rejected"]) {
       expect(

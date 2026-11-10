@@ -87,6 +87,23 @@ export interface GroupAccessRule {
 }
 
 /** An admin on Settings · Admins. Email and phone are masked. */
+/** Owners an agent can be assigned for (GET /api/coverage/assignments/owners): the Owner dropdown. */
+export interface AssignmentOwners {
+  groups: Array<{ id: number; name: string; type: string }>;
+  /** The signed-in person's own candidate record(s), if they are a candidate. */
+  candidates: Array<{ id: number; name: string; office: string | null }>;
+}
+
+/** Agents page · someone who can be assigned as an agent (not yet an agent, not an admin). */
+export interface AvailableAgentItem {
+  personId: string;
+  fullName: string;
+  /** Masked, e.g. +234*******567. Null when they have no phone. */
+  phone: string | null;
+  telegramLinked: boolean;
+  isCandidate: boolean;
+}
+
 export interface AdminListItem {
   personId: string;
   fullName: string;
@@ -348,7 +365,8 @@ interface CreateAssignmentBase {
   personId: string;
   pollingUnitId: number;
   agentKind: "official" | "extra";
-  slotNumber: number;
+  /** 0 for official. For extra, 1, 2, ... or leave it out and the server picks the next free slot. */
+  slotNumber?: number;
   role?: "official" | "extra";
 }
 
@@ -373,6 +391,10 @@ export interface AgentPollingUnit {
   wardName: string;
   lgaName: string;
   stateName: string;
+  latitude: number | null;
+  longitude: number | null;
+  /** Has usable INEC coordinates, so the unit can link to a map. */
+  hasGps: boolean;
 }
 
 export interface AgentOwner {
@@ -423,6 +445,7 @@ export interface AgentsQueryFilters {
   politicalUnitId?: number;
   ownerGroupId?: number;
   ownerCandidateId?: number;
+  personId?: string;
   agentKind?: "official" | "extra";
   channel?: "telegram" | "not_connected" | "sms_only" | "not_matched";
   q?: string;
@@ -442,6 +465,8 @@ export interface AudienceFilter {
   politicalUnitId?: number;
   officeId?: number;
   ownerGroupId?: number;
+  /** One person only ("Message this agent"). */
+  personId?: string;
   agentKind?: "official" | "extra" | "all";
 }
 

@@ -74,6 +74,9 @@ function applyAudienceFilter(
       { audiencePoliticalUnitId: filter.politicalUnitId },
     );
   }
+  if (filter.personId !== undefined) {
+    query.andWhere("person.id = :audiencePersonId", { audiencePersonId: filter.personId });
+  }
   if (filter.ownerGroupId !== undefined) {
     query.andWhere("assignment.ownerGroupId = :audienceOwnerGroupId", {
       audienceOwnerGroupId: filter.ownerGroupId,

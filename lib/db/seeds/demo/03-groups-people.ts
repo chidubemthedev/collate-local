@@ -59,28 +59,28 @@ export async function seedGroupsAndPeople(
 
   const personValues: string[] = [];
   for (const admin of adminPeople) {
-    personValues.push(`('${demoEmail(slug(admin.name))}', '${admin.name.replace("'", "''")}', NULL, NULL, 'unverified')`);
+    personValues.push(`('${demoEmail(slug(admin.name))}', '${admin.name.replace("'", "''")}', 'unverified')`);
   }
 
   const stateChairNames = ["Nneka", "Musa", "Aisha"];
   for (let i = 0; i < stateChairNames.length; i += 1) {
     const code = ["90", "91", "92"][i];
-    personValues.push(`('${demoEmail(slug(`${stateChairNames[i]} ${code}`))}', '${makeDemoName(stateChairNames[i]).replace("'", "''")}', NULL, NULL, 'verified')`);
+    personValues.push(`('${demoEmail(slug(`${stateChairNames[i]} ${code}`))}', '${makeDemoName(stateChairNames[i]).replace("'", "''")}', 'verified')`);
   }
 
   const lgaCoordinatorNames = ["Ifeanyi", "Bola", "Kehinde", "Mira", "Khalid", "Ngozi"];
   for (const name of lgaCoordinatorNames) {
-    personValues.push(`('${demoEmail(slug(`${name} lga`))}', '${makeDemoName(name).replace("'", "''")}', NULL, NULL, 'verified')`);
+    personValues.push(`('${demoEmail(slug(`${name} lga`))}', '${makeDemoName(name).replace("'", "''")}', 'verified')`);
   }
 
   const campaignDirectorNames = ["Lilian", "Tunde"];
   for (const name of campaignDirectorNames) {
-    personValues.push(`('${demoEmail(slug(`${name} campaign`))}', '${makeDemoName(name).replace("'", "''")}', NULL, NULL, 'verified')`);
+    personValues.push(`('${demoEmail(slug(`${name} campaign`))}', '${makeDemoName(name).replace("'", "''")}', 'verified')`);
   }
 
   const supportCoordinatorNames = ["Ayo", "Kemi", "Zainab", "Femi", "Jude", "Ruth"];
   for (const name of supportCoordinatorNames) {
-    personValues.push(`('${demoEmail(slug(`${name} support`))}', '${makeDemoName(name).replace("'", "''")}', NULL, NULL, 'verified')`);
+    personValues.push(`('${demoEmail(slug(`${name} support`))}', '${makeDemoName(name).replace("'", "''")}', 'verified')`);
   }
 
   const baseCandidateNames = [
@@ -91,11 +91,11 @@ export async function seedGroupsAndPeople(
   ];
 
   for (const name of baseCandidateNames) {
-    personValues.push(`('${demoEmail(slug(name))}', '${name.replace("'", "''")}', NULL, NULL, 'verified')`);
+    personValues.push(`('${demoEmail(slug(name))}', '${name.replace("'", "''")}', 'verified')`);
   }
 
   const insertedPersonRows = await queryRunner.query(`
-    INSERT INTO person (email_address, full_name, home_polling_unit_id, voter_card_number, verification_status)
+    INSERT INTO person (email_address, full_name, verification_status)
     VALUES ${personValues.join(", ")}
     RETURNING id, full_name, email_address, verification_status;
   `) as Array<{ id: string; full_name: string; email_address: string; verification_status: string }>;
@@ -208,11 +208,11 @@ export async function seedGroupsAndPeople(
 
   const candidatePersonValues: string[] = [];
   for (const [name] of candidateNames) {
-    candidatePersonValues.push(`('${demoEmail(slug(name))}', '${name.replace("'", "''")}', NULL, NULL, 'verified')`);
+    candidatePersonValues.push(`('${demoEmail(slug(name))}', '${name.replace("'", "''")}', 'verified')`);
   }
 
   const candidatePersonRows = await queryRunner.query(`
-    INSERT INTO person (email_address, full_name, home_polling_unit_id, voter_card_number, verification_status)
+    INSERT INTO person (email_address, full_name, verification_status)
     VALUES ${candidatePersonValues.join(", ")}
     RETURNING id, full_name;
   `) as Array<{ id: string; full_name: string }>;

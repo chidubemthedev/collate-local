@@ -11,6 +11,8 @@ export const agentFiltersSchema = z.object({
   politicalUnitId: idFilter.optional(),
   ownerGroupId: idFilter.optional(),
   ownerCandidateId: idFilter.optional(),
+  // One person's assignments (e.g. who "Message this agent" is for). Scope still applies.
+  personId: z.uuid().optional(),
   agentKind: z.nativeEnum(AgentKind).optional(),
   // not_connected = sms_only + not_matched.
   channel: z.enum(["telegram", "not_connected", "sms_only", "not_matched"]).optional(),

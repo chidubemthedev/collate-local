@@ -1,5 +1,5 @@
 import type { EntityManager } from "typeorm";
-import { getVisibleOwners } from "./owners";
+import { getVisibleOwners, groupsAndDescendantsSql } from "./owners";
 import type { PolicyUser } from "./policy-user";
 
 export interface OwnerGroupDto {
@@ -17,7 +17,8 @@ interface GroupRow {
 /**
  * Groups the user may see as agent owners (the "Sponsor / owner" filter).
  * Same visibility rule as the agents list: admins, national accounts and users with no viewer
- * group see every group; everyone else sees their own groups and those they are granted to view.
+ * group see every group; everyone else sees their own groups, every group below them, and those
+ * they are granted to view.
  * Only groups whose type can own agents are listed (not admin groups).
  */
 export async function listOwnerGroups(
@@ -41,7 +42,7 @@ export async function listOwnerGroups(
            JOIN group_type gt ON gt.id = g.group_type_id
            WHERE gt.can_own_agents
              AND (
-               g.id = ANY($1::int[])
+               g.id IN (${groupsAndDescendantsSql("seed_group.id = ANY($1::int[])")})
                OR EXISTS (
                  SELECT 1
                  FROM group_visibility_grant grant_row

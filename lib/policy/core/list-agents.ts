@@ -58,6 +58,10 @@ export interface AgentDto {
     wardName: string;
     lgaName: string;
     stateName: string;
+    latitude: number | null;
+    longitude: number | null;
+    /** Has usable INEC coordinates (both set and not 0,0), so it can link to a map. */
+    hasGps: boolean;
   };
   owner: {
     type: "group" | "candidate";
@@ -82,6 +86,8 @@ interface AgentRawRow {
   pollingUnitId: number;
   pollingUnitCode: string;
   pollingUnitName: string | null;
+  pollingUnitLatitude: number | string | null;
+  pollingUnitLongitude: number | string | null;
   wardName: string;
   lgaName: string;
   stateName: string;
@@ -165,6 +171,8 @@ async function queryAgents(
     .addSelect("pollingUnit.id", "pollingUnitId")
     .addSelect("pollingUnit.inecPollingUnitCode", "pollingUnitCode")
     .addSelect("pollingUnit.pollingUnitName", "pollingUnitName")
+    .addSelect("pollingUnit.latitude", "pollingUnitLatitude")
+    .addSelect("pollingUnit.longitude", "pollingUnitLongitude")
     .addSelect("ward.wardName", "wardName")
     .addSelect("lga.lgaName", "lgaName")
     .addSelect("state.stateName", "stateName")
@@ -372,6 +380,9 @@ function applyAgentFilters(
       agentFilterOwnerGroupId: filters.ownerGroupId,
     });
   }
+  if (filters.personId !== undefined) {
+    query.andWhere("person.id = :agentFilterPersonId", { agentFilterPersonId: filters.personId });
+  }
   if (filters.ownerCandidateId !== undefined) {
     query.andWhere("assignment.ownerCandidateId = :agentFilterOwnerCandidateId", {
       agentFilterOwnerCandidateId: filters.ownerCandidateId,
@@ -438,6 +449,18 @@ function applyCursor(
   );
 }
 
+/** Same test as hasGpsSql in lib/geography/gps: both set and not the 0,0 placeholder. */
+function coordinates(row: AgentRawRow): { latitude: number | null; longitude: number | null; hasGps: boolean } {
+  const toNumber = (value: number | string | null | undefined) => {
+    const parsed = value === null || value === undefined ? Number.NaN : Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const latitude = toNumber(row.pollingUnitLatitude);
+  const longitude = toNumber(row.pollingUnitLongitude);
+  const hasGps = latitude !== null && longitude !== null && !(latitude === 0 && longitude === 0);
+  return { latitude, longitude, hasGps };
+}
+
 function toAgentDto(row: AgentRawRow): AgentDto {
   return {
     assignmentId: row.assignmentId,
@@ -454,6 +477,7 @@ function toAgentDto(row: AgentRawRow): AgentDto {
       wardName: row.wardName,
       lgaName: row.lgaName,
       stateName: row.stateName,
+      ...coordinates(row),
     },
     owner: {
       type: row.ownerType,

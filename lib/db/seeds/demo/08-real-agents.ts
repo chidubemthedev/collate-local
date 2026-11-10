@@ -327,7 +327,7 @@ async function insertBatch(
     const email = index % 5 < 3
       ? `agent.${(sequences.email += 1)}@demo.collate.test`
       : null;
-    personRows.push([personId, makeDemoName(), assignment.unitId, email, status, now, now]);
+    personRows.push([personId, makeDemoName(), email, status, now, now]);
 
     const phoneCount = demoFaker.number.int({ min: 0, max: 99 }) < 15 ? 2 : 1;
     for (let phoneIndex = 0; phoneIndex < phoneCount; phoneIndex += 1) {
@@ -352,7 +352,7 @@ async function insertBatch(
   const statements = [
     buildInsert(
       "person",
-      ["id", "full_name", "home_polling_unit_id", "email_address", "verification_status", "created_at", "updated_at"],
+      ["id", "full_name", "email_address", "verification_status", "created_at", "updated_at"],
       personRows,
     ),
     buildInsert("phone_number", ["person_id", "e164_number", "is_confirmed", "telegram_chat_id"], phoneRows),

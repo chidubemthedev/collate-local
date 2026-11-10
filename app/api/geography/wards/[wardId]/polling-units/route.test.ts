@@ -36,6 +36,10 @@ vi.mock("@/lib/policy/core/list-ward-polling-units", async () => {
   };
 });
 
+// Imported once, up front: loading the route pulls in the entities and TypeORM, which can take
+// longer than a test's time limit on a cold, busy run if done inside the test.
+import { GET } from "./route";
+
 describe("ward polling unit route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -50,7 +54,6 @@ describe("ward polling unit route", () => {
   });
 
   it("returns a standard paginated success envelope", async () => {
-    const { GET } = await import("./route");
     const response = await GET(
       new Request("http://localhost/api/geography/wards/7/polling-units?limit=25"),
       { params: Promise.resolve({ wardId: "7" }) },
@@ -63,7 +66,7 @@ describe("ward polling unit route", () => {
       { limit: 25, gps: "all" },
       { ipAddress: "203.0.113.1" },
     );
-  }, 15_000);
+  });
 
   it("lists with the previewed access while View as is on", async () => {
     const previewed = { personId: "11111111-1111-4111-8111-111111111111", seatId: 6 };
@@ -72,7 +75,6 @@ describe("ward polling unit route", () => {
       viewAs: { kind: "seat", seatId: 6, unitId: 155, unitType: "state", label: "Candidate · Governor, Lagos" },
     });
     mocks.policyUserFromCurrentUser.mockResolvedValue(previewed);
-    const { GET } = await import("./route");
     const response = await GET(
       new Request("http://localhost/api/geography/wards/7/polling-units"),
       { params: Promise.resolve({ wardId: "7" }) },
@@ -84,7 +86,6 @@ describe("ward polling unit route", () => {
 
   it("returns 404 when the requested ward is outside scope", async () => {
     mocks.listWardPollingUnits.mockResolvedValue(null);
-    const { GET } = await import("./route");
     const response = await GET(
       new Request("http://localhost/api/geography/wards/8/polling-units"),
       { params: Promise.resolve({ wardId: "8" }) },
@@ -94,7 +95,6 @@ describe("ward polling unit route", () => {
   });
 
   it("rejects a page size above 100 before querying", async () => {
-    const { GET } = await import("./route");
     const response = await GET(
       new Request("http://localhost/api/geography/wards/7/polling-units?limit=101"),
       { params: Promise.resolve({ wardId: "7" }) },

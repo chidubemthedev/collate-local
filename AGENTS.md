@@ -100,7 +100,7 @@ Route handlers stay thin: check origin, authenticate, validate, call one functio
 - Code checks **`group_type.type_key`** (`admin`, `party`, `campaign`, `support_group`), **never ids**: ids differ between databases. Types admins create have `type_key = NULL`.
 - `sees_coverage = national` sees the whole country whatever areas are set; `own_area` sees only its scope rows, and nothing if none are set.
 - A person with no membership but a candidate row gets their seat's area; a running mate gets their principal's seat (`lib/auth/view-as.ts`, `candidateAccess`).
-- A group always sees the agents it owns; other agents also need a `group_visibility_grant`.
+- A group always sees the agents it owns and those of every group below it (`groups.parent_group_id`, any depth; `groupsAndDescendantsSql` in `lib/policy/core/owners.ts`). Other agents need a `group_visibility_grant`.
 - Broadcasts: non-admins see only their own; admins see all.
 - Admin safety: you can't remove yourself or the last admin. Built-in group types can't be deleted, nor a type a group still uses.
 - Coverage and geography use `requireApiAuth` (`lib/auth/api.ts`); agents and broadcasts use the policy user (`lib/policy`). A rule change must be made in both.

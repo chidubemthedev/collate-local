@@ -3,8 +3,6 @@ import {
   CreateDateColumn,
   Entity,
   Index,
-  JoinColumn,
-  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn
@@ -18,7 +16,6 @@ import { Consent } from "./consent.entity";
 import { LoginOtp } from "./login-otp.entity";
 import { Membership } from "./membership.entity";
 import { PhoneNumber } from "./phone-number.entity";
-import { PollingUnit } from "./polling-unit.entity";
 
 export enum VerificationStatus {
   UNVERIFIED = "unverified",
@@ -34,19 +31,9 @@ export class Person {
   @Column({ name: "full_name", type: "varchar" })
   fullName: string;
 
-  @Column({ name: "home_polling_unit_id", type: "int", nullable: true })
-  homePollingUnitId: number | null;
-
-  @ManyToOne(() => PollingUnit, { nullable: true, onDelete: "SET NULL" })
-  @JoinColumn({ name: "home_polling_unit_id" })
-  homePollingUnit: Relation<PollingUnit | null>;
-
   @Index("uq_person_email_address_lower", ["emailAddress"], { unique: true })
   @Column({ name: "email_address", type: "varchar", nullable: true })
   emailAddress: string | null;
-
-  @Column({ name: "voter_card_number", type: "varchar", nullable: true })
-  voterCardNumber: string | null;
 
   @Column({
     name: "verification_status",

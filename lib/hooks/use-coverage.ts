@@ -11,6 +11,7 @@ import type {
   CoverageGapsResponse,
   CreateAssignmentPayload,
   CreateAssignmentResponse,
+  AssignmentOwners,
 } from "@/types/api";
 
 export interface CoverageFilters {
@@ -23,6 +24,8 @@ export interface CoverageFilters {
 export type PollingUnitFilterParams = { gps?: "with" | "without"; coverage?: "gaps" };
 
 export interface CoverageGapsFilters extends CoverageFilters {
+  /** Part of the PU code or name. */
+  q?: string;
   limit?: number;
   /** From the previous page's nextCursor; leave out for the first page. */
   cursor?: string | null;
@@ -148,6 +151,7 @@ export function useCoverageGaps(
   if (filters.stateId && filters.stateId > 0) cleanFilters.stateId = filters.stateId;
   if (filters.lgaId && filters.lgaId > 0) cleanFilters.lgaId = filters.lgaId;
   if (filters.wardId && filters.wardId > 0) cleanFilters.wardId = filters.wardId;
+  if (filters.q?.trim()) cleanFilters.q = filters.q.trim();
   if (filters.limit) cleanFilters.limit = filters.limit;
   if (filters.cursor) cleanFilters.cursor = filters.cursor;
 
@@ -164,8 +168,19 @@ export function useCoverageGaps(
   });
 }
 
+/** Groups and candidate records the signed-in person can assign an agent for (the Owner dropdown). */
+export function useAssignmentOwners(enabled = true) {
+  return useQuery<AssignmentOwners, ApiClientError>({
+    queryKey: [...COVERAGE_KEYS.all, "assignment-owners"] as const,
+    queryFn: async () => (await apiClient.get<AssignmentOwners>("/api/coverage/assignments/owners")).data,
+    enabled,
+    staleTime: 1000 * 60 * 10,
+  });
+}
+
 /**
- * Mutation to create an official or extra agent assignment.
+ * Mutation to create an official or extra agent assignment. Leave `slotNumber` out for an extra
+ * agent and the server picks the next free slot.
  */
 export function useCreateAssignment() {
   const queryClient = useQueryClient();
@@ -177,7 +192,7 @@ export function useCreateAssignment() {
         pollingUnitId: payload.pollingUnitId,
         personId: payload.personId,
         agentKind: kind,
-        slotNumber: payload.slotNumber ?? (kind === "extra" ? 1 : 0),
+        slotNumber: payload.slotNumber ?? (kind === "extra" ? undefined : 0),
         ownerGroupId: payload.ownerGroupId ?? null,
         ownerCandidateId: payload.ownerCandidateId ?? null,
       };

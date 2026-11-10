@@ -20,12 +20,11 @@ export async function seedAgents(
   for (let i = 0; i < 430; i += 1) {
     const name = makeDemoName();
     const email = demoEmail(`agent-${i + 1}`);
-    const homePollingUnit = statePollingUnitRows[i % statePollingUnitRows.length];
-    personValues.push(`('${email}', '${name.replace("'", "''")}', ${homePollingUnit?.id ?? 1}, NULL, 'unverified')`);
+    personValues.push(`('${email}', '${name.replace("'", "''")}', 'unverified')`);
   }
 
   const insertedAgents = await queryRunner.query(`
-    INSERT INTO person (email_address, full_name, home_polling_unit_id, voter_card_number, verification_status)
+    INSERT INTO person (email_address, full_name, verification_status)
     VALUES ${personValues.join(", ")}
     RETURNING id;
   `) as Array<{ id: string }>;

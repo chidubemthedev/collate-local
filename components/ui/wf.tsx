@@ -15,6 +15,9 @@ export const WF = {
     "inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-[10px] bg-[#171717] px-3 text-[12px] font-medium text-[#FAFAFA] no-underline transition-colors hover:bg-[#262626] hover:text-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-60",
   btnRow:
     "inline-flex min-h-7 shrink-0 items-center justify-center rounded-[8px] border border-[#E5E5E5] bg-white px-2.5 text-[12px] font-medium text-[#0A0A0A] transition-colors hover:bg-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-60",
+  /** The dark (primary) version of `btnRow`. Use one or the other, never both: their colours clash. */
+  btnRowDark:
+    "inline-flex min-h-7 shrink-0 items-center justify-center rounded-[8px] border border-[#171717] bg-[#171717] px-2.5 text-[12px] font-medium text-[#FAFAFA] transition-colors hover:bg-[#262626] hover:text-[#FAFAFA] disabled:cursor-not-allowed disabled:opacity-60",
   table: "w-full border-collapse text-[13px] text-[#0A0A0A]",
   th: "px-2 py-2.5 text-left text-[12px] font-semibold whitespace-nowrap text-[#0A0A0A]",
   td: "px-2 py-2.5",

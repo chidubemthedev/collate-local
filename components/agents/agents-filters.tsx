@@ -175,7 +175,7 @@ export function AgentsFilters({
             id="ag-search"
             type="search"
             autoComplete="off"
-            placeholder="Unit, code or sponsor"
+            placeholder="Agent name or PU code"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />

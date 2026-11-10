@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { getClientIp } from "@/lib/auth/request";
 import { getCoverageScopeFilter, readOnlyResponse, requireApiAuth } from "@/lib/auth/api";
 import { failure, internalError, success } from "@/lib/api/response";
+import { assignableCandidateSql, assignableGroupSql } from "@/lib/coverage/assignment-owners";
 
 type AssignmentBody = {
   personId: string;
@@ -10,7 +11,8 @@ type AssignmentBody = {
   ownerGroupId: number | null;
   ownerCandidateId: number | null;
   agentKind: "official" | "extra";
-  slotNumber: number;
+  /** Null for an extra agent sent without a slot: the next free slot is picked. */
+  slotNumber: number | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -29,7 +31,14 @@ function parseOptionalOwnerId(value: unknown): number | null | undefined {
 function parseAssignmentBody(value: unknown): AssignmentBody | null {
   if (!isRecord(value)) return null;
 
-  const { personId, pollingUnitId, agentKind, slotNumber } = value;
+  const { personId, pollingUnitId, agentKind } = value;
+  // An extra agent may leave the slot out; the server then picks the next free one.
+  const slotNumber: number | null =
+    agentKind === "extra" && value.slotNumber === undefined
+      ? null
+      : typeof value.slotNumber === "number"
+        ? value.slotNumber
+        : Number.NaN;
   const ownerGroupId = parseOptionalOwnerId(value.ownerGroupId);
   const ownerCandidateId = parseOptionalOwnerId(value.ownerCandidateId);
   if (
@@ -40,10 +49,10 @@ function parseAssignmentBody(value: unknown): AssignmentBody | null {
     ownerCandidateId === undefined ||
     (ownerGroupId === null) === (ownerCandidateId === null) ||
     (agentKind !== "official" && agentKind !== "extra") ||
-    typeof slotNumber !== "number" ||
-    !Number.isSafeInteger(slotNumber) ||
-    (agentKind === "official" && slotNumber !== 0) ||
-    (agentKind === "extra" && slotNumber < 1)
+    (slotNumber !== null &&
+      (!Number.isSafeInteger(slotNumber) ||
+        (agentKind === "official" && slotNumber !== 0) ||
+        (agentKind === "extra" && slotNumber < 1)))
   ) {
     return null;
   }
@@ -115,30 +124,7 @@ export async function POST(request: Request) {
             FROM groups owner_group
             JOIN group_type owner_type ON owner_type.id = owner_group.group_type_id
             WHERE owner_group.id = $2
-              AND owner_type.can_own_agents
-              AND (
-                $3::boolean
-                OR EXISTS (
-                  SELECT 1
-                  FROM membership own_membership
-                  WHERE own_membership.person_id = $1
-                    AND own_membership.group_id = owner_group.id
-                )
-                OR NOT EXISTS (
-                  SELECT 1
-                  FROM membership viewer_membership
-                  WHERE viewer_membership.person_id = $1
-                )
-                OR EXISTS (
-                  SELECT 1
-                  FROM membership viewer_membership
-                  JOIN group_visibility_grant visibility
-                    ON visibility.viewer_group_id = viewer_membership.group_id
-                  WHERE viewer_membership.person_id = $1
-                    AND visibility.owner_group_id = owner_group.id
-                    AND visibility.is_allowed = TRUE
-                )
-              )
+              AND ${assignableGroupSql("$1", "$3")}
             FOR KEY SHARE OF owner_group;
           `,
           [auth.context.personId, body.ownerGroupId, auth.context.isAdmin],
@@ -149,13 +135,32 @@ export async function POST(request: Request) {
           `
             SELECT EXISTS (
               SELECT 1 FROM candidate c
-              WHERE c.id = $2 AND c.person_id = $1
+              WHERE c.id = $2 AND ${assignableCandidateSql("$1")}
             ) AS allowed;
           `,
           [auth.context.personId, body.ownerCandidateId],
         )) as Array<{ allowed: boolean }>;
         if (!ownerRows[0]?.allowed) return { error: "forbidden", status: 403 as const };
       }
+
+      // The polling unit row is locked above, so no one else can take this slot before the insert.
+      const slotNumber =
+        body.slotNumber ??
+        Number(
+          (
+            (await manager.query<Array<{ next_slot: number | string }>>(
+              `
+                SELECT COALESCE(MAX(slot_number), 0) + 1 AS next_slot
+                FROM agent_assignment
+                WHERE polling_unit_id = $1
+                  AND agent_kind = 'extra'
+                  AND owner_group_id IS NOT DISTINCT FROM $2
+                  AND owner_candidate_id IS NOT DISTINCT FROM $3;
+              `,
+              [body.pollingUnitId, body.ownerGroupId, body.ownerCandidateId],
+            )) as Array<{ next_slot: number | string }>
+          )[0]?.next_slot ?? 1,
+        );
 
       const conflicts = (await manager.query<Array<{ exists: boolean }>>(
         `
@@ -172,7 +177,7 @@ export async function POST(request: Request) {
         [
           body.pollingUnitId,
           body.agentKind,
-          body.slotNumber,
+          slotNumber,
           body.ownerGroupId,
           body.ownerCandidateId,
         ],
@@ -192,7 +197,7 @@ export async function POST(request: Request) {
           body.ownerGroupId,
           body.ownerCandidateId,
           body.agentKind,
-          body.slotNumber,
+          slotNumber,
         ],
       )) as Array<{ id: string }>;
 

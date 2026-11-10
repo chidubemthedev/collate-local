@@ -9,17 +9,9 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { AgentAutocomplete } from "./agent-autocomplete";
-import { useCreateAssignment, useDeleteAssignment } from "@/lib/hooks/use-coverage";
+import { AssignAgentForm } from "./assign-agent-form";
+import { useDeleteAssignment } from "@/lib/hooks/use-coverage";
 import { READ_ONLY_TITLE, useReadOnly } from "@/lib/hooks/use-auth";
 import {
   ShieldCheck,
@@ -66,6 +58,8 @@ interface AgentDetailModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAssignOfficial?: (puCode: string) => void;
+  /** Open with the "Add extra agent" form already showing (the table's Add extra button). */
+  startAddingExtra?: boolean;
 }
 
 export function AgentDetailModal({
@@ -73,16 +67,13 @@ export function AgentDetailModal({
   open,
   onOpenChange,
   onAssignOfficial,
+  startAddingExtra = false,
 }: AgentDetailModalProps) {
-  const createAssignment = useCreateAssignment();
   const deleteAssignment = useDeleteAssignment();
   const readOnly = useReadOnly();
 
-  const [personIdInput, setPersonIdInput] = useState("");
-  const [ownerType, setOwnerType] = useState<"group" | "candidate">("group");
-  const [ownerIdInput, setOwnerIdInput] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
-  const [assignError, setAssignError] = useState<string | null>(null);
+  const [isAddingExtra, setIsAddingExtra] = useState(startAddingExtra);
 
   if (!agent) return null;
 
@@ -94,37 +85,7 @@ export function AgentDetailModal({
   const isGap = agent.type === "gap";
   const isOfficial = agent.type === "official";
 
-  const handleLiveAssign = async () => {
-    const ownerId = Number(ownerIdInput);
-    if (!agent.puId || !personIdInput.trim() || !Number.isSafeInteger(ownerId) || ownerId < 1) {
-      setAssignError("Enter a valid Person ID and select a valid owner ID.");
-      return;
-    }
-
-    setAssignError(null);
-    try {
-      await createAssignment.mutateAsync({
-        pollingUnitId: agent.puId,
-        personId: personIdInput.trim(),
-        agentKind: "official",
-        slotNumber: 0,
-        ...(ownerType === "group" ? { ownerGroupId: ownerId } : { ownerCandidateId: ownerId }),
-      });
-      setIsAssigning(false);
-      setPersonIdInput("");
-      setOwnerIdInput("");
-      if (onAssignOfficial) {
-        onAssignOfficial(agent.puCode);
-      }
-      onOpenChange(false);
-    } catch (err: unknown) {
-      const message =
-        err && typeof err === "object" && "message" in err
-          ? String((err as { message: unknown }).message)
-          : "Failed to assign agent. Verify Person ID.";
-      setAssignError(message);
-    }
-  };
+  const puId = agent.puId;
 
   const handleLiveUnassign = async () => {
     if (!agent.assignmentId) return;
@@ -287,6 +248,43 @@ export function AgentDetailModal({
                   </div>
                 </div>
               )}
+
+              {/* Extra agents: only once the unit has its official agent. */}
+              {isOfficial && puId !== undefined && (
+                <div className="p-3.5 rounded-lg border border-border/80 bg-muted/20 space-y-2">
+                  {!isAddingExtra ? (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-muted-foreground">
+                        Extra agents support the official agent, they never change coverage.
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7.5 shrink-0 text-xs gap-1"
+                        onClick={() => setIsAddingExtra(true)}
+                        disabled={readOnly}
+                        title={readOnly ? READ_ONLY_TITLE : undefined}
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        Add extra agent
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <label className="text-xs font-semibold text-foreground block">Add Extra Agent</label>
+                      <AssignAgentForm
+                        pollingUnitId={puId}
+                        agentKind="extra"
+                        onAssigned={() => {
+                          setIsAddingExtra(false);
+                          onOpenChange(false);
+                        }}
+                        onCancel={() => setIsAddingExtra(false)}
+                      />
+                    </>
+                  )}
+                </div>
+              )}
             </>
           )}
 
@@ -307,87 +305,26 @@ export function AgentDetailModal({
                   size="sm"
                   className="w-full text-xs h-8 bg-amber-600 hover:bg-amber-700 text-white"
                   onClick={() => setIsAssigning(true)}
-                  disabled={readOnly}
+                  disabled={readOnly || puId === undefined}
                   title={readOnly ? READ_ONLY_TITLE : undefined}
                 >
                   Assign Official Party Agent Now
                 </Button>
-              ) : (
+              ) : puId !== undefined ? (
                 <div className="space-y-2 pt-1 border-t border-amber-200 dark:border-amber-800">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-foreground block">
-                      Assign Official Agent
-                    </label>
-                    <span className="text-[10px] text-muted-foreground">
-                      Type to filter available agents
-                    </span>
-                  </div>
-
-                  <AgentAutocomplete
-                    value={personIdInput}
-                    onChange={(personId) => {
-                      setPersonIdInput(personId);
-                      setAssignError(null);
+                  <label className="text-xs font-semibold text-foreground block">Assign Official Agent</label>
+                  <AssignAgentForm
+                    pollingUnitId={puId}
+                    agentKind="official"
+                    onAssigned={() => {
+                      setIsAssigning(false);
+                      onAssignOfficial?.(agent.puCode);
+                      onOpenChange(false);
                     }}
-                    preferredState={agent.stateName}
-                    disabled={createAssignment.isPending}
+                    onCancel={() => setIsAssigning(false)}
                   />
-                  <div className="grid grid-cols-[120px_1fr] gap-2">
-                    <Select
-                      value={ownerType}
-                      onValueChange={(value) => {
-                        if (value === "group" || value === "candidate") setOwnerType(value);
-                      }}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="group">Group</SelectItem>
-                        <SelectItem value="candidate">Candidate</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      type="number"
-                      min={1}
-                      step={1}
-                      placeholder={ownerType === "group" ? "Group ID" : "Candidate ID"}
-                      value={ownerIdInput}
-                      onChange={(e) => setOwnerIdInput(e.target.value)}
-                      className="h-8 text-xs font-mono bg-background"
-                    />
-                  </div>
-                  {assignError && (
-                    <p className="text-[11px] text-destructive">{assignError}</p>
-                  )}
-                  <div className="flex items-center gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      onClick={handleLiveAssign}
-                      disabled={createAssignment.isPending || !personIdInput.trim() || !ownerIdInput.trim()}
-                      className="flex-1 text-xs h-7.5 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
-                    >
-                      {createAssignment.isPending && (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      )}
-                      Confirm Assignment
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setIsAssigning(false);
-                        setAssignError(null);
-                        setOwnerIdInput("");
-                        setPersonIdInput("");
-                      }}
-                      className="text-xs h-7.5"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
 
@@ -395,9 +332,9 @@ export function AgentDetailModal({
 
           {/* Action Footer */}
           <div className="flex items-center gap-2 pt-1">
-            {!isGap && (
+            {!isGap && agent.personId && (
               <Link
-                href={`/broadcasts/new?target=${encodeURIComponent(agent.name)}`}
+                href={`/broadcasts/new?personId=${encodeURIComponent(agent.personId)}`}
                 className="inline-flex items-center justify-center rounded-lg text-xs font-medium h-8 px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-all flex-1"
                 onClick={() => onOpenChange(false)}
               >

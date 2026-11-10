@@ -93,6 +93,34 @@ describe("GET /api/coverage/gaps", () => {
     expect(mocks.query.mock.calls[1][1]).toEqual([25, 9]);
   });
 
+  it("searches the PU code or name, matching % and _ literally", async () => {
+    mocks.query.mockResolvedValueOnce([]).mockResolvedValueOnce([{ total: 0 }]);
+    const response = await get("?wardId=9&q=%20%2001%2F01_%25%20");
+    expect(response.status).toBe(200);
+
+    const [pageSql, pageParams] = mocks.query.mock.calls[0];
+    expect(String(pageSql)).toContain("(pu.inec_polling_unit_code ILIKE $3 OR pu.polling_unit_name ILIKE $3)");
+    expect(pageParams).toEqual([25, 9, "%01/01\\_\\%%", 101]);
+    const [countSql, countParams] = mocks.query.mock.calls[1];
+    expect(String(countSql)).toContain("pu.inec_polling_unit_code ILIKE $3");
+    expect(countParams).toEqual([25, 9, "%01/01\\_\\%%"]);
+  });
+
+  it("puts the search before the cursor parameters", async () => {
+    mocks.query.mockResolvedValueOnce([]);
+    const cursor = encodeGapsCursor({ stateName: "ABIA", lgaName: "ABA NORTH", wardName: "ARIARIA MARKET", code: "01/01/09/006", id: 336 });
+    await get(`?q=town&cursor=${cursor}`);
+    const [sql, params] = mocks.query.mock.calls[0];
+    expect(String(sql)).toContain("ILIKE $2");
+    expect(String(sql)).toContain("($3::text, $4::text, $5::text, $6::text, $7::int)");
+    expect(params).toEqual([25, "%town%", "ABIA", "ABA NORTH", "ARIARIA MARKET", "01/01/09/006", 336, 101]);
+  });
+
+  it("rejects a search over 100 characters", async () => {
+    expect((await get(`?q=${"a".repeat(101)}`)).status).toBe(400);
+    expect(mocks.query).not.toHaveBeenCalled();
+  });
+
   it("rejects a bad limit or cursor", async () => {
     expect((await get("?limit=0")).status).toBe(400);
     expect((await get("?limit=501")).status).toBe(400);

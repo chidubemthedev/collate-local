@@ -25,6 +25,8 @@ export const audienceFilterSchema = z
     politicalUnitId: idFilter.optional(),
     officeId: idFilter.optional(),
     ownerGroupId: idFilter.optional(),
+    // One person ("Message this agent"). Still limited to the sender's area and visible owners.
+    personId: z.uuid().optional(),
     agentKind: z.enum(["official", "extra", "all"]).default("all"),
     verificationStatus: verificationStatus.optional(),
   })

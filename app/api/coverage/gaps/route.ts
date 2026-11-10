@@ -5,6 +5,9 @@ import { parseCoverageFilters, parseCoverageGpsFilter } from "@/lib/coverage/fil
 import { decodeGapsCursor, encodeGapsCursor } from "@/lib/coverage/gaps-cursor";
 import { failure, internalError, success } from "@/lib/api/response";
 import { gpsFilterSql } from "@/lib/geography/gps";
+import { containsPattern } from "@/lib/agents/available";
+
+const GAPS_SEARCH_MAX = 100;
 
 type GapRow = {
   id: number;
@@ -23,7 +26,8 @@ type GapRow = {
 
 /**
  * Polling units with no official agent (coverage gaps), a page at a time.
- * Query: stateId, lgaId, wardId, politicalUnitId, gps, limit (1-500, default 100), cursor.
+ * Query: stateId, lgaId, wardId, politicalUnitId, gps, q (part of the PU code or name),
+ * limit (1-500, default 100), cursor.
  * totalCount is worked out on the first page only (no cursor); later pages return null.
  */
 export async function GET(request: NextRequest) {
@@ -58,11 +62,22 @@ export async function GET(request: NextRequest) {
       return failure("validation_failed", "Invalid cursor", { cursor: "invalid" });
     }
 
-    const baseParameters = [...scope.parameters, ...filters.parameters];
+    const q = (request.nextUrl.searchParams.get("q") ?? "").trim().replace(/\s+/g, " ");
+    if (q.length > GAPS_SEARCH_MAX) {
+      return failure("validation_failed", "Invalid search", { q: `must_be_at_most_${GAPS_SEARCH_MAX}` });
+    }
+
+    const baseParameters: unknown[] = [...scope.parameters, ...filters.parameters];
+    const searchPattern = containsPattern(q);
+    if (searchPattern) baseParameters.push(searchPattern);
+    const searchClause = searchPattern
+      ? `(pu.inec_polling_unit_code ILIKE $${baseParameters.length} OR pu.polling_unit_name ILIKE $${baseParameters.length})`
+      : null;
     const where = [
       scope.sql,
       ...filters.clauses,
       ...(gpsClause ? [gpsClause] : []),
+      ...(searchClause ? [searchClause] : []),
       `NOT EXISTS (
         SELECT 1
         FROM agent_assignment aa

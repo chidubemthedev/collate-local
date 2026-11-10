@@ -211,8 +211,11 @@ type AudienceIds = {
   politicalUnitId?: number;
   officeId?: number;
   ownerGroupId?: number;
+  personId?: string;
   agentKind?: "official" | "extra" | "all";
 };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function getAudienceIds(filter: Record<string, unknown>): AudienceIds {
   const result: AudienceIds = {};
@@ -228,6 +231,9 @@ function getAudienceIds(filter: Record<string, unknown>): AudienceIds {
     if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) {
       result[key] = value;
     }
+  }
+  if (typeof filter.personId === "string" && UUID.test(filter.personId)) {
+    result.personId = filter.personId;
   }
   const agentKind = filter.agentKind;
   if (agentKind === "official" || agentKind === "extra" || agentKind === "all") {
@@ -248,6 +254,7 @@ async function resolveAudienceSummaries(
     politicalUnits: [...new Set(ids.flatMap((filter) => filter.politicalUnitId ?? []))],
     offices: [...new Set(ids.flatMap((filter) => filter.officeId ?? []))],
     groups: [...new Set(ids.flatMap((filter) => filter.ownerGroupId ?? []))],
+    people: [...new Set(ids.flatMap((filter) => filter.personId ?? []))],
   };
   const names = await manager.query<Array<{ kind: string; id: number; name: string }>>(
     `
@@ -274,9 +281,20 @@ async function resolveAudienceSummaries(
     ],
   );
   const nameById = new Map(names.map((row) => [`${row.kind}:${row.id}`, row.name]));
+  // People have uuid ids, so they are looked up on their own (only when a broadcast targets one).
+  if (idLists.people.length > 0) {
+    const people = await manager.query<Array<{ id: string; full_name: string }>>(
+      `SELECT id, full_name FROM person WHERE id = ANY($1::uuid[]);`,
+      [idLists.people],
+    );
+    for (const person of people) nameById.set(`person:${person.id}`, person.full_name);
+  }
 
   return ids.map((filter) => {
     const summary: string[] = [];
+    if (filter.personId !== undefined) {
+      summary.push(nameById.get(`person:${filter.personId}`) ?? "One agent");
+    }
     for (const key of [
       "stateId",
       "lgaId",

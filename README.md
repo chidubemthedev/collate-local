@@ -370,7 +370,7 @@ The four built-in types have a fixed `type_key` that the code relies on. Types a
 
 Code must check `type_key`, never `group_type.id`: ids differ between databases.
 
-Out-of-scope resources return `404`, not `403`, so their existence isn't revealed. Agent reads also apply `group_visibility_grant`, except that a group always sees the agents it owns itself.
+Out-of-scope resources return `404`, not `403`, so their existence isn't revealed. Agent reads also apply group visibility: a group always sees the agents it owns and those of every group below it (`groups.parent_group_id`, children, grandchildren and so on); any other group's agents need a `group_visibility_grant`.
 
 Broadcasts are personal: a non-admin sees only the broadcasts they sent (list, detail and deliveries; anyone else's returns `404`). Admins see every broadcast. The filter uses the signed-in person, so View as doesn't change it.
 
@@ -516,7 +516,7 @@ Relationships: belongs to `lga`; has many `polling_unit`.
 | is_position_doubtful | boolean | `FALSE` |
 | created_at | timestamptz | `NOW()` |
 
-Relationships: belongs to `ward`; many-to-many with `political_unit` via `pu_political_unit`; has many `agent_assignment`; referenced by `person.home_polling_unit_id`.
+Relationships: belongs to `ward`; many-to-many with `political_unit` via `pu_political_unit`; has many `agent_assignment`.
 
 **`political_unit`**: a hierarchical constituency (country, state, senatorial district, federal or state constituency).
 
@@ -547,9 +547,7 @@ Index on `polling_unit_id`.
 | --- | --- | --- |
 | id | uuid | PK |
 | full_name | varchar | not null |
-| home_polling_unit_id | int | FK `polling_unit.id` (SET NULL), nullable |
 | email_address | varchar | nullable; unique on `LOWER(email_address)` where not null |
-| voter_card_number | varchar | nullable (never returned by the API) |
 | verification_status | `verification_status` | `unverified` |
 | created_at, updated_at | timestamptz | `NOW()` |
 
@@ -670,7 +668,7 @@ Checks: exactly one of `seat_id` / `principal_candidate_id` is set, and a candid
 | id | serial | PK |
 | group_name | varchar | not null |
 | group_type_id | int | FK `group_type.id` (RESTRICT), not null, indexed |
-| parent_group_id | int | FK `groups.id` (SET NULL), nullable |
+| parent_group_id | int | FK `groups.id` (SET NULL), nullable; the group above this one. A group sees the agents of every group below it |
 | created_at | timestamptz | `NOW()` |
 
 **`membership`**: a person's membership in a group.
@@ -730,7 +728,7 @@ Checks: exactly one owner (group xor candidate). Partial unique index on `pollin
 | --- | --- | --- |
 | id | uuid | PK |
 | sender_person_id | uuid | FK `person.id` (RESTRICT), not null |
-| audience_filter | jsonb | not null (IDs only) |
+| audience_filter | jsonb | not null (IDs only). Area filters, or `personId` for one agent ("Message this agent") |
 | message_text | text | not null |
 | scheduled_send_at | timestamptz | nullable |
 | broadcast_status | `broadcast_status` | `draft` (the API creates `scheduled` or `sending`) |
@@ -853,7 +851,6 @@ erDiagram
   political_unit ||--o{ pu_political_unit : "mapped by"
   political_unit |o--o{ political_unit : "parent of"
 
-  polling_unit |o--o{ person : "home unit of"
   person ||--o{ phone_number : "has"
   person ||--o{ consent : "gives"
   person ||--o{ login_otp : "requests"
@@ -929,7 +926,6 @@ erDiagram
   }
   person {
     uuid id PK
-    int home_polling_unit_id FK
     string email_address UK
   }
   phone_number {
@@ -1082,9 +1078,10 @@ The full contract (parameters, bodies, response schemas, examples, error respons
 | `GET /api/settings/groups/{groupTypeId}` | Session, admin | What deleting the type would affect: the groups using it, with member and agent counts, and `canDelete` |
 | `DELETE /api/settings/groups/{groupTypeId}` | Session, admin, same origin, not while viewing as | Delete a type an admin made. Built-in types `403`; a type any group uses `409`; audited |
 | `POST /api/settings/groups` | Session, admin, same origin, not while viewing as | Create a group type (`{ name, canMessage: "none" \| "agents_they_cover", seesCoverage: "national" \| "own_area" }`); `201`, `409` if the name is taken, audited |
-| `GET /api/agents` | Session | List visible agents (filters, search, cursor) |
+| `GET /api/agents` | Session | List visible agents (filters, cursor). `q` searches agent name, PU code and name, ward and LGA (not phones). `personId` lists one person's assignments. Each polling unit carries `latitude`, `longitude` and `hasGps` for the map link |
 | `GET /api/agents/summary` | Session | Counts by role and Telegram readiness |
-| `POST /api/broadcasts/preview` | Session, same origin | Count the official and extra agents a filter reaches |
+| `GET /api/agents/available` | Session | People who can be assigned as an agent: not yet an agent anywhere and not an admin. `q` matches the name only; phones masked; cursor pages of 20 (`meta.total` on the first page). Feeds the agent picker in the Assign dialog |
+| `POST /api/broadcasts/preview` | Session, same origin | Count the official and extra agents a filter reaches. The filter can be an area (state, LGA, ward, polling unit, owner group, agent kind) or one person (`personId`); either way it stays inside the sender's area and the agents they can see |
 | `GET /api/broadcasts` | Session | List visible broadcasts |
 | `POST /api/broadcasts` | Session, same origin | Create and queue a broadcast (`201`) |
 | `GET /api/broadcasts/{id}` | Session | Broadcast detail with delivery counts |
@@ -1097,8 +1094,9 @@ The full contract (parameters, bodies, response schemas, examples, error respons
 | `GET /api/coverage/summary` | Session | Coverage totals for the filtered area |
 | `GET /api/coverage/map-points` | Session | Grouped polling-unit coordinates and official-agent counts (no person data) |
 | `GET /api/coverage/candidates` | Session | Candidates with coverage for their seat (cursor, `limit` up to 500, audited) |
-| `GET /api/coverage/gaps` | Session | Polling units without an official agent; cursor pagination (`limit` up to 500, `cursor`), `totalCount` on the first page only |
-| `POST /api/coverage/assignments` | Session, same origin | Create an agent assignment (audited) |
+| `GET /api/coverage/gaps` | Session | Polling units without an official agent; cursor pagination (`limit` up to 500, `cursor`), `totalCount` on the first page only. `q` searches the PU code or name |
+| `POST /api/coverage/assignments` | Session, same origin | Create an agent assignment (audited). The owner must be a group the caller can assign for (admins and people with no membership: any group; otherwise their own groups, every group below them, and groups they are granted) or the caller's own candidate record; rule in `lib/coverage/assignment-owners.ts`. `slotNumber`: 0 for official; for extra, 1, 2, ... or leave it out and the server takes the owner's next free slot at that unit (under the polling-unit lock). Agents page: **Assign** on a gap row adds the official agent; **Add extra** on a row that has an official agent adds an extra one |
+| `GET /api/coverage/assignments/owners` | Session | The groups and own candidate record the caller can assign for, by name: the Owner dropdown in the Assign popup. Same rule as the POST |
 | `DELETE /api/coverage/assignments/{assignmentId}` | Session, same origin | Delete an assignment (audited) |
 | `GET /api/admin/queue` | Session, admin | Queue counts and recent jobs |
 | `POST /api/telegram/webhook` | Telegram secret header | Receive bot updates |

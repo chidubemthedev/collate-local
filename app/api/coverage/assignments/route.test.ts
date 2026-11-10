@@ -58,6 +58,7 @@ function useDatabase(pollingUnit: Array<{ id: number; allowed: boolean }>) {
     calls.push(sql);
     if (sql.includes("FROM polling_unit pu")) return pollingUnit;
     if (sql.includes("FROM groups owner_group")) return [{ id: 3 }];
+    if (sql.includes("AS next_slot")) return [{ next_slot: 3 }];
     if (sql.includes("AS exists")) return [{ exists: false }];
     if (sql.includes("INSERT INTO agent_assignment")) return [{ id: "new-assignment" }];
     return [];
@@ -106,6 +107,49 @@ describe("POST /api/coverage/assignments", () => {
     } finally {
       Object.assign(AUTH_ROWS[0], original, { view_as: undefined });
     }
+  });
+
+  it("lets the caller assign for groups below their own, using the shared owner rule", async () => {
+    const calls = useDatabase([{ id: 42, allowed: true }]);
+
+    expect((await post(validBody)).status).toBe(201);
+
+    const ownerQuery = calls.find((sql) => sql.includes("FROM groups owner_group"));
+    expect(ownerQuery).toContain("WITH RECURSIVE group_tree");
+    expect(ownerQuery).toContain("own_membership.person_id = $1");
+    expect(ownerQuery).toContain("$3::boolean");
+    expect(ownerQuery).toContain("FOR KEY SHARE OF owner_group");
+  });
+
+  it("picks the owner's next free slot when an extra agent is sent without one", async () => {
+    const calls = useDatabase([{ id: 42, allowed: true }]);
+    const { slotNumber: _omitted, ...withoutSlot } = validBody;
+    void _omitted;
+
+    expect((await post(withoutSlot)).status).toBe(201);
+
+    const nextSlot = calls.find((sql) => sql.includes("AS next_slot"));
+    expect(nextSlot).toContain("agent_kind = 'extra'");
+    expect(nextSlot).toContain("owner_group_id IS NOT DISTINCT FROM $2");
+    const { query } = await mocks.getDataSource.mock.results[0].value;
+    const insert = query.mock.calls.find(([sql]: [string]) => sql.includes("INSERT INTO agent_assignment"));
+    expect(insert[1][5]).toBe(3);
+  });
+
+  it("keeps a slot that is sent, without looking one up", async () => {
+    const calls = useDatabase([{ id: 42, allowed: true }]);
+    expect((await post(validBody)).status).toBe(201);
+    expect(calls.some((sql) => sql.includes("AS next_slot"))).toBe(false);
+  });
+
+  it("still requires slot 0 for an official agent and rejects bad slots", async () => {
+    useDatabase([{ id: 42, allowed: true }]);
+    const { slotNumber: _omitted, ...withoutSlot } = validBody;
+    void _omitted;
+    expect((await post({ ...withoutSlot, agentKind: "official" })).status).toBe(400);
+    expect((await post({ ...validBody, slotNumber: 0 })).status).toBe(400);
+    expect((await post({ ...validBody, slotNumber: "2" })).status).toBe(400);
+    expect((await post({ ...validBody, slotNumber: null })).status).toBe(400);
   });
 
   it("returns not found when the polling unit does not exist", async () => {

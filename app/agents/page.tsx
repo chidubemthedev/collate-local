@@ -36,6 +36,13 @@ export default function AgentsPage() {
   // The channel filter is not in the current design.
   const [selectedChannel] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  // Searched on the server (agent name, PU code, ...) once typing pauses.
+  const [search, setSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchQuery.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+  const q = search || undefined;
 
   // 1. Resolve numeric geography IDs for API filtering
   const {
@@ -133,6 +140,7 @@ export default function AgentsPage() {
       wardId: selectedWardId ?? undefined,
       agentKind: agentKindParam,
       ownerGroupId,
+      q,
       limit: 100,
     },
   );
@@ -149,6 +157,7 @@ export default function AgentsPage() {
       stateId: selectedStateId ?? undefined,
       lgaId: selectedLgaId ?? undefined,
       wardId: selectedWardId ?? undefined,
+      q,
       limit: 100,
     },
     {
@@ -211,6 +220,9 @@ export default function AgentsPage() {
             item.pollingUnit.name ||
             `Polling Unit ${item.pollingUnit.inecPollingUnitCode}`,
           puLocation: `${item.pollingUnit.wardName}, ${item.pollingUnit.lgaName}`,
+          latitude: item.pollingUnit.latitude,
+          longitude: item.pollingUnit.longitude,
+          hasGPS: item.pollingUnit.hasGps,
           wardCode: selectedWardCode !== "all" ? selectedWardCode : "",
           lgaCode: selectedLgaCode !== "all" ? selectedLgaCode : "",
           stateCode: selectedStateCode !== "all" ? selectedStateCode : "",
@@ -290,19 +302,7 @@ export default function AgentsPage() {
       )
         return false;
 
-      // Search query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchesName = record.name.toLowerCase().includes(q);
-        const matchesPU =
-          record.puName.toLowerCase().includes(q) ||
-          record.puCode.toLowerCase().includes(q);
-        const matchesSponsor = record.sponsor.toLowerCase().includes(q);
-        const matchesRole = record.role.toLowerCase().includes(q);
-        if (!matchesName && !matchesPU && !matchesSponsor && !matchesRole) {
-          return false;
-        }
-      }
+      // Search is applied by the APIs (q).
 
       return true;
     });
@@ -310,7 +310,6 @@ export default function AgentsPage() {
     allAgentRecords,
     selectedTypeTab,
     selectedChannel,
-    searchQuery,
   ]);
 
   const handleClearFilters = () => {

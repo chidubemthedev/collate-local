@@ -132,6 +132,58 @@ function managerFor(builder: unknown, query = vi.fn()) {
   } as unknown as EntityManager;
 }
 
+describe("agent polling unit coordinates", () => {
+  function row(latitude: number | string | null, longitude: number | string | null) {
+    return {
+      assignmentId: "a-1",
+      agentKind: "official",
+      slotNumber: 0,
+      personId: "p-1",
+      fullName: "Ada Obi",
+      phoneNumber: null,
+      telegramConnected: false,
+      pollingUnitId: 7,
+      pollingUnitCode: "01/01/01/001",
+      pollingUnitName: "Town Hall",
+      pollingUnitLatitude: latitude,
+      pollingUnitLongitude: longitude,
+      wardName: "Ward",
+      lgaName: "Lga",
+      stateName: "State",
+      ownerType: "group",
+      ownerId: 3,
+      ownerDisplayName: "NDC",
+    };
+  }
+
+  async function firstUnit(latitude: number | string | null, longitude: number | string | null) {
+    const { builder } = recordingQueryBuilder();
+    builder.getRawMany = vi.fn(async () => [row(latitude, longitude)]);
+    const page = await listAgents(adminUser, { limit: 50 }, undefined, managerFor(builder));
+    return page.items[0]?.pollingUnit;
+  }
+
+  it("returns the coordinates and marks units that can link to a map", async () => {
+    expect(await firstUnit("6.5244", 3.3792)).toMatchObject({ latitude: 6.5244, longitude: 3.3792, hasGps: true });
+  });
+
+  it("treats missing or 0,0 coordinates as no GPS", async () => {
+    expect(await firstUnit(null, 3.3792)).toMatchObject({ latitude: null, hasGps: false });
+    expect(await firstUnit(0, 0)).toMatchObject({ hasGps: false });
+  });
+});
+
+describe("agent person filter", () => {
+  it("limits the list to one person's assignments", async () => {
+    const { builder, whereClauses } = recordingQueryBuilder();
+    await listAgents(adminUser, { personId: "11111111-1111-4111-8111-111111111111", limit: 1 }, undefined, managerFor(builder));
+    expect(whereClauses).toContain("person.id = :agentFilterPersonId");
+    expect(builder.andWhere).toHaveBeenCalledWith("person.id = :agentFilterPersonId", {
+      agentFilterPersonId: "11111111-1111-4111-8111-111111111111",
+    });
+  });
+});
+
 describe("agent channel filters", () => {
   it("sms_only keeps people off Telegram who have a confirmed number", async () => {
     const { builder, whereClauses } = recordingQueryBuilder();
