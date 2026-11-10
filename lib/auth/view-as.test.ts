@@ -114,12 +114,20 @@ describe("labels", () => {
 
   it("takes coverage and messaging from the group type's rules", () => {
     const area = { scope_state_id: 5, scope_lga_id: null, scope_ward_id: null, scope_political_unit_id: null };
-    // A Party-type group sees the whole country, even with an area set.
+    const noArea = { scope_state_id: null, scope_lga_id: null, scope_ward_id: null, scope_political_unit_id: null };
+    // A Party-type group with no area on the membership sees the whole country.
     const party = ownAccessFromRows([
-      { group_name: "NDC", group_type: "party", can_message: "agents_they_cover", sees_coverage: "national", ...area },
+      { group_name: "NDC", group_type: "party", can_message: "agents_they_cover", sees_coverage: "national", ...noArea },
     ]);
     expect(party.own.hasGlobalCoverageAccess).toBe(true);
     expect(party.canMessage).toBe(true);
+    // With an area set, the area wins: a Lagos coordinator in a party group sees Lagos only.
+    const partyLagos = ownAccessFromRows([
+      { group_name: "NDC Lagos", group_type: "party", can_message: "agents_they_cover", sees_coverage: "national", ...area },
+    ]);
+    expect(partyLagos.own.hasGlobalCoverageAccess).toBe(false);
+    expect(partyLagos.own.scopes).toEqual([{ stateId: 5, lgaId: null, wardId: null, politicalUnitId: null }]);
+    expect(partyLagos.canMessage).toBe(true);
     // A support group looks at its own area and cannot message.
     const support = ownAccessFromRows([
       { group_name: "Youth Wing", group_type: "support_group", can_message: "none", sees_coverage: "own_area", ...area },
@@ -129,7 +137,7 @@ describe("labels", () => {
     expect(support.canMessage).toBe(false);
     // A type an admin made (no key) still counts as a membership.
     const custom = ownAccessFromRows([
-      { group_name: "Observers", group_type: null, can_message: "none", sees_coverage: "national", ...area },
+      { group_name: "Observers", group_type: null, can_message: "none", sees_coverage: "national", ...noArea },
     ]);
     expect(custom.own.hasGlobalCoverageAccess).toBe(true);
     expect(custom.label).toBe("Observers");

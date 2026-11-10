@@ -2,13 +2,15 @@ import type { EntityManager } from "typeorm";
 import { Candidate } from "../../db/entities/candidate.entity";
 import { Membership } from "../../db/entities/membership.entity";
 import { resolveManager } from "./database";
+import { givesNationalAccess } from "./national-access";
 
 export interface PolicyUser {
   personId: string;
   isAdmin: boolean;
   /**
-   * Their group type sees national coverage: every polling unit, like admins, without admin
-   * rights. Otherwise they see only the areas set on their memberships.
+   * A membership whose group type sees national coverage and that has no area: every polling
+   * unit, like admins, without admin rights. Otherwise they see only the areas set on their
+   * memberships (an area wins over a national type; see ./national-access.ts).
    */
   hasNationalAccess?: boolean;
   /**
@@ -74,8 +76,16 @@ export async function loadPolicyUser(
   return {
     personId,
     isAdmin: membershipRows.some((row) => row.typeKey === "admin"),
-    // The rules come from each group's type (group_type).
-    hasNationalAccess: membershipRows.some((row) => row.seesCoverage === "national"),
+    // The rules come from each group's type (group_type); an area on the membership wins.
+    // One row per membership area, or one row with no area for a membership without any.
+    hasNationalAccess: membershipRows.some((row) =>
+      givesNationalAccess(row.seesCoverage, {
+        stateId: row.scopeStateId,
+        lgaId: row.scopeLgaId,
+        wardId: row.scopeWardId,
+        politicalUnitId: row.scopePoliticalUnitId,
+      }),
+    ),
     ...(membershipRows.length
       ? { canMessage: membershipRows.some((row) => row.canMessage !== "none") }
       : {}),

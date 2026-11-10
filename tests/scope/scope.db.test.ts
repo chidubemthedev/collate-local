@@ -447,9 +447,9 @@ describe.skipIf(!shouldRun)("scope: who can see what (test script fixture)", () 
       expect((await candidates()).map((row) => row.name)).not.toContain("Obi Senate");
     });
 
-    // PRD §6.6: candidates use the app through their own access link. Access links are not
-    // built yet, and a candidate who signs in has no membership, so every API refuses them.
-    it.fails("LINK-02 a candidate signed in sees their own seat", async () => {
+    // PRD §6.6: a candidate who signs in (no membership) gets their seat's area as their access.
+    // Fixed by candidate access (lib/auth/view-as.ts); no longer a known gap.
+    it("LINK-02 a candidate signed in sees their own seat", async () => {
       await loginAs("P12");
       expect(figure(await summary())).toBe("3 of 5 (60%)");
     });

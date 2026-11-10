@@ -13,6 +13,7 @@
  */
 import type { MembershipScope } from "./coverage-scope";
 import type { PolicyUser } from "../policy/core/policy-user";
+import { givesNationalAccess } from "../policy/core/national-access";
 
 export interface Queryable {
   query<T = unknown>(sql: string, parameters?: unknown[]): Promise<T>;
@@ -115,8 +116,16 @@ export function ownAccessFromRows(rows: MembershipAccessRow[]): {
   return {
     own: {
       isAdmin,
-      // A group whose type sees national coverage sees the whole country, whatever its areas.
-      hasGlobalCoverageAccess: memberships.some((row) => row.sees_coverage === "national"),
+      // National only through a national-type membership with no area: an area on the
+      // membership limits it to that area (lib/policy/core/national-access.ts).
+      hasGlobalCoverageAccess: memberships.some((row) =>
+        givesNationalAccess(row.sees_coverage, {
+          stateId: row.scope_state_id,
+          lgaId: row.scope_lga_id,
+          wardId: row.scope_ward_id,
+          politicalUnitId: row.scope_political_unit_id,
+        }),
+      ),
       scopes: memberships
         .filter(
           (row) =>
