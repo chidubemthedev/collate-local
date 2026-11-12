@@ -1,11 +1,11 @@
 name: CI
 
 on:
-  # Every push, on any branch, and every pull request into main.
+  # Every push, on any branch, and every pull request into main or sandbox.
   push:
     branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: [main, sandbox]
   workflow_dispatch:
 
 # The workflow only reads the code.
